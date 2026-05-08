@@ -1,4 +1,4 @@
----
+﻿---
 title: "Newsfeed"
 openapi: "POST /api/enterprise/newsfeed/news/"
 ---
@@ -85,99 +85,6 @@ A successful response returns news articles directly.
   Total number of matching articles.
 </ResponseField>
 
-<RequestExample>
-
-```javascript JavaScript - Fetch
-const myHeaders = new Headers();
-myHeaders.append("Authorization", "Bearer Token");
-myHeaders.append("Content-Type", "application/json");
-
-const raw = JSON.stringify({
-  "breaking_news": true,
-  "geo": ["USA"],
-  "sentiment": "positive",
-  "published_date_after": "2026-04-01",
-  "published_date_before": "2026-04-30"
-});
-
-const requestOptions = {
-  method: "POST",
-  headers: myHeaders,
-  body: raw,
-  redirect: "follow"
-};
-
-fetch("https://api.wokelo.ai/api/enterprise/newsfeed/news/", requestOptions)
-  .then((response) => response.text())
-  .then((result) => console.log(result))
-  .catch((error) => console.error(error));
-```
-
-```python Python
-import requests
-
-url = "https://api.wokelo.ai/api/enterprise/newsfeed/news/"
-
-headers = {
-    "Authorization": "Bearer Token",
-    "Content-Type": "application/json"
-}
-payload = {
-    "breaking_news": True,
-    "geo": ["USA"],
-    "sentiment": "positive",
-    "published_date_after": "2026-04-01",
-    "published_date_before": "2026-04-30"
-}
-
-response = requests.post(url, headers=headers, json=payload)
-print(response.text)
-```
-
-```bash cURL
-curl --location 'https://api.wokelo.ai/api/enterprise/newsfeed/news/' \
-  --header 'Authorization: Bearer Token' \
-  --header 'Content-Type: application/json' \
-  --data '{
-    "breaking_news": true,
-    "geo": ["USA"],
-    "sentiment": "positive",
-    "published_date_after": "2026-04-01",
-    "published_date_before": "2026-04-30"
-  }'
-```
-
-```go Go
-package main
-
-import (
-  "bytes"
-  "encoding/json"
-  "fmt"
-  "io"
-  "net/http"
-)
-
-func main() {
-  payload := map[string]interface{}{
-    "breaking_news":        true,
-    "geo":                  []string{"USA"},
-    "sentiment":            "positive",
-    "published_date_after": "2026-04-01",
-    "published_date_before": "2026-04-30",
-  }
-  body, _ := json.Marshal(payload)
-  req, _ := http.NewRequest("POST", "https://api.wokelo.ai/api/enterprise/newsfeed/news/", bytes.NewBuffer(body))
-  req.Header.Set("Authorization", "Bearer Token")
-  req.Header.Set("Content-Type", "application/json")
-  resp, _ := http.DefaultClient.Do(req)
-  defer resp.Body.Close()
-  respBody, _ := io.ReadAll(resp.Body)
-  fmt.Println(string(respBody))
-}
-```
-
-</RequestExample>
 
 <ResponseExample>
 

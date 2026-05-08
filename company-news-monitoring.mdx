@@ -1,4 +1,4 @@
----
+﻿---
 title: "Company News Monitoring"
 description: "Fetches the latest news articles for a given company, enriched with AI-generated summaries, categories and publisher details."
 openapi: "GET /api/enterprise/company/news/"
@@ -84,87 +84,6 @@ Returns a JSON object with the following structure:
   Total number of results returned.
 </ResponseField>
 
-<RequestExample>
-
-```javascript JavaScript - Fetch
-const myHeaders = new Headers();
-myHeaders.append("Authorization", "Bearer Token");
-myHeaders.append("Content-Type", "application/json");
-
-const requestOptions = {
-  method: "GET",
-  headers: myHeaders,
-  redirect: "follow"
-};
-
-fetch("{{path}}/api/enterprise/company/news/?company=tesla&category=PRODUCT RELATED", requestOptions)
-  .then((response) => response.text())
-  .then((result) => console.log(result))
-  .catch((error) => console.error(error));
-```
-
-```python Python
-import requests
-
-headers = {
-    "Authorization": "Bearer YOUR_TOKEN",
-    "Content-Type": "application/json"
-}
-response = requests.get(
-    "https://api.wokelo.ai/api/enterprise/company/news/",
-    headers=headers,
-    params={"company": "tesla", "category": "PRODUCT RELATED", "limit": 100}
-)
-print(response.json())
-```
-
-```bash cURL
-curl --request GET \
-  --url 'https://api.wokelo.ai/api/enterprise/company/news/?company=tesla&category=PRODUCT%20RELATED' \
-  --header 'Authorization: Bearer YOUR_TOKEN'
-```
-
-```go Go
-package main
-
-import (
-  "fmt"
-  "io"
-  "net/http"
-  "net/url"
-)
-
-func main() {
-  params := url.Values{"company": {"tesla"}, "category": {"PRODUCT RELATED"}}
-  req, _ := http.NewRequest("GET",
-    "https://api.wokelo.ai/api/enterprise/company/news/?"+params.Encode(), nil)
-  req.Header.Set("Authorization", "Bearer YOUR_TOKEN")
-  resp, _ := http.DefaultClient.Do(req)
-  defer resp.Body.Close()
-  body, _ := io.ReadAll(resp.Body)
-  fmt.Println(string(body))
-}
-```
-
-```java Java
-import java.net.URI;
-import java.net.http.*;
-
-public class NewsMonitoring {
-  public static void main(String[] args) throws Exception {
-    HttpRequest request = HttpRequest.newBuilder()
-        .uri(URI.create("https://api.wokelo.ai/api/enterprise/company/news/?company=tesla&category=PRODUCT%20RELATED"))
-        .header("Authorization", "Bearer YOUR_TOKEN")
-        .GET()
-        .build();
-    HttpResponse<String> response = HttpClient.newHttpClient()
-        .send(request, HttpResponse.BodyHandlers.ofString());
-    System.out.println(response.body());
-  }
-}
-```
-
-</RequestExample>
 
 <ResponseExample>
 

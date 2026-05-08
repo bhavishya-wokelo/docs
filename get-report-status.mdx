@@ -1,4 +1,4 @@
----
+﻿---
 title: "Get Report Status"
 openapi: "GET /api/assets/get_notebook_status/"
 ---
@@ -44,101 +44,6 @@ Successful response will return the status along with report\_id and title. List
 5. Exported
 6. No Data Found
 
-<RequestExample>
-
-```javascript JavaScript - Fetch
-const myHeaders = new Headers();
-myHeaders.append("Authorization", "your token");
-
-const requestOptions = {
-  method: "GET",
-  headers: myHeaders,
-  redirect: "follow"
-};
-
-fetch("{{path}}/api/assets/get_notebook_status/?report_id=", requestOptions)
-  .then((response) => response.text())
-  .then((result) => console.log(result))
-  .catch((error) => console.error(error));
-```
-
-```python Python
-import requests, time
-
-headers = {"Authorization": "Bearer YOUR_TOKEN"}
-while True:
-    r = requests.get(
-        "https://api.wokelo.ai/api/assets/get_notebook_status/",
-        headers=headers,
-        params={"report_id": 98564}
-    )
-    data = r.json()
-    if data["status"] in ("Completed", "Exported", "No Data Found"):
-        break
-    time.sleep(10)
-print(data)
-```
-
-```bash cURL
-curl --request GET \
-  --url 'https://api.wokelo.ai/api/assets/get_notebook_status/?report_id=98564' \
-  --header 'Authorization: Bearer YOUR_TOKEN'
-```
-
-```go Go
-package main
-
-import (
-  "encoding/json"
-  "fmt"
-  "io"
-  "net/http"
-  "time"
-)
-
-func main() {
-  for {
-    req, _ := http.NewRequest("GET",
-      "https://api.wokelo.ai/api/assets/get_notebook_status/?report_id=98564", nil)
-    req.Header.Set("Authorization", "Bearer YOUR_TOKEN")
-    resp, _ := http.DefaultClient.Do(req)
-    body, _ := io.ReadAll(resp.Body)
-    resp.Body.Close()
-    var result map[string]interface{}
-    json.Unmarshal(body, &result)
-    s := result["status"].(string)
-    if s == "Completed" || s == "Exported" || s == "No Data Found" {
-      fmt.Println(string(body)); break
-    }
-    time.Sleep(10 * time.Second)
-  }
-}
-```
-
-```java Java
-import java.net.URI;
-import java.net.http.*;
-
-public class GetReportStatus {
-  public static void main(String[] args) throws Exception {
-    while (true) {
-      HttpRequest request = HttpRequest.newBuilder()
-          .uri(URI.create("https://api.wokelo.ai/api/assets/get_notebook_status/?report_id=98564"))
-          .header("Authorization", "Bearer YOUR_TOKEN")
-          .GET().build();
-      HttpResponse<String> response = HttpClient.newHttpClient()
-          .send(request, HttpResponse.BodyHandlers.ofString());
-      String body = response.body();
-      if (body.contains("Completed") || body.contains("Exported") || body.contains("No Data Found")) {
-        System.out.println(body); break;
-      }
-      Thread.sleep(10000);
-    }
-  }
-}
-```
-
-</RequestExample>
 
 <ResponseExample>
 
