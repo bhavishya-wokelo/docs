@@ -1,0 +1,137 @@
+---
+title: "Getting started"
+---
+
+Access your API credentials from the [API Credentials page](https://app.wokelo.ai/dashboard/profile/api-credentials).
+
+Authentication All API requests must be authenticated using a JWT token. Follow the steps below to generate your token:
+
+- Use our authentication end point: `https://api.wokelo.ai/auth/token/`
+- Use your Client ID and Client Secret obtained from the API credentials page. Add your email and password. Grant type should be “password”.
+- This generates a JWT token.
+
+<CodeGroup>
+
+```json cURL wrap
+curl --location 'https://api.wokelo.ai/auth/token/' \
+--form 'username="sam@abconsulting.com"' \
+--form 'password="password"' \
+--form 'grant_type="password"' \
+--form 'client_id="YOUR_CLIENT_ID"' \
+--form 'client_secret="YOUR_CLIENT_SECRET"'
+```
+
+```json Python expandable wrap
+import requests
+
+url = "https://api.wokelo.ai/auth/token/"
+
+payload = {'username': 'sam@abconsulting.com',
+'password': 'password',
+'grant_type': 'password',
+'client_id': 'YOUR_CLIENT_ID',
+'client_secret': 'YOUR_CLIENT_SECRET'}
+files=[
+
+]
+headers = {}
+
+response = requests.request("POST", url, headers=headers, data=payload, files=files)
+
+print(response.text)
+```
+
+</CodeGroup>
+
+**Make first API call**
+
+Lets try using Company Instant Enrichment API.
+
+<CodeGroup>
+
+```json cURL
+curl --location 'https://api.wokelo.ai/api/enterprise/company/enrich/' \
+--header 'Authorization: Bearer Token' \
+--header 'Content-Type: application/json' \
+--data '{
+    "companies": [
+        "https://ulteig.com/"
+    ],
+    "sections": [
+        "firmographics",
+        "products"
+    ]
+    
+}'
+```
+
+```json Python expandable wrap
+import requests
+import json
+
+url = "https://api.wokelo.ai/api/enterprise/company/enrich/"
+
+payload = json.dumps({
+  "companies": [
+    "https://ulteig.com/"
+  ],
+  "sections": [
+    "firmographics",
+    "products"
+  ]
+})
+headers = {
+  'Authorization': 'Bearer Token',
+  'Content-Type': 'application/json'
+}
+
+response = requests.request("POST", url, headers=headers, data=payload)
+
+print(response.text)
+```
+
+</CodeGroup>
+
+A successful request should return a request\_id as shown below.
+
+```text
+{
+    "request_id": "98620177-6b1d-4cda-837b-2be844ec8d65",
+    "status": "PENDING"
+}
+```
+
+You can then use request result API to view the results.
+
+```json expandable wrap
+{
+    "request_id": "98620177-6b1d-4cda-837b-2be844ec8d65",
+    "status": "COMPLETED",
+    "result": {
+        "ulteig": {
+            "firmographics": {
+                "name": "Ulteig",
+                "website": "http://ulteig.com",
+                "location": "Austin, United States",
+                "founded": 1944,
+                "type": "private",
+                "operating_status": "Operating",
+                "ticker": null
+            },
+            "products": {
+                "product_category": "Civil Engineering Infrastructure Services",
+                "core_offering": "Ulteig is a civil engineering company that provides comprehensive engineering design, program management, and field services across various sectors including power, renewable energy, transportation, and water management.",
+                "product_catalog": [
+                    "Engineering design services",
+                    "Program management",
+                    "Environmental planning and services",
+                    "Construction management",
+                    "Land surveying"
+                ],
+                "short_description": "Ulteig is a civil engineering company that offers engineering, surveying, and consulting services.",
+                "long_description": "Ulteig is a civil engineering company that offers engineering, surveying, and consulting services."
+            }
+        }
+    }
+}
+```

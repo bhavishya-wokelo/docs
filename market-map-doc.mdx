@@ -1,0 +1,522 @@
+---
+title: "Market  Map"
+---
+
+Ranked company discovery within a market category.
+
+NOTE: This is a asynchronous API, which means it will return a request\_id in the response. You would be required to poll the status and then retrieve the results. Read more about async APIs [here](https://docs.wokelo.ai/how-async-apis-work).
+
+## Request reference
+
+Here is a request containing all the possible parameters:
+
+<CodeGroup>
+
+```json cURL expandable wrap
+curl --location 'https://api.wokelo.ai/api/enterprise/market-map/enrich/' \
+--header 'Authorization: Bearer Token' \
+--header 'Content-Type: application/json' \
+--data '{
+    "topic": "AI-powered CRM software",
+    "parameters": {
+        "detailed_query": "B2B CRM tools leveraging AI for sales automation",
+        "keywords": [
+            "AI",
+            "CRM",
+            "sales automation"
+        ],
+        "sample_companies": [
+            "salesforce",
+            "hubspot"
+        ],
+        "geography": [
+            "USA"
+        ],
+        "company_type": "private",
+        "employee_count": ["11-50"],
+        "founded_year": {
+            "from": 2015
+        },
+        "funding_stage": [ "Series A", "Series B"
+        ],
+        "total_funding": { "from": "5000000"},
+        "last_funding_round": {},
+        "revenue": {},
+        "ebitda": {},
+        "net_income": {},
+        "ev_ebitda": {}
+    }
+}'
+```
+
+```json Python expandable wrap
+import requests
+import json
+
+url = "https://api.wokelo.ai/api/enterprise/market-map/enrich/"
+
+payload = json.dumps({
+  "topic": "AI-powered CRM software",
+  "parameters": {
+    "detailed_query": "B2B CRM tools leveraging AI for sales automation",
+    "keywords": [
+      "AI",
+      "CRM",
+      "sales automation"
+    ],
+    "sample_companies": [
+      "salesforce",
+      "hubspot"
+    ],
+    "geography": [
+      "USA"
+    ],
+    "company_type": "private",
+    "employee_count": [
+      "11-50"
+    ],
+    "founded_year": {
+      "from": 2015
+    },
+    "funding_stage": [
+      "Series A",
+      "Series B"
+    ],
+    "total_funding": {
+      "from": "5000000"
+    },
+    "last_funding_round": {},
+    "revenue": {},
+    "ebitda": {},
+    "net_income": {},
+    "ev_ebitda": {}
+  }
+})
+headers = {
+  'Authorization': 'Bearer Token',
+  'Content-Type': 'application/json'
+}
+
+response = requests.request("POST", url, headers=headers, data=payload)
+
+print(response.text)
+```
+
+</CodeGroup>
+
+The table below lists all the parameters available to filter the results.
+
+| Parameter | Description |
+| :-- | :-- |
+| `topic` | The market or product category to map (e.g. `"AI-powered CRM software"`) |
+| `parameters.detailed_query` | A more descriptive query to refine the market map scope |
+| `parameters.keywords` | Keywords used to identify and filter relevant companies |
+| `parameters.sample_companies` | Permalinks or URLs of representative companies to anchor the market map |
+| `parameters.geography` | Geographic scope as [ISO country codes](https://docs.wokelo.ai/iso-country-codes) (e.g. `["USA", "GBR"]`) |
+| `parameters.company_type` | Type of company to include: `"private"`, `"public"`, or `"all"` |
+| `parameters.employee_count` | Filter by headcount range (e.g. `1-10`, `11-50`, ... `10000+`). Empty array = all |
+| `parameters.founded_year` | Filter by founding year. Accepts `from` and/or `to` integer values |
+| `parameters.funding_stage` | Filter by funding stage (e.g. `"Series A"`, `"Seed"`). Empty array = all |
+| `parameters.total_funding` | Filter by total funding raised. Accepts `from` and/or `to` values |
+| `parameters.last_funding_round` | Filter by last funding round. Accepts `from` and/or `to` values |
+| `parameters.revenue` | Filter by annual revenue. Accepts `from` and/or `to` values |
+| `parameters.ebitda` | Filter by EBITDA. Accepts `from` and/or `to` values |
+| `parameters.net_income` | Filter by net income. Accepts `from` and/or `to` values |
+| `parameters.ev_ebitda` | Filter by EV/EBITDA multiple. Accepts `from` and/or `to` values |
+
+View [detailed API reference](/market-map) for details about each parameter.
+
+## Examples
+
+**Vertical SaaS deal sourcing**: Find all private field service management software companies for commercial HVAC and electrical contractors in the United States — 51 to 200 employees, Series A or B, founded after 2013.
+
+A Sample Request
+
+<CodeGroup>
+
+```json cURL expandable wrap
+curl --location 'https://api.wokelo.ai/api/enterprise/market-map/enrich/' \
+--header 'Authorization: Bearer Token' \
+--header 'Content-Type: application/json' \
+--data '{
+    "topic": "Field service management software companies for commercial HVAC and electrical contractors",
+    "parameters": {
+        "detailed_query": "Find all private field service management software companies for commercial HVAC and electrical contractors in the United States ",
+        "geography": [
+            "USA"
+        ],
+        "company_type": "private",
+        "employee_count": ["51-100", "101-250"],
+        "founded_year": {
+            "min": 2013
+        },
+        "funding_stage": ["Series A", "Series B"
+        ]
+    }
+}'
+```
+
+```json Python expandable wrap
+import requests
+import json
+
+url = "https://api.wokelo.ai/api/enterprise/market-map/enrich/"
+
+payload = json.dumps({
+  "topic": "Field service management software companies for commercial HVAC and electrical contractors",
+  "parameters": {
+    "detailed_query": "Find all private field service management software companies for commercial HVAC and electrical contractors in the United States ",
+    "geography": [
+      "USA"
+    ],
+    "company_type": "private",
+    "employee_count": [
+      "51-100",
+      "101-250"
+    ],
+    "founded_year": {
+      "min": 2013
+    },
+    "funding_stage": [
+      "Series A",
+      "Series B"
+    ]
+  }
+})
+headers = {
+  'Authorization': 'Bearer Token',
+  'Content-Type': 'application/json'
+}
+
+response = requests.request("POST", url, headers=headers, data=payload)
+
+print(response.text)
+```
+
+</CodeGroup>
+
+Sample Response
+
+```json expandable wrap
+{
+    "request_id": "a57a9100-e7e1-4c6c-9b29-cdd064516ba7",
+    "status": "COMPLETED",
+    "result": [
+        {
+            "Permalink": "75-fahrenheit",
+            "Name": "75F",
+            "Website": "75f.io",
+            "HQ City": "Bloomington",
+            "HQ Country": "United States",
+            "HQ Continent": "North America",
+            "Founded": "2012",
+            "Type": "Private",
+            "Operating Status": "Operating",
+            "Product Category": "IoT building management systems",
+            "Core Offering": "75F provides IoT-based building management systems that optimize energy consumption and improve indoor air quality through smart sensors and advanced analytics.",
+            "Product Catalog": "IoT Building Management System, Smart Sensors, HVAC Optimization Applications, Energy Monitoring Software, Building Control Systems",
+            "Employees (Crunchbase)": "51-100",
+            "Employees (LinkedIn)": 108,
+            "Funding Stage": "Series B",
+            "Total Funding": 74855000.0,
+            "Last Funding Date": "2025-02-06",
+            "Key Investors": [
+                "Evergreen Climate Innovations",
+                "N47",
+                "Accurant International",
+                "Gopher Angels",
+                "Breakthrough Energy Ventures",
+                "Building Ventures",
+                "Carrier Ventures",
+                "Revolution",
+                "Climate Investment",
+                "WIND Ventures",
+                "Revolution’s Rise of the Rest Seed Fund",
+                "BloombergNEF"
+            ],
+            "Revenue": "",
+            "Ticker": "",
+            "EBITDA": "",
+            "Net Income": "",
+            "EBITDA Margin (%)": "",
+            "Net Income Margin (%)": "",
+            "EPS Diluted": "",
+            "ROA (%)": "",
+            "Unlevered FCF": "",
+            "D/E": "",
+            "Market Cap": "",
+            "Enterprise Value": "",
+            "EV/Revenue (LTM)": "",
+            "EV/EBITDA (LTM)": "",
+            "P/E (LTM)": "",
+            "Acquisitions": "",
+            "Investments": "",
+            "Overall Score": 4.0,
+            "Commentary": "75F provides IoT-based building automation and HVAC energy optimization using smart sensors, analytics, and a cloud platform, including remote monitoring and control. However, it is not described as field service management software for commercial HVAC and electrical contractors’ scheduling/work orders in the USA."
+        },
+        {
+            "Permalink": "remi-d464",
+            "Name": "Remi",
+            "Website": "remihq.com",
+            "HQ City": "Lehi",
+            "HQ Country": "United States",
+            "HQ Continent": "North America",
+            "Founded": "2022",
+            "Type": "Private",
+            "Operating Status": "Operating",
+            "Product Category": "Roofing Contractor Marketplace",
+            "Core Offering": "Remi operates a roofing marketplace that connects homeowners with pre-vetted contractors for renovation and remodeling services. The platform also enables these businesses to create and sell NFT collections while accepting crypto payments.",
+            "Product Catalog": "Roofing services, Home renovations, Contractor connections, NFT platform, Crypto payment acceptance",
+            "Employees (Crunchbase)": "51-100",
+            "Employees (LinkedIn)": 96,
+            "Funding Stage": "Series A",
+            "Total Funding": 21500000.0,
+            "Last Funding Date": "2024-08-07",
+            "Key Investors": [
+                "Cervin Ventures",
+                "Pelion Venture Partners",
+                "Y Combinator"
+            ],
+            "Revenue": "",
+            "Ticker": "",
+            "EBITDA": "",
+            "Net Income": "",
+            "EBITDA Margin (%)": "",
+            "Net Income Margin (%)": "",
+            "EPS Diluted": "",
+            "ROA (%)": "",
+            "Unlevered FCF": "",
+            "D/E": "",
+            "Market Cap": "",
+            "Enterprise Value": "",
+            "EV/Revenue (LTM)": "",
+            "EV/EBITDA (LTM)": "",
+            "P/E (LTM)": "",
+            "Acquisitions": "",
+            "Investments": "",
+            "Overall Score": 3.0,
+            "Commentary": "Remi operates a roofing-focused marketplace connecting homeowners with pre-vetted contractors, emphasizing instant quotes and fast timelines. While it also lists HVAC services, the platform is not described as field service management software for commercial HVAC and electrical contractors in the US."
+        },
+        {
+            "Permalink": "esub-construction-software",
+            "Name": "eSUB Construction Software",
+            "Website": "esub.com",
+            "HQ City": "San Diego",
+            "HQ Country": "United States",
+            "HQ Continent": "North America",
+            "Founded": "2008",
+            "Type": "Private",
+            "Operating Status": "Operating",
+            "Product Category": "Construction Project Management Software",
+            "Core Offering": "ESUB Construction Software provides cloud-based project management solutions specifically designed for subcontractors in the construction industry, focusing on task management, document control, and efficient communication between field and office teams.",
+            "Product Catalog": "Construction Management Software, Project Management Tools, Document Control Software, Time Management Solutions, Job Costing Management",
+            "Employees (Crunchbase)": "51-100",
+            "Employees (LinkedIn)": 34,
+            "Funding Stage": "Series B",
+            "Total Funding": 22000000.0,
+            "Last Funding Date": "2023-05-01",
+            "Key Investors": [
+                "Autodesk",
+                "Revolution",
+                "Revolution Ventures",
+                "Farmers Investment Club",
+                "The Investor Group",
+                "Catalyst Investors"
+            ],
+            "Revenue": "",
+            "Ticker": "",
+            "EBITDA": "",
+            "Net Income": "",
+            "EBITDA Margin (%)": "",
+            "Net Income Margin (%)": "",
+            "EPS Diluted": "",
+            "ROA (%)": "",
+            "Unlevered FCF": "",
+            "D/E": "",
+            "Market Cap": "",
+            "Enterprise Value": "",
+            "EV/Revenue (LTM)": "",
+            "EV/EBITDA (LTM)": "",
+            "P/E (LTM)": "",
+            "Acquisitions": "",
+            "Investments": "",
+            "Overall Score": 7.0,
+            "Commentary": "eSUB Construction Software provides cloud-based project management and document control for commercial subcontractors, with mobile field reporting, timecards, RFIs, submittals, and change orders. The platform explicitly serves electrical and HVAC contractors in the United States, making it a strong direct fit for field service management workflows."
+        },
+        {
+            "Permalink": "sightcall",
+            "Name": "SightCall",
+            "Website": "sightcall.com",
+            "HQ City": "Redwood City",
+            "HQ Country": "United States",
+            "HQ Continent": "North America",
+            "Founded": "2008",
+            "Type": "Private",
+            "Operating Status": "Operating",
+            "Product Category": "Remote visual assistance software",
+            "Core Offering": "SightCall provides a cloud-based visual assistance platform that enables remote users to receive live video support enriched by augmented reality, facilitating real-time problem-solving across various sectors.",
+            "Product Catalog": "Visual Assistance Platform, Augmented Reality Solutions, AI-powered Insights, API Integrations, Remote Support Software",
+            "Employees (Crunchbase)": "51-100",
+            "Employees (LinkedIn)": 81,
+            "Funding Stage": "Series B",
+            "Total Funding": 54400000.0,
+            "Last Funding Date": "2021-05-11",
+            "Key Investors": [
+                "Idinvest Partners",
+                "Bpifrance",
+                "InfraVia Capital Partners"
+            ],
+            "Revenue": "",
+            "Ticker": "",
+            "EBITDA": "",
+            "Net Income": "",
+            "EBITDA Margin (%)": "",
+            "Net Income Margin (%)": "",
+            "EPS Diluted": "",
+            "ROA (%)": "",
+            "Unlevered FCF": "",
+            "D/E": "",
+            "Market Cap": "",
+            "Enterprise Value": "",
+            "EV/Revenue (LTM)": "",
+            "EV/EBITDA (LTM)": "",
+            "P/E (LTM)": "",
+            "Acquisitions": "",
+            "Investments": "",
+            "Overall Score": 4.0,
+            "Commentary": "SightCall provides AR-powered live video remote visual assistance and field service support for technicians, with integrations and digital process automation. However, its materials do not explicitly name commercial HVAC or electrical contractors, limiting direct industry fit in the United States."
+        },
+        {
+            "Permalink": "kloudgin",
+            "Name": "KloudGin",
+            "Website": "kloudgin.com",
+            "HQ City": "Sunnyvale",
+            "HQ Country": "United States",
+            "HQ Continent": "North America",
+            "Founded": "2014",
+            "Type": "Private",
+            "Operating Status": "Operating",
+            "Product Category": "Field Service Asset Management Software",
+            "Core Offering": "KloudGin provides cloud-based software solutions for field service management and asset management, enabling organizations to optimize their workflows, increase productivity, and streamline operations.",
+            "Product Catalog": "Field Service Suite, Asset Management Suite, ERP for Mid-Size",
+            "Employees (Crunchbase)": "101-250",
+            "Employees (LinkedIn)": 202,
+            "Funding Stage": "Series A",
+            "Total Funding": 8200000.0,
+            "Last Funding Date": "2020-07-29",
+            "Key Investors": [
+                "Cloud Apps Capital Partners"
+            ],
+            "Revenue": "",
+            "Ticker": "",
+            "EBITDA": "",
+            "Net Income": "",
+            "EBITDA Margin (%)": "",
+            "Net Income Margin (%)": "",
+            "EPS Diluted": "",
+            "ROA (%)": "",
+            "Unlevered FCF": "",
+            "D/E": "",
+            "Market Cap": "",
+            "Enterprise Value": "",
+            "EV/Revenue (LTM)": "",
+            "EV/EBITDA (LTM)": "",
+            "P/E (LTM)": "",
+            "Acquisitions": "",
+            "Investments": "",
+            "Overall Score": 7.0,
+            "Commentary": "KloudGin provides cloud-based field service management software and asset management, automating work management processes with scheduling, dispatch, mobile work orders, and billing. It serves industries including HVAC, and operates primarily in North America, aligning well with commercial contractor field service workflows in the United States."
+        },
+        {
+            "Permalink": "redlist",
+            "Name": "Redlist",
+            "Website": "getredlist.com",
+            "HQ City": "Pleasant Grove",
+            "HQ Country": "United States",
+            "HQ Continent": "North America",
+            "Founded": "2014",
+            "Type": "Private",
+            "Operating Status": "Operating",
+            "Product Category": "Maintenance management software",
+            "Core Offering": "Redlist provides a comprehensive lubrication management software solution that enables businesses to monitor and optimize their maintenance and safety operations through real-time digital inspections and insights.",
+            "Product Catalog": "Lubrication Management Software, Enterprise Asset Management Systems, Computerized Maintenance Management Systems (CMMS), Field Service Management Applications, Safety Communication Platforms",
+            "Employees (Crunchbase)": "51-100",
+            "Employees (LinkedIn)": 38,
+            "Funding Stage": "Series A",
+            "Total Funding": 0.0,
+            "Last Funding Date": "2019-12-20",
+            "Key Investors": [
+                "CSL Capital Management"
+            ],
+            "Revenue": "",
+            "Ticker": "",
+            "EBITDA": "",
+            "Net Income": "",
+            "EBITDA Margin (%)": "",
+            "Net Income Margin (%)": "",
+            "EPS Diluted": "",
+            "ROA (%)": "",
+            "Unlevered FCF": "",
+            "D/E": "",
+            "Market Cap": "",
+            "Enterprise Value": "",
+            "EV/Revenue (LTM)": "",
+            "EV/EBITDA (LTM)": "",
+            "P/E (LTM)": "",
+            "Acquisitions": "",
+            "Investments": "",
+            "Overall Score": 4.0,
+            "Commentary": "Redlist delivers cloud-based CMMS/EAM and field service management applications with mobile work orders, scheduling, and safety workflows, but the provided evidence does not specifically target commercial HVAC or electrical contractors in the U.S."
+        },
+        {
+            "Permalink": "odp-solutions-inc",
+            "Name": "Sky Systemz",
+            "Website": "skysystemz.com",
+            "HQ City": "Lexington",
+            "HQ Country": "United States",
+            "HQ Continent": "North America",
+            "Founded": "2017",
+            "Type": "Private",
+            "Operating Status": "Operating",
+            "Product Category": "Financial operations management platform",
+            "Core Offering": "Sky Systemz provides a digital payment processing platform integrated with business management tools, including subscription services, invoicing, and tailored analytics for operational insights.",
+            "Product Catalog": "Payment Processing, Business Management, Subscription Services",
+            "Employees (Crunchbase)": "51-100",
+            "Employees (LinkedIn)": 74,
+            "Funding Stage": "Series A",
+            "Total Funding": 3300000.0,
+            "Last Funding Date": "2020-10-10",
+            "Key Investors": [
+                "Reed's Healthy Home",
+                "Oxbow Reserve",
+                "PayArc"
+            ],
+            "Revenue": "",
+            "Ticker": "",
+            "EBITDA": "",
+            "Net Income": "",
+            "EBITDA Margin (%)": "",
+            "Net Income Margin (%)": "",
+            "EPS Diluted": "",
+            "ROA (%)": "",
+            "Unlevered FCF": "",
+            "D/E": "",
+            "Market Cap": "",
+            "Enterprise Value": "",
+            "EV/Revenue (LTM)": "",
+            "EV/EBITDA (LTM)": "",
+            "P/E (LTM)": "",
+            "Acquisitions": "",
+            "Investments": "",
+            "Overall Score": 3.0,
+            "Commentary": "Sky Systemz is a digital payment processing and business management SaaS platform with analytics and invoicing. It mentions bolt-on payment and business solutions optimized for HVAC, but it does not explicitly provide field service management software for commercial HVAC and electrical contractors."
+        }
+    ]
+}
+```
+
+## Best Pratices
+
+- Always fill in parameters.detailed\_query — it is the most important signal for result quality and relevance.
+- Use sample\_companies to anchor the search around known players and guide the algorithm toward the right sub-market.
+- Combine multiple filters (funding\_stage \+ geography \+ employee\_count) for better results.

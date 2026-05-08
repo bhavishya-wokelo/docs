@@ -1,0 +1,389 @@
+---
+title: "Industry Deep Intelligence"
+---
+
+On-demand custom intelligence on any industry.
+
+## Quick start
+
+Generates comprehensive industry analysis covering market sizing, trends, transaction activity, partnerships, regulatory environment, and case studies.
+
+`POST  /api/enterprise/industry/enrich/`
+
+NOTE: This is a asynchronous API, which means it will return a request\_id in the response. You would be required to poll the status and then retrieve the results. Read more about async APIs [here](https://docs.wokelo.ai/how-async-apis-work).
+
+Start with a simple API request.
+
+<CodeGroup>
+
+```json cURL expandable wrap
+curl --location 'https://api.wokelo.ai/api/enterprise/industry/enrich/' \
+--header 'Authorization: Bearer Token' \
+--header 'Content-Type: application/json' \
+--data '{
+    "topic": "Enterprise SaaS security",
+    "sections": [
+        "market_size"
+    ]
+}'
+```
+
+```json Python expandable wrap
+import requests
+import json
+
+url = "https://api.wokelo.ai/api/enterprise/industry/enrich/"
+
+payload = json.dumps({
+  "topic": "Enterprise SaaS security",
+  "sections": [
+    "market_size"
+  ]
+})
+headers = {
+  'Authorization': 'Bearer Token',
+  'Content-Type': 'application/json'
+}
+
+response = requests.request("POST", url, headers=headers, data=payload)
+
+print(response.text)
+```
+
+</CodeGroup>
+
+## Request reference
+
+A sample request containing all the parameters
+
+<CodeGroup>
+
+```json cURL expandable wrap
+curl --location 'https://api.wokelo.ai/api/enterprise/industry/enrich/' \
+--header 'Authorization: Bearer Token' \
+--header 'Content-Type: application/json' \
+--data '{
+    "topic": "Enterprise SaaS security",
+    "sections": [
+        "market_size",
+        "trends_and_innovations",
+        "transactions_mna"
+    ],
+    "parameters": {
+        "keywords": [
+            "zero trust",
+            "SIEM"
+        ],
+        "geography": [
+            "USA"
+        ],
+        "definition": "B2B software focused on enterprise cybersecurity",
+        "sample_companies": [
+            "crowdstrike",
+            "sentinel"
+        ]
+    }
+}'
+```
+
+```json Python expandable wrap
+import requests
+import json
+
+url = "https://api.wokelo.ai/api/enterprise/industry/enrich/"
+
+payload = json.dumps({
+  "topic": "Enterprise SaaS security",
+  "sections": [
+    "market_size",
+    "trends_and_innovations",
+    "transactions_mna"
+  ],
+  "parameters": {
+    "keywords": [
+      "zero trust",
+      "SIEM"
+    ],
+    "geography": [
+      "USA"
+    ],
+    "definition": "B2B software focused on enterprise cybersecurity",
+    "sample_companies": [
+      "crowdstrike",
+      "sentinel"
+    ]
+  }
+})
+headers = {
+  'Authorization': 'Bearer Token',
+  'Content-Type': 'application/json'
+}
+
+response = requests.request("POST", url, headers=headers, data=payload)
+
+print(response.text)
+```
+
+</CodeGroup>
+
+### Supported sections
+
+| **Section Value** | **What You Get** |
+| :-- | :-- |
+| market\_size | TAM/SAM/SOM estimates with source citations from tier-1 publishers |
+| quant\_insights | Quantitative data: growth rates, adoption metrics, cost benchmarks |
+| trends\_and\_innovations | Technology trends, innovation waves, disruption signals |
+| transactions\_mna | M&A deal flow: acquirers, targets, deal values, strategic rationale |
+| transactions\_fundraising | VC/PE activity: rounds, valuations, key investors, sector heatmap |
+| transactions\_ipo | IPO exits: companies, valuations, tickers, listing dates |
+| partnerships | Strategic partnership mapping across the industry |
+| tier1\_intelligence | Curated insights from McKinsey, BCG, Goldman Sachs, etc. |
+| case\_studies | In-depth profiles of 3-4 key companies with strategy timelines |
+| industry\_regulations | Regulatory environment: active legislation, compliance requirements |
+
+Geography - list of 3 letter ISO country codes (Eg. \[”USA”, “GBR”\])
+
+Keywords : Focus keywords to narrow analysis (e.g., "zero trust", "SIEM")
+
+Industry Definition: Custom definition of the industry to guide AI analysis.
+
+## Examples
+
+For **AI in Drug Discovery** what is the total addressable market, what is the growth rate and what are some of the recent trends in this space.
+
+### Sample Request
+
+<CodeGroup>
+
+```json cURL expandable wrap
+curl --location 'https://api.wokelo.ai/api/enterprise/industry/enrich/' \
+--header 'Authorization: Bearer Token' \
+--header 'Content-Type: application/json' \
+--data '{
+    "topic": "AI in drug discovery",
+    "sections": [
+        "market_size",
+        "trends_and_innovations"
+
+    ],
+    "parameters": {
+        "keywords": [
+            "drug discovery"
+        
+        ],
+        "geography": [
+            "USA"
+        ]
+       
+    }
+}'
+```
+
+```json Python expandable wrap
+import requests
+import json
+
+url = "https://api.wokelo.ai/api/enterprise/industry/enrich/"
+
+payload = json.dumps({
+  "topic": "AI in drug discovery",
+  "sections": [
+    "market_size",
+    "trends_and_innovations"
+  ],
+  "parameters": {
+    "keywords": [
+      "drug discovery"
+    ],
+    "geography": [
+      "USA"
+    ]
+  }
+})
+headers = {
+  'Authorization': 'Bearer Token',
+  'Content-Type': 'application/json'
+}
+
+response = requests.request("POST", url, headers=headers, data=payload)
+
+print(response.text)
+```
+
+</CodeGroup>
+
+### Sample Response
+
+```json expandable wrap
+{
+    "request_id": "68555bdd-a11e-45df-97ab-a0cc6e6408a1",
+    "status": "COMPLETED",
+    "result": {
+        "IP enrichment": {
+            "market_size": {
+                "charts": {
+                    "market_size_chart": {
+                        "title": "Market Size Range",
+                        "projection_year": 2034,
+                        "period_start_year": 2024,
+                        "period_end_year": 2034,
+                        "data": [
+                            {
+                                "publisher": "Artificial Intelligence in Drug Discovery Market",
+                                "company": "Reports and Data",
+                                "currency": "USD",
+                                "cagr": "17.5",
+                                "end_year": 2034,
+                                "start_year": 2024,
+                                "start_value": {
+                                    "value": 2.5,
+                                    "multiplier": 1000000000
+                                },
+                                "end_value": {
+                                    "value": 12.5,
+                                    "multiplier": 1000000000
+                                },
+                                "estimated_value": {
+                                    "value": 12.5,
+                                    "multiplier": 1000000000
+                                }
+                            },
+                            {
+                                "publisher": "U.S. Artificial Intelligence (AI) In Drug Discovery Market",
+                                "company": "Precedenceresearch",
+                                "currency": "USD",
+                                "cagr": "10.3",
+                                "end_year": 2034,
+                                "start_year": 2025,
+                                "start_value": {
+                                    "value": 2.9,
+                                    "multiplier": 1000000000
+                                },
+                                "end_value": {
+                                    "value": 6.9,
+                                    "multiplier": 1000000000
+                                },
+                                "estimated_value": {
+                                    "value": 6.9,
+                                    "multiplier": 1000000000
+                                }
+                            },
+                            {
+                                "publisher": "AI in Drug Discovery Market",
+                                "company": "Cervicornconsulting",
+                                "currency": "USD",
+                                "cagr": "26.2",
+                                "end_year": 2034,
+                                "start_year": 2024,
+                                "start_value": {
+                                    "value": 2.0,
+                                    "multiplier": 1000000000
+                                },
+                                "end_value": {
+                                    "value": 20.3,
+                                    "multiplier": 1000000000
+                                },
+                                "estimated_value": {
+                                    "value": 20.3,
+                                    "multiplier": 1000000000
+                                }
+                            },
+                            {
+                                "publisher": "Artificial Intelligence for Drug Discovery and Development Market",
+                                "company": "Straitsresearch",
+                                "currency": "USD",
+                                "cagr": "29.9",
+                                "end_year": 2034,
+                                "start_year": 2025,
+                                "start_value": {
+                                    "value": 2.4,
+                                    "multiplier": 1000000000
+                                },
+                                "end_value": {
+                                    "value": 25.4,
+                                    "multiplier": 1000000000
+                                },
+                                "estimated_value": {
+                                    "value": 25.3,
+                                    "multiplier": 1000000000
+                                }
+                            }
+                        ],
+                        "source": "Wokelo generated chart, extracted ranges from publishers, projections calculated based on estimated growth rates",
+                        "note": "Note: CAGR and 2034 projections calculated based on market size ranges",
+                        "url": "https://files.test.wokelo.ai/notebook/1009016/assets/3867b6e3-d321-448f-ad60-fe52345519e0/market_size_chart.png"
+                    }
+                }
+            },
+            "trends_and_innovations": {
+                "trend_and_innovations": {
+                    "source": [
+                        {
+                            "id": 1,
+                            "title": "Yahoo AI in Life Sciences Market, 2026-2040 Industry Trends and Global Forecasts - IBM, IQVIA and Or...",
+                            "url": "https://finance.yahoo.com/news/ai-life-sciences-market-2026-093500956.html",
+                            "publisher": "",
+                            "date": ""
+                        },
+                        {
+                            "id": 2,
+                            "title": "Jnj 6 ways Johnson & Johnson is using AI to help advance healthcare",
+                            "url": "https://www.jnj.com/innovation/artificial-intelligence-in-healthcare",
+                            "publisher": "",
+                            "date": ""
+                        },
+                        {
+                            "id": 3,
+                            "title": "Yahoo AI-Driven Bioengineering Platforms Revolutionize Protein, Strain, and Drug Design with Multi-B...",
+                            "url": "https://finance.yahoo.com/news/ai-driven-bioengineering-platforms-revolutionize-101600710.html",
+                            "publisher": "",
+                            "date": ""
+                        },
+                        {
+                            "id": 4,
+                            "title": "orfonline.org Harnessing AI for Drug Discovery: The Race to Innovate and Govern",
+                            "url": "https://www.orfonline.org/expert-speak/harnessing-ai-for-drug-discovery-the-race-to-innovate-and-govern",
+                            "publisher": "",
+                            "date": ""
+                        },
+                        {
+                            "id": 5,
+                            "title": "Information Technology and Innovation Foundation America’s AI Action Plan: Implications for Biopharm...",
+                            "url": "https://itif.org/publications/2025/09/08/americas-ai-action-plan-implications-for-biopharmaceutical-innovation/",
+                            "publisher": "",
+                            "date": ""
+                        },
+                        {
+                            "id": 6,
+                            "title": "Klover Novartis AI Strategy: Analysis of AI Dominance",
+                            "url": "https://www.klover.ai/novartis-ai-strategy-analysis-of-ai-dominance/",
+                            "publisher": "",
+                            "date": ""
+                        },
+                        {
+                            "id": 7,
+                            "title": "Fortune The AI drug breakthrough is taking a long time to arrive for reasons that may have little to...",
+                            "url": "https://fortune.com/2025/09/12/the-ai-drug-breakthrough-is-taking-a-long-time-to-arrive-for-reasons-that-may-have-little-to-do-with-the-technologys-limits/",
+                            "publisher": "",
+                            "date": ""
+                        }
+                    ],
+                    "summary": "The USA is witnessing a transformative shift in **drug discovery** as **AI** technologies enable **virtual screening**, **predictive modeling**, and **de novo drug design**, while facilitating the development of **personalized medicines** through the analysis of vast and complex datasets  [1-2].\n\nAccelerated experimental timelines, where traditional multi-year processes are reduced significantly by leveraging **high-throughput methods** and data-driven approaches, underscore the innovative momentum in the sector  [3-4].\n\nNational initiatives, such as the White House’s action plan, emphasize the modernization of scientific workflows through automated, **cloud-enabled laboratories** to further streamline drug screening and discovery processes  [5].\n\n**Technological Advances in AI-Driven Drug Discovery**\n\nBreakthroughs including the prediction of **protein structures** by systems like **AlphaFold** and advancements in **mRNA vaccine research** highlight AI’s potential to revolutionize early-stage drug design and tailor treatments based on multi-omics data  [4].\n\nAdvanced AI methodologies are enabling the analysis of myriad digital data—from electronic health records to laboratory results—to uncover **genetic mutations** and inform the development of **targeted oncology treatments**  [2].\n\nInnovative applications, such as the use of AI for **predictive modeling** of efficacy and toxicity, are streamlining the process of filtering out promising drug candidates early in the discovery phase  [1].\n\n**Data-Driven Innovations and Lab Automation**\n\nThe integration of **automated, cloud-enabled laboratories** is a key trend where AI-driven high-throughput screening significantly accelerates drug discovery timelines and enhances accuracy  [5].\n\nEmerging **privacy-enhancing technologies** such as differential privacy and federated learning are enabling secure, large-scale sharing of genomic and clinical data, ensuring that AI models are trained on high-quality, diverse datasets  [5].\n\nThe creation of **focused research organizations** (FROs) that consolidate interdisciplinary expertise is fostering innovative approaches to map complex therapeutic targets and address large-scale drug discovery challenges  [5].\n\n**Corporate Strategies and AI Integration**\n\nMajor corporations have embraced multifaceted AI strategies; for instance, **Novartis** has integrated AI into its drug discovery process through strategic partnerships with **Isomorphic Labs (Alphabet)**, **Generate:Biomedicines**, and **Microsoft**, reflecting a broader industry trend towards deep digital integration  [6].\n\nThere is a growing movement among smaller U.S. companies to build proprietary AI-driven pipelines instead of exclusively partnering with large pharmaceutical companies, thereby fostering innovation from within **emerging biotech firms**  [7].\n\nPractical implementations of AI, such as analyzing surgical videos for enhanced operational efficiency and optimizing clinical trial recruitment through data analytics, illustrate how corporations are leveraging technology to refine various aspects of the drug development process  [2].\n\n**Challenges and Future Directions in AI-Driven Drug Discovery**\n\nDespite significant advancements, the sector continues to face a high failure rate, with nearly **90%** of drug candidates stalling in clinical trials, emphasizing the need for more refined and accurate AI predictive models  [4].\n\nInnovations have yet to consistently translate into approved market products, as illustrated by instances where AI-discovered compounds, such as those by **Recursion Pharmaceuticals**, have not culminated in market-approved drugs  [7].\n\nOngoing investment in both fundamental research and advanced data infrastructures is critical to sustaining the rapid pace of innovation and ensuring that AI continues to transform drug discovery in the USA  [5]."
+                }
+            }
+        },
+        "meta": {
+            "report_id": 1009016,
+            "title": "AI in drug discovery - API Insights",
+            "user": "saish.kapadi@wokelo.ai",
+            "dt_createdon": "2026-04-08 18:47:45"
+        }
+    }
+}
+```
+
+## Best practices
+
+- **Be specific with industry topic:** Broad terms like "tech" or "finance" will yield generic outputs. Use precise names like "B2B SaaS for supply chain" or "lithium-ion battery manufacturing" to get sharper, more actionable reports.
+- **Use parameters.keywords**: add specific keywords that resonate with the industry topic you are researching.
+- **Request only needed sections:** Each section adds processing time. Request only what you need for faster results.

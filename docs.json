@@ -1,0 +1,251 @@
+
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Wokelo Docs",
+  "openapi": "openapi.json",
+  "colors": {
+    "primary": "#41af97",
+    "light": "#41af97",
+    "dark": "#1d7c6d"
+  },
+  "favicon": {
+    "light": "/favicon.svg",
+    "dark": "/favicon.svg"
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Home",
+        "pages": [
+          "home"
+        ]
+      },
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "introduction",
+              "choosing-the-right-api",
+              "getting-started",
+              "credits",
+              "how-async-apis-work"
+            ]
+          },
+          {
+            "group": "Enrichment",
+            "icon": "notes",
+            "pages": [
+              "company-instant-enrichment-doc",
+              "company-instant-enrichment-doc-batch",
+              "company-deep-intelligence-doc",
+              "industry-deep-intelligence-doc"
+            ]
+          },
+          {
+            "group": "Discovery",
+            "icon": "building-magnifying-glass",
+            "pages": [
+              "market-map-doc",
+              "target-screening-doc",
+              "buyer-screening-doc",
+              "competitor-list-doc",
+              "acquisitions-doc",
+              "fundraise-doc"
+            ]
+          },
+          {
+            "group": "Monitoring",
+            "icon": "newspaper",
+            "pages": [
+              "company-news-monitoring-doc",
+              "industry-news-monitoring-doc",
+              "newsfeed-doc"
+            ]
+          },
+          {
+            "group": "Workflow",
+            "icon": "diagram-nested",
+            "pages": [
+              "company-research-doc",
+              "industry-research-doc",
+              "peer-comparison-doc",
+              "earnings-analysis",
+              "custom-workflow-automation-doc"
+            ]
+          },
+          {
+            "group": "Supporting",
+            "pages": [
+              "supporting-apis-doc"
+            ]
+          },
+          {
+            "group": "MCP",
+            "pages": [
+              "getting-started-mcp",
+              "getting-started-mcp-copied-1",
+              "mcp-use-cases"
+            ]
+          },
+          {
+            "group": "Resources",
+            "pages": [
+              "additional-resources",
+              "iso-country-codes",
+              "news-categories",
+              "glossary",
+              "faqs",
+              "taxonomy",
+              "industry-names"
+            ]
+          },
+          {
+            "group": "Integrations",
+            "pages": [
+              "affinity",
+              "airtable",
+              "box",
+              "deal-cloud",
+              "dropbox",
+              "dynamic-365",
+              "email-automation",
+              "google-drive",
+              "onedrive",
+              "salesforce",
+              "slack",
+              "zapier"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "pages": [
+          "overview",
+          "authentication",
+          {
+            "group": "Enrichment",
+            "pages": [
+              "company-instant-enrichment",
+              "company-instant-enrichment-batch",
+              "company-deep-intelligence",
+              "industry-deep-intelligence",
+              "product-reviews",
+              "company-filings",
+              "employee-reviews",
+              "earnings-transcripts"
+            ]
+          },
+          {
+            "group": "Discovery",
+            "pages": [
+              "market-map",
+              "target-screening",
+              "buyer-screening",
+              "competitor-enrich",
+              "acquisitions",
+              "fundraise"
+            ]
+          },
+          {
+            "group": "Monitoring",
+            "pages": [
+              "company-news-monitoring",
+              "company-industry-monitoring",
+              "newsfeed",
+              "company-news-monitoring-copied-1",
+              "legacy-fetch-news-report",
+              "legacy-initiate-news-report"
+            ]
+          },
+          {
+            "group": "Workflow automation",
+            "pages": [
+              "company-research",
+              "industry-research",
+              "peer-comparison",
+              "custom-workflows"
+            ]
+          },
+          {
+            "group": "Supporting APIs",
+            "pages": [
+              "company-search",
+              "upload-file",
+              "request-status",
+              "request-cancel",
+              "request-result",
+              "get-report-status",
+              "download-report",
+              "notebook-configuration"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Changelog",
+        "groups": [
+          {
+            "group": "Changelog",
+            "pages": [
+              "2026",
+              "2025"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Contact us",
+        "pages": [
+          "contact"
+        ]
+      }
+    ]
+  },
+  "logo": {
+    "light": "/logo/D-Logo.svg",
+    "dark": "/logo/L-logo.svg"
+  },
+    "navbar": {
+    "links": [],
+    "primary": {
+      "type": "button",
+      "label": "Get in touch",
+      "href": "/contact"
+    }
+  },
+  "contextual": {
+    "options": ["copy", "view"]
+  },
+  "fonts": {
+    "family": "Inter"
+  },
+  "interaction": {
+    "drilldown": false
+  },
+  "styling": {
+    "codeblocks": "system",
+    "latex": false
+  },
+  "footer": {
+    "socials": {
+      "x": "https://x.com/WokeloAI",
+      "linkedin": "https://www.linkedin.com/company/wokelo-ai"
+    }
+  },
+  "api": {
+    "playground": {
+      "display": "interactive"
+    },
+    "mdx": {
+      "server": "https://api.wokelo.ai"
+    },
+    "openapi": "openapi.json"
+  },
+  "seo": {
+    "indexing": "all"
+  }
+}

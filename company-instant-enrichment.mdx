@@ -1,0 +1,184 @@
+---
+title: "Company Instant Enrichment"
+openapi: "POST /api/enterprise/company/enrich/single/"
+---
+
+## Overview
+
+The Company Instant Enrichment API delivers structured data for a company across sections such as firmographics, products, funding, headcount, and more.
+
+## Endpoint Details
+
+- **Method:** POST
+- **Endpoint:** `/api/enterprise/company/enrich/single/`
+
+## Authentication Requirements
+
+- Include a valid JWT token in your request header
+- If you don't have a token yet, you can get one from the `/auth/token/` endpoint first.
+
+## Request
+
+#### Header Parameters
+
+<ParamField header="Authorization" type="string" required>
+  JWT token obtained from the Authentication request
+</ParamField>
+
+#### Body Parameters
+
+<ParamField body="company" type="string" required>
+  A permalink or URL of the company to enrich (e.g. `"canva"`, `"tesla-motors"` or `"https://tesla.com"`)
+</ParamField>
+
+<ParamField body="sections" type="string[]" required>
+  Sections of data to include in the enrichment response. Select one or more values.
+
+  Supported values: `firmographics`, `products`, `headcount`, `funding`, `public_company_financials`, `uk_private_company_financials`, `acquisitions`, `investments`, `website_traffic`
+</ParamField>
+
+### Response
+
+A successful response returns the enriched company data directly.
+
+#### Successful Response Fields
+
+<ResponseField name="status" type="string">
+  Status of the request (e.g. `"success"`)
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  Enriched company data keyed by section name
+</ResponseField>
+
+<RequestExample>
+
+```javascript JavaScript - Fetch
+const myHeaders = new Headers();
+myHeaders.append("Authorization", "Bearer Token");
+myHeaders.append("Content-Type", "application/json");
+
+const raw = JSON.stringify({
+  "company": "canva",
+  "sections": ["firmographics", "products", "funding"]
+});
+
+const requestOptions = {
+  method: "POST",
+  headers: myHeaders,
+  body: raw,
+  redirect: "follow"
+};
+
+fetch("{{path}}/api/enterprise/company/enrich/single/", requestOptions)
+  .then((response) => response.text())
+  .then((result) => console.log(result))
+  .catch((error) => console.error(error));
+```
+
+```python Python
+import requests
+
+headers = {
+    "Authorization": "Bearer YOUR_TOKEN",
+    "Content-Type": "application/json"
+}
+payload = {
+    "company": "canva",
+    "sections": ["firmographics", "products", "funding"]
+}
+response = requests.post(
+    "https://api.wokelo.ai/api/enterprise/company/enrich/single/",
+    headers=headers, json=payload
+)
+print(response.json())
+```
+
+```bash cURL
+curl --request POST \
+  --url https://api.wokelo.ai/api/enterprise/company/enrich/single/ \
+  --header 'Authorization: Bearer YOUR_TOKEN' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "company": "canva",
+    "sections": ["firmographics", "products", "funding"]
+  }'
+```
+
+```go Go
+package main
+
+import (
+  "bytes"
+  "encoding/json"
+  "fmt"
+  "io"
+  "net/http"
+)
+
+func main() {
+  payload := map[string]interface{}{
+    "company":  "canva",
+    "sections": []string{"firmographics", "products", "funding"},
+  }
+  body, _ := json.Marshal(payload)
+  req, _ := http.NewRequest("POST", "https://api.wokelo.ai/api/enterprise/company/enrich/single/", bytes.NewBuffer(body))
+  req.Header.Set("Authorization", "Bearer YOUR_TOKEN")
+  req.Header.Set("Content-Type", "application/json")
+  resp, _ := http.DefaultClient.Do(req)
+  defer resp.Body.Close()
+  respBody, _ := io.ReadAll(resp.Body)
+  fmt.Println(string(respBody))
+}
+```
+
+```java Java
+import java.net.URI;
+import java.net.http.*;
+
+public class CompanyEnrichment {
+  public static void main(String[] args) throws Exception {
+    String body = "{\"company\":\"canva\",\"sections\":[\"firmographics\",\"products\",\"funding\"]}";
+    HttpRequest request = HttpRequest.newBuilder()
+        .uri(URI.create("https://api.wokelo.ai/api/enterprise/company/enrich/single/"))
+        .header("Authorization", "Bearer YOUR_TOKEN")
+        .header("Content-Type", "application/json")
+        .POST(HttpRequest.BodyPublishers.ofString(body))
+        .build();
+    HttpResponse<String> response = HttpClient.newHttpClient()
+        .send(request, HttpResponse.BodyHandlers.ofString());
+    System.out.println(response.body());
+  }
+}
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200
+{
+    "status": "success",
+    "data": {
+        "firmographics": {
+            "name": "Canva",
+            "website": "http://www.canva.com",
+            "location": "Sydney, Australia",
+            "founded": 2013,
+            "type": "private",
+            "operating_status": "Operating",
+            "ticker": null
+        },
+        "funding": {
+            "overall": {
+                "funding_stage": "Secondary Market",
+                "total_funding": 2508450682.0,
+                "last_funding_date": "2025-08-20",
+                "num_funding_rounds": "21"
+            }
+        }
+    }
+}
+```
+
+</ResponseExample>

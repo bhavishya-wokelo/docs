@@ -1,0 +1,73 @@
+---
+title: "M&A Activity"
+---
+
+In-depth acquisitions workflow report for a specific company, providing structured intelligence on acquisition activity, target companies, and M&A landscape.
+
+NOTE: This is a asynchronous API, which means it will return a report\_id in the response. You would be required to fetch the [report status](https://docs.wokelo.ai/supporting-apis-doc#report-status) and then use [download report](https://docs.wokelo.ai/supporting-apis-doc#download-report) endpoint to obtain the results.
+
+## Request reference
+
+**A sample request**
+
+```json
+curl --location 'https://api.wokelo.ai/api/assets/process_common/' \
+--header 'Authorization: Bearer Token' \
+--header 'Content-Type: application/json' \
+--data '{
+    "reportType": "acquisition_workflow",
+    "payload": {
+        "topic": "Apple",
+        "workbook_name": "Apple",
+        "advanced_settings": {
+            "company_type": "all",
+            "geography": [
+                "Worldwide"
+            ],
+            "funding_stage": [],
+            "employee_count": [],
+            "total_funding_include_blanks": true
+        }
+    },
+    "reportSource": "WKLAPP"
+}'
+```
+
+The `topic` field specifies the company name to generate the acquisitions report for. Use `advanced_settings` to filter by company type, geography, funding stage, and employee count. Pass empty arrays to include all options.
+
+## Examples
+
+**Acquisitions Workflow**: Acquisitions report for Apple
+
+**Sample Request**
+
+```json
+curl --location --globoff 'https://api.wokelo.ai/api/assets/process_common/' \
+--header 'Content-Type: application/json' \
+--header 'Authorization: your token' \
+--data '{
+    "reportType": "acquisition_workflow",
+    "payload": {
+        "topic": "Apple",
+        "workbook_name": "Apple",
+        "advanced_settings": {
+            "company_type": "all",
+            "geography": [
+                "Worldwide"
+            ],
+            "funding_stage": [],
+            "employee_count": [],
+            "total_funding_include_blanks": true
+        }
+    },
+    "reportSource": "WKLAPP"
+}'
+```
+
+**Sample Response**
+
+```json
+{
+    "report_id": 123345
+}
+```

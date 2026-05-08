@@ -1,0 +1,145 @@
+---
+title: "Request Result"
+openapi: "GET /api/enterprise/request/result/"
+---
+
+## Overview
+
+Retrieves the result of a previously submitted API request.
+
+## Endpoint Details
+
+- **Method:** GET
+- **Endpoint:** `/api/enterprise/request/result/`
+
+## Authentication requirements
+
+- Include a valid JWT token in your request header
+- If you don't have a token yet, you can get one from the `/auth/token/` endpoint first.
+
+## Request
+
+### Request Parameters
+
+#### Header Parameters
+
+<ParamField header="Authorization" type="string" required>
+  JWT token obtained from the Authentication request
+</ParamField>
+
+#### Query Parameters
+
+<ParamField query="request_id" type="string" required>
+  The unique identifier of the async request whose status is being checked. Example: `11db67b6-8345-4837-950f-87bbd8d7dcbe`
+</ParamField>
+
+## Response
+
+#### Successful Response Fields
+
+<ResponseField name="request_id" type="string">
+  Request ID of the initiated request
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Status of the request
+</ResponseField>
+
+<ResponseField name="result" type="array">
+  Result depending on the request
+</ResponseField>
+
+<RequestExample>
+
+```javascript JavaScript - Fetch
+const requestOptions = {
+  method: "GET",
+  redirect: "follow"
+};
+
+fetch("{{path}}/api/enterprise/request/result/?request_id=11db67b6-8345-4837-950f-87bbd8d7dcbe", requestOptions)
+  .then((response) => response.text())
+  .then((result) => console.log(result))
+  .catch((error) => console.error(error));
+```
+
+```python Python
+import requests
+
+headers = {"Authorization": "Bearer YOUR_TOKEN"}
+response = requests.get(
+    "https://api.wokelo.ai/api/enterprise/request/result/",
+    headers=headers,
+    params={"request_id": "11db67b6-8345-4837-950f-87bbd8d7dcbe"}
+)
+print(response.json())
+```
+
+```bash cURL
+curl --request GET \
+  --url 'https://api.wokelo.ai/api/enterprise/request/result/?request_id=11db67b6-8345-4837-950f-87bbd8d7dcbe' \
+  --header 'Authorization: Bearer YOUR_TOKEN'
+```
+
+```go Go
+package main
+
+import (
+  "fmt"
+  "io"
+  "net/http"
+)
+
+func main() {
+  req, _ := http.NewRequest("GET",
+    "https://api.wokelo.ai/api/enterprise/request/result/?request_id=11db67b6-8345-4837-950f-87bbd8d7dcbe", nil)
+  req.Header.Set("Authorization", "Bearer YOUR_TOKEN")
+  resp, _ := http.DefaultClient.Do(req)
+  defer resp.Body.Close()
+  body, _ := io.ReadAll(resp.Body)
+  fmt.Println(string(body))
+}
+```
+
+```java Java
+import java.net.URI;
+import java.net.http.*;
+
+public class RequestResult {
+  public static void main(String[] args) throws Exception {
+    HttpRequest request = HttpRequest.newBuilder()
+        .uri(URI.create("https://api.wokelo.ai/api/enterprise/request/result/?request_id=11db67b6-8345-4837-950f-87bbd8d7dcbe"))
+        .header("Authorization", "Bearer YOUR_TOKEN")
+        .GET().build();
+    HttpResponse<String> response = HttpClient.newHttpClient()
+        .send(request, HttpResponse.BodyHandlers.ofString());
+    System.out.println(response.body());
+  }
+}
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200
+{
+    "request_id": "d7a78d10-663a-493f-9b79-be1e6094f3bb",
+    "status": "COMPLETED",
+    "result": {
+        "tesla-motors": {
+            "firmographics": {
+                "name": "Tesla",
+                "website": "https://www.tesla.com",
+                "location": "Austin, United States",
+                "founded": 2003,
+                "type": "public",
+                "operating_status": "IPO",
+                "ticker": "NASDAQ:TSLA"
+            }
+        }
+    }
+}
+```
+
+</ResponseExample>

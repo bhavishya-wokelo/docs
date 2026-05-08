@@ -1,0 +1,210 @@
+---
+title: "Industry Deep Intelligence"
+openapi: "POST /api/enterprise/industry/enrich/"
+---
+
+## Overview
+
+The Industry Insights API generates structured insights for a given industry topic (e.g., _"Warehouse automation"_). Optionally, you can refine the output by specifying sections, keywords, geography, a custom industry definition, and sample companies. Returns a `request_id` as a response.
+
+## Endpoint Details
+
+- **Method:** POST
+- **Endpoint:** `/api/enterprise/industry/enrich/`
+
+## Authentication Requirements
+
+- Include a valid JWT token in your request header
+- If you don't have a token yet, you can get one from the `/auth/token/` endpoint first.
+
+## Request
+
+#### Header Parameters
+
+<ParamField header="Authorization" type="string" required>
+  JWT token obtained from the Authentication request
+</ParamField>
+
+#### Body Parameters
+
+<ParamField body="topic" type="string" required>
+  The industry topic to generate insights for (e.g. `"Enterprise SaaS security"`)
+</ParamField>
+
+<ParamField body="sections" type="string[]">
+  Sections to include in the report. Select one or more values.
+
+  Supported values: `market_size`, `quant_insights`, `trends_and_innovations`, `transactions_mna`, `transactions_fundraising`, `transactions_ipo`, `partnerships`, `tier1_intelligence`, `case_studies`, `industry_regulations`
+</ParamField>
+
+<ParamField body="parameters" type="object">
+  Optional filter parameters. All fields inside are optional.
+
+  <ParamField body="keywords" type="string[]">
+    Keywords to focus the analysis on (e.g. `"zero trust"`, `"SIEM"`)
+  </ParamField>
+
+  <ParamField body="geography" type="string[]">
+    Geographic scope as ISO country codes (e.g. `["USA", "GBR"]`)
+  </ParamField>
+
+  <ParamField body="definition" type="string">
+    A custom definition of the industry to guide report generation
+  </ParamField>
+
+  <ParamField body="sample_companies" type="string[]">
+    Permalinks of representative companies in the industry
+  </ParamField>
+</ParamField>
+
+### Response
+
+A successful response returns a `request_id` that can be used to track the status of the request.
+
+#### Successful Response Fields
+
+<ResponseField name="request_id" type="string">
+  Unique identifier for the request posted. Use this with the `/api/enterprise/request/status/` endpoint to check the status
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Status of the request (e.g. `"PENDING"`)
+</ResponseField>
+
+<RequestExample>
+
+```javascript JavaScript - Fetch
+const myHeaders = new Headers();
+myHeaders.append("Authorization", "Bearer Token");
+myHeaders.append("Content-Type", "application/json");
+
+const raw = JSON.stringify({
+  "topic": "Enterprise SaaS security",
+  "sections": ["market_size", "trends_and_innovations", "transactions_mna"],
+  "parameters": {
+    "keywords": ["zero trust", "SIEM"],
+    "geography": ["USA"],
+    "definition": "B2B software focused on enterprise cybersecurity",
+    "sample_companies": ["crowdstrike", "sentinel"]
+  }
+});
+
+const requestOptions = {
+  method: "POST",
+  headers: myHeaders,
+  body: raw,
+  redirect: "follow"
+};
+
+fetch("{{path}}/api/enterprise/industry/enrich/", requestOptions)
+  .then((response) => response.text())
+  .then((result) => console.log(result))
+  .catch((error) => console.error(error));
+```
+
+```python Python
+import requests
+
+headers = {
+    "Authorization": "Bearer YOUR_TOKEN",
+    "Content-Type": "application/json"
+}
+payload = {
+    "topic": "Enterprise SaaS security",
+    "sections": ["market_size", "trends_and_innovations", "transactions_mna"],
+    "parameters": {
+        "keywords": ["zero trust", "SIEM"],
+        "geography": ["USA"],
+        "definition": "B2B software focused on enterprise cybersecurity",
+        "sample_companies": ["crowdstrike", "sentinel"]
+    }
+}
+response = requests.post(
+    "https://api.wokelo.ai/api/enterprise/industry/enrich/",
+    headers=headers, json=payload
+)
+print(response.json())
+```
+
+```bash cURL
+curl --request POST \
+  --url https://api.wokelo.ai/api/enterprise/industry/enrich/ \
+  --header 'Authorization: Bearer YOUR_TOKEN' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "topic": "Enterprise SaaS security",
+    "sections": ["market_size", "trends_and_innovations", "transactions_mna"],
+    "parameters": {
+      "keywords": ["zero trust", "SIEM"],
+      "geography": ["USA"],
+      "definition": "B2B software focused on enterprise cybersecurity",
+      "sample_companies": ["crowdstrike", "sentinel"]
+    }
+  }'
+```
+
+```go Go
+package main
+
+import (
+  "bytes"
+  "encoding/json"
+  "fmt"
+  "io"
+  "net/http"
+)
+
+func main() {
+  payload := map[string]interface{}{
+    "topic": "Enterprise SaaS security",
+    "sections": []string{"market_size", "trends_and_innovations", "transactions_mna"},
+    "parameters": map[string]interface{}{
+      "keywords":         []string{"zero trust", "SIEM"},
+      "geography":        []string{"USA"},
+      "definition":       "B2B software focused on enterprise cybersecurity",
+      "sample_companies": []string{"crowdstrike", "sentinel"},
+    },
+  }
+  body, _ := json.Marshal(payload)
+  req, _ := http.NewRequest("POST", "https://api.wokelo.ai/api/enterprise/industry/enrich/", bytes.NewBuffer(body))
+  req.Header.Set("Authorization", "Bearer YOUR_TOKEN")
+  req.Header.Set("Content-Type", "application/json")
+  resp, _ := http.DefaultClient.Do(req)
+  defer resp.Body.Close()
+  respBody, _ := io.ReadAll(resp.Body)
+  fmt.Println(string(respBody))
+}
+```
+
+```java Java
+import java.net.URI;
+import java.net.http.*;
+
+public class IndustryDeepIntelligence {
+  public static void main(String[] args) throws Exception {
+    String body = "{\"topic\":\"Enterprise SaaS security\",\"sections\":[\"market_size\",\"trends_and_innovations\",\"transactions_mna\"],\"parameters\":{\"keywords\":[\"zero trust\",\"SIEM\"],\"geography\":[\"USA\"],\"definition\":\"B2B software focused on enterprise cybersecurity\",\"sample_companies\":[\"crowdstrike\",\"sentinel\"]}}";
+    HttpRequest request = HttpRequest.newBuilder()
+        .uri(URI.create("https://api.wokelo.ai/api/enterprise/industry/enrich/"))
+        .header("Authorization", "Bearer YOUR_TOKEN")
+        .header("Content-Type", "application/json")
+        .POST(HttpRequest.BodyPublishers.ofString(body))
+        .build();
+    HttpResponse<String> response = HttpClient.newHttpClient()
+        .send(request, HttpResponse.BodyHandlers.ofString());
+    System.out.println(response.body());
+  }
+}
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 202
+{
+    "request_id": "c574254f-137d-40d5-84f1-ac8fa38b8aa7",
+    "status": "PENDING"
+}
+```
+
+</ResponseExample>

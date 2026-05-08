@@ -1,0 +1,155 @@
+---
+title: "Fetch News Details"
+api: "GET https://api.wokelo.ai/api/enterprise/company/news/"
+description: "Fetch full content and metadata for a specific news article by URL or article ID. Use after get_company_news to read a complete article beyond the summary."
+hidden: true
+---
+
+## Overview
+
+Fetch full content and metadata for a specific news article by URL or article ID. Use after `get_company_news` to read a complete article beyond the summary.
+
+## Endpoint Details
+
+- **Method:** GET
+- **Endpoint:** `/api/enterprise/company/news/detail/`
+
+## Authentication requirements
+
+- Include a valid JWT token in your request header
+- If you don't have a token yet, you can get one from the `/auth/token/` endpoint first.
+
+## Request
+
+### Request Parameters
+
+#### Header Parameters
+
+<ParamField header="Authorization" type="string" required>
+  JWT token obtained from the Authentication request
+</ParamField>
+
+<ParamField header="Content-Type" type="string" required>
+  Must be `application/json`
+</ParamField>
+
+## URL Parameters
+
+<ParamField query="url" type="string" required>
+  Complete URL of the news article.
+</ParamField>
+
+<ParamField query="id" type="string" required>
+  News ID. Note: Either of url or id is required.
+</ParamField>
+
+## Response
+
+Successful response will return the data in the HTTL response.
+
+<RequestExample>
+
+```javascript JavaScript - Fetch
+const myHeaders = new Headers();
+myHeaders.append("Authorization", "Bearer Token");
+myHeaders.append("Content-Type", "application/json");
+
+const requestOptions = {
+  method: "GET",
+  headers: myHeaders,
+  redirect: "follow"
+};
+
+fetch("https://api.wokelo.ai/api/enterprise/company/news/detail/?url=https://www.defenseworld.net/2026/03/23/nordea-investment-management-ab-lowers-position-in-tesla-inc-tsla.html&id", requestOptions)
+  .then((response) => response.text())
+  .then((result) => console.log(result))
+  .catch((error) => console.error(error));
+```
+
+```python Python
+import requests
+import json
+
+url = "https://api.wokelo.ai/api/enterprise/company/news/detail/?url=https://www.defenseworld.net/2026/03/23/nordea-investment-management-ab-lowers-position-in-tesla-inc-tsla.html&id"
+
+payload = {}
+headers = {
+  'Authorization': 'Bearer Token',
+  'Content-Type': 'application/json'
+}
+
+response = requests.request("GET", url, headers=headers, data=payload)
+
+print(response.text)
+```
+
+```bash cURL
+curl --location 'https://api.wokelo.ai/api/enterprise/company/news/detail/?url=https%3A%2F%2Fwww.defenseworld.net%2F2026%2F03%2F23%2Fnordea-investment-management-ab-lowers-position-in-tesla-inc-tsla.html&id=null' \
+--header 'Authorization: Bearer Token' \
+--header 'Content-Type: application/json'
+```
+
+```go Go
+package main
+
+import (
+  "fmt"
+  "net/http"
+  "io"
+)
+
+func main() {
+
+  url := "https://api.wokelo.ai/api/enterprise/company/news/detail/?url=https%3A%2F%2Fwww.defenseworld.net%2F2026%2F03%2F23%2Fnordea-investment-management-ab-lowers-position-in-tesla-inc-tsla.html&id=null"
+  method := "GET"
+
+  client := &http.Client {
+  }
+  req, err := http.NewRequest(method, url, nil)
+
+  if err != nil {
+    fmt.Println(err)
+    return
+  }
+  req.Header.Add("Authorization", "Bearer Token")
+  req.Header.Add("Content-Type", "application/json")
+
+  res, err := client.Do(req)
+  if err != nil {
+    fmt.Println(err)
+    return
+  }
+  defer res.Body.Close()
+
+  body, err := io.ReadAll(res.Body)
+  if err != nil {
+    fmt.Println(err)
+    return
+  }
+  fmt.Println(string(body))
+}
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200
+{
+    "status": "success",
+    "data": {
+        "ai_summary": "Nordea Investment Management AB reduced its stake in Tesla, Inc. by 8.4% in the fourth quarter, according to its SEC filing. Several institutional investors increased their holdings, and Tesla reported quarterly earnings with a net margin of 4%, revenue of $24.90 billion, and an EPS of $0.50. ",
+        "type": "",
+        "url": "https://www.defenseworld.net/2026/03/23/nordea-investment-management-ab-lowers-position-in-tesla-inc-tsla.html",
+        "title": "Nordea Investment Management AB Lowers Position in Tesla, Inc. $TSLA",
+        "company_name": "",
+        "publisher": "defenseworld",
+        "published_date": "",
+        "source": "Wokelo",
+        "author": "",
+        "scraped_text": "Nordea Investment Management AB Lowers Position in Tesla, Inc. $TSLA\n\nNordea Investment Management AB decreased its stake in shares of Tesla, Inc. (NASDAQ:TSLA – Free Report) by 8.4% in the fourth quarter, according to the company in its most recent Form 13F filing with the SEC. The fund owned 1,281,857 shares of the electric vehicle producer’s stock after selling 117,144 shares during the quarter. Nordea Investment Management AB’s holdings in Tesla were worth $581,899,000 at the end of the most recent quarter. Get Tesla alerts: A number of other institutional investors and hedge funds also recently bought and sold shares of TSLA. Vanguard Group Inc. boosted its holdings in shares of Tesla by 0.4% during the 3rd quarter. Vanguard Group Inc. now owns 252,386,304 shares of the electric vehicle producer’s stock valued at $112,241,237,000 after purchasing an additional 995,623 shares during the last quarter. State Street Corp increased its holdings in shares of Tesla by 0.3% in the third quarter. State Street Corp now owns 113,762,849 shares of the electric vehicle producer’s stock worth $50,592,614,000 after purchasing an additional 344,162 shares during the last quarter. Capital World Investors lifted its position in shares of Tesla by 5.8% in the third quarter. Capital World Investors now owns 44,035,949 shares of the electric vehicle producer’s stock worth $19,583,547,000 after buying an additional 2,403,019 shares in the last quarter. Norges Bank purchased a new stake in shares of Tesla in the second quarter worth about $11,839,824,000. Finally, Amundi boosted its stake in Tesla by 20.4% during the second quarter. Amundi now owns 20,194,152 shares of the electric vehicle producer’s stock valued at $6,374,284,000 after buying an additional 3,422,270 shares during the last quarter. 66.20% of the stock is currently owned by institutional investors. Insider Transactions at Tesla In related news, Director Kathleen Wilson-Thompson sold 25,731 shares of the stock in a transaction dated Wednesday, February 25th. The shares were sold at an average price of $415.56, for a total value of $10,692,774.36. Following the sale, the director directly owned 19,669 shares of the company’s stock, valued at $8,173,649.64. This represents a 56.68% decrease in their position. The transaction was disclosed in a document filed with the SEC, which is available through this hyperlink. Also, Director James R. Murdoch sold 60,000 shares of the firm’s stock in a transaction dated Friday, January 2nd. The stock was sold at an average price of $445.40, for a total transaction of $26,724,000.00. Following the completion of the sale, the director directly owned 577,031 shares of the company’s stock, valued at approximately $257,009,607.40. The trade was a 9.42% decrease in their position. Additional details regarding this sale are available in the official SEC disclosure. In the last quarter, insiders sold 87,995 shares of company stock worth $38,315,650. 19.90% of the stock is currently owned by insiders. Tesla Stock Performance NASDAQ:TSLA opened at $367.96 on Monday. The firm has a market capitalization of $1.38 trillion, a PE ratio of 340.70, a PEG ratio of 10.88 and a beta of 1.89. The stock’s fifty day moving average is $414.76 and its 200 day moving average is $427.84. Tesla, Inc. has a fifty-two week low of $214.25 and a fifty-two week high of $498.83. The company has a debt-to-equity ratio of 0.08, a quick ratio of 1.77 and a current ratio of 2.16. Tesla (NASDAQ:TSLA – Get Free Report) last posted its quarterly earnings data on Wednesday, January 28th. The electric vehicle producer reported $0.50 EPS for the quarter, topping the consensus estimate of $0.45 by $0.05. Tesla had a net margin of 4.00% and a return on equity of 4.86%. The company had revenue of $24.90 billion during the quarter, compared to analyst estimates of $24.75 billion. During the same period in the previous year, the firm earned $0.73 earnings per share. Tesla’s quarterly revenue was down 3.1% compared to the same quarter last year. On average, sell-side analysts anticipate that Tesla, Inc. will post 2.56 earnings per share for the current year. Analyst Ratings Changes TSLA has been the subject of several research analyst reports. Morgan Stanley set a $415.00 price target on Tesla and gave the company an “equal weight” rating in a report on Thursday, January 29th. China Renaissance increased their target price on Tesla from $380.00 to $382.00 and gave the company a “hold” rating in a research report on Monday, February 2nd. BNP Paribas Exane cut their target price on shares of Tesla from $313.00 to $280.00 and set an “underperform” rating for the company in a report on Monday, March 2nd. Wells Fargo & Company reduced their price target on shares of Tesla from $130.00 to $125.00 and set an “underweight” rating on the stock in a research report on Thursday, January 29th. Finally, Needham & Company LLC reaffirmed a “hold” rating on shares of Tesla in a research note on Thursday, January 29th. Nineteen analysts have rated the stock with a Buy rating, thirteen have given a Hold rating and nine have given a Sell rating to the company’s stock. Based on data from MarketBeat.com, the stock has an average rating of “Hold” and an average target price of $406.84. Read Our Latest Research Report on Tesla Trending Headlines about Tesla Here are the key news stories impacting Tesla this week: Positive Sentiment: US government-confirmed supply deal: Reuters reports a $4.3 billion LFP prismatic battery cell supply agreement between Tesla and LG Energy Solution — a material, multi‑year supply commitment that supports cost and scale for Tesla’s lower-cost vehicle programs and energy products. Read More.\n\nUS government-confirmed supply deal: Reuters reports a $4.3 billion LFP prismatic battery cell supply agreement between Tesla and LG Energy Solution — a material, multi‑year supply commitment that supports cost and scale for Tesla’s lower-cost vehicle programs and energy products. Read More. Positive Sentiment: Solar manufacturing push: Multiple reports say Tesla is in talks to buy ~$2.9B of solar equipment from Chinese suppliers to build out U.S. solar panel/cell capacity — supports Elon Musk’s 100 GW U.S. solar goal and diversifies revenue beyond vehicles. Read More.\n\nSolar manufacturing push: Multiple reports say Tesla is in talks to buy ~$2.9B of solar equipment from Chinese suppliers to build out U.S. solar panel/cell capacity — supports Elon Musk’s 100 GW U.S. solar goal and diversifies revenue beyond vehicles. Read More. Positive Sentiment: Chip/AI roadmap progressing: Elon Musk and Reuters/Barron’s coverage indicate Tesla is targeting a December 2026 tape‑out for next‑gen AI chips (AI6/AI5) and pursuing “Terafab” initiatives — a successful chip program would reduce supply risk and accelerate Tesla’s autonomy/robotics ambitions. Read More.\n\nChip/AI roadmap progressing: Elon Musk and Reuters/Barron’s coverage indicate Tesla is targeting a December 2026 tape‑out for next‑gen AI chips (AI6/AI5) and pursuing “Terafab” initiatives — a successful chip program would reduce supply risk and accelerate Tesla’s autonomy/robotics ambitions. Read More. Neutral Sentiment: Semi truck early traction: Media reports (WSJ) show positive early feedback from truckers on Tesla’s Semi — encouraging for commercial product credibility, but near‑term revenue impact is modest. Read More.\n\nSemi truck early traction: Media reports (WSJ) show positive early feedback from truckers on Tesla’s Semi — encouraging for commercial product credibility, but near‑term revenue impact is modest. Read More. Neutral Sentiment: Geographic/energy expansion: Job listings and reporting show Tesla preparing an India push into industrial energy storage — long‑term optionality for energy business, but execution and timing unclear. Read More.\n\nGeographic/energy expansion: Job listings and reporting show Tesla preparing an India push into industrial energy storage — long‑term optionality for energy business, but execution and timing unclear. Read More. Negative Sentiment: Regulatory overhang — FSD probe escalates: U.S. regulators (NHTSA) upgraded the FSD investigation to engineering analysis covering millions of vehicles after crashes in reduced‑visibility conditions — this raises recall/enforcement risk and is a primary driver of today’s weakness. Read More.\n\nRegulatory overhang — FSD probe escalates: U.S. regulators (NHTSA) upgraded the FSD investigation to engineering analysis covering millions of vehicles after crashes in reduced‑visibility conditions — this raises recall/enforcement risk and is a primary driver of today’s weakness. Read More. Negative Sentiment: Analyst/market pressure on deliveries and valuation: UBS and others have cut Q1 delivery forecasts and reiterated cautious ratings; HSBC headlines predicting deep downside amplify negative sentiment and volatility. Read More. • Read More.\n\nAnalyst/market pressure on deliveries and valuation: UBS and others have cut Q1 delivery forecasts and reiterated cautious ratings; HSBC headlines predicting deep downside amplify negative sentiment and volatility. Read More. • Read More. Negative Sentiment: Competition & robotaxi doubts: Rivian/Uber alliance and commentary that Waymo leads the AV race increase skepticism about Tesla’s robotaxi timeline and margins for autonomy/Optimus. Read More. About Tesla (Free Report) Tesla, Inc (NASDAQ: TSLA) is an American company that designs, manufactures and sells electric vehicles, energy generation and energy storage products. Founded in 2003 by Martin Eberhard and Marc Tarpenning, Tesla grew into a vertically integrated mobility and clean‑energy company with Elon Musk serving as its chief executive officer. The company’s stated mission is to accelerate the world’s transition to sustainable energy, reflected in its combined focus on electric drivetrains, battery technology, renewable energy products and software. Tesla’s automotive business includes a lineup of battery‑electric vehicles and related services. See Also Five stocks we like better than Tesla Receive News & Ratings for Tesla Daily - Enter your email address below to receive a concise daily summary of the latest news and analysts' ratings for Tesla and related companies with MarketBeat.com's FREE daily email newsletter."
+    }
+}
+```
+
+</ResponseExample>

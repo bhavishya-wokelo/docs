@@ -1,0 +1,215 @@
+---
+title: "Introduction"
+description: "Wokelo's API suite is purpose-built for developers building dealmaking AI infrastructure. It delivers structured, processed intelligence at the quality standard investment and advisory workflows demand. The underlying data is purpose-built for AI pipelines:"
+---
+
+- Entities are resolved across a proprietary database of **20M\+ private and public companies**.
+- News signals are deduplicated across **1,000\+ curated sources.**
+- **Custom parameters and scoring logic** can be defined at query time.
+- Every output is **agent-native, source-traced, and ready to plug** directly into your models, agents,  and workflows without additional processing.
+
+## API Products
+
+Wokelo’s API Suite consists of four types of APIs:
+
+### **Enrichment**
+
+<Columns cols={2}>
+  <Card title="Company Instant Enrichment" icon="building" href="/company-instant-enrichment-doc">
+    Instant enrichment on defined parameters for a company.
+  </Card>
+
+  <Card title="Company Deep Intelligence" icon="brain" href="company-deep-intelligence-doc">
+    On-demand intelligence with custom parameters on any company.
+  </Card>
+
+  <Card title="Industry Deep Intelligence" icon="industry-windows" href="/industry-deep-intelligence-doc">
+    On-demand intelligence with custom parameters on any industry.
+  </Card>
+</Columns>
+
+### **Discovery**
+
+<Columns cols={2}>
+  <Card title="Market Map" icon="sitemap" href="/market-map-doc">
+    Ranked, filtered company lists with custom parameters.
+  </Card>
+
+  <Card title="Target Screening" icon="crosshairs" href="/target-screening-doc">
+    Scored acquisition targets with custom filtering logic.
+  </Card>
+
+  <Card title="Buyer Screening" icon="user-magnifying-glass" href="/buyer-screening-doc">
+    Scored strategic and financial buyers with custom logic.
+  </Card>
+
+  <Card title="Competitor List" icon="user-magnifying-glass" href="/competitor-list-doc">
+    Find competitors of a given company.
+  </Card>
+
+  <Card title="M&A Activity" icon="user-magnifying-glass" href="/competitor-list-doc">
+    Obtain in-depth acquisition activities of a given company.
+  </Card>
+
+  <Card title="Fundraising Activity" icon="user-magnifying-glass" href="/competitor-list-doc">
+    Obtain funding activity, investor landscape, and funding stage analysis.
+  </Card>
+</Columns>
+
+### **Monitoring**
+
+<Columns cols={2}>
+  <Card title="Company News Monitoring " icon="building-memo" href="/company-news-monitoring-doc">
+    Deduplicated, entity-resolved news signals for companies.
+  </Card>
+
+  <Card title="Industry News Monitoring " icon="building-memo" href="/industry-news-monitoring-doc">
+    Deduplicated, entity-resolved news signals for industry.
+  </Card>
+
+  <Card title="Newsfeed " icon="building-memo" href="/newsfeed-doc">
+    News feed with filtering options.
+  </Card>
+</Columns>
+
+### **Workflow Automation**
+
+<Columns cols={2}>
+  <Card title="Company Research" icon="building-magnifying-glass" href="/company-research-doc">
+    Trigger Wokelo's company research workflows and return in any format.
+  </Card>
+
+  <Card title="Industry Research" icon="industry" href="/industry-research-doc">
+    Trigger Wokelo's industry research workflows, return in any format.
+  </Card>
+</Columns>
+
+<Columns cols={2}>
+  <Card title="Peer Comparison" icon="code-compare" href="/peer-comparison-doc">
+    Trigger Wokelo's peer comparison workflows and return in any format.
+  </Card>
+
+  <Card title="Custom Workflow" icon="network-wired" href="/custom-workflow-automation-doc">
+    Trigger custom research workflows and return in any format.
+  </Card>
+</Columns>
+
+Enrichment and Discovery APIs are request-based. Each request returns a request\_id which can be used to track status and retrieve results in JSON when complete. News Monitoring APIs return synchronously data directly in the HTTP response. Workflow Automation APIs are executed within notebooks and outputs can be exported as PDF, PPT, DOC, or JSON.
+
+## API structure
+
+Wokelo’s API follows two primary patterns depending on the complexity of the operation:
+
+**Synchronous APIs (instant response)**
+
+- Company Instant Enrichment — Returns structured data for a company in the HTTP response.
+- Company News Monitoring, Industry News Monitoring, Newsfeed API — Returns results directly in the HTTP response
+- Company Search — Returns matching companies immediately in the HTTP response
+
+**Asynchronous APIs (submit request, poll for status, retrieve results)**
+
+- Company Enrichment (Batch), Company Deep Intelligence, Industry Deep Intelligence and all the Discovery APIs return a request\_id
+- All Workflow Automation APIs return a report\_id
+- Poll for status, then retrieve results when complete. For request\_id, use Request result API to view the results. For report\_id, use Download Report API to download the report.
+
+**Example of Synchronous API response**
+
+News monitoring API will return the list of news directly in HTTP response.
+
+```json expandable
+{
+    "status": "success",
+    "data": [
+        {
+            "ai_summary": "Nordea Investment Management AB reduced its stake in Tesla, Inc. by 8.4% in the fourth quarter, according to its SEC filing. Several institutional investors increased their holdings, and Tesla reported quarterly earnings with a net margin of 4%, revenue of $24.90 billion, and an EPS of $0.50. ",
+            "type": "Secondary Transactions",
+            "url": "https://www.defenseworld.net/2026/03/23/nordea-investment-management-ab-lowers-position-in-tesla-inc-tsla.html",
+            "title": "Nordea Investment Management AB Lowers Position in Tesla, Inc. $TSLA",
+            "scraped_text": "Nordea Investment Management AB Lowers Position in Tesla, Inc. $TSLA\n\nNordea Investment Management AB decreased its stake in shares of Tesla, Inc. (NASDAQ:TSLA – Free Report) by 8.4% in the fourth quarter, according to the company in its most recent Form 13F filing with the SEC. The fund owned 1,281,857 shares of the electric vehicle producer’s stock after selling 117,144 shares during the quarter. Nordea Investment Management AB’s holdings in Tesla were worth $581,899,000 at the end of the most recent quarter. Get Tesla alerts: A number of other institutional investors and hedge funds also recently bought and sold shares of TSLA. Vanguard Group Inc. boosted its holdings in shares of Tesla by 0.4% during the 3rd quarter. Vanguard Group Inc. now owns 252,386,304 shares of the electric vehicle producer’s stock valued at $112,241,237,000 after purchasing an additional 995,623 shares during the last quarter. State Street Corp increased its holdings in shares of Tesla by 0.3% in the third quarter. State Street Corp now owns 113,762,849 shares of the electric vehicle producer’s stock worth $50,592,614,000 after purchasing an additional 344,162 shares during the last quarter. Capital World Investors lifted its position in shares of Tesla by 5.8% in the third quarter. Capital World Investors now owns 44,035,949 shares of the electric vehicle producer’s stock worth $19,583,547,000 after buying an additional 2,403,019 shares in the last quarter. Norges Bank purchased a new stake in shares of Tesla in the second quarter worth about $11,839,824,000. Finally, Amundi boosted its stake in Tesla by 20.4% during the second quarter. Amundi now owns 20,194,152 shares of the electric vehicle producer’s stock valued at $6,374,284,000 after buying an additional 3,422,270 shares during the last quarter. 66.20% of the stock is currently owned by institutional investors. Insider Transactions at Tesla In related news, Director Kathleen Wilson-Thompson sold 25,731 shares of the stock in a transaction dated Wednesday, February 25th. The shares were sold at an average price of $415.56, for a total value of $10,692,774.36. Following the sale, the director directly owned 19,669 shares of the company’s stock, valued at $8,173,649.64. This represents a 56.68% decrease in their position. The transaction was disclosed in a document filed with the SEC, which is available through this hyperlink. Also, Director James R. Murdoch sold 60,000 shares of the firm’s stock in a transaction dated Friday, January 2nd. The stock was sold at an average price of $445.40, for a total transaction of $26,724,000.00. Following the completion of the sale, the director directly owned 577,031 shares of the company’s stock, valued at approximately $257,009,607.40. The trade was a 9.42% decrease in their position. Additional details regarding this sale are available in the official SEC disclosure. In the last quarter, insiders sold 87,995 shares of company stock worth $38,315,650. 19.90% of the stock is currently owned by insiders. Tesla Stock Performance NASDAQ:TSLA opened at $367.96 on Monday. The firm has a market capitalization of $1.38 trillion, a PE ratio of 340.70, a PEG ratio of 10.88 and a beta of 1.89. The stock’s fifty day moving average is $414.76 and its 200 day moving average is $427.84. Tesla, Inc. has a fifty-two week low of $214.25 and a fifty-two week high of $498.83. The company has a debt-to-equity ratio of 0.08, a quick ratio of 1.77 and a current ratio of 2.16. Tesla (NASDAQ:TSLA – Get Free Report) last posted its quarterly earnings data on Wednesday, January 28th. The electric vehicle producer reported $0.50 EPS for the quarter, topping the consensus estimate of $0.45 by $0.05. Tesla had a net margin of 4.00% and a return on equity of 4.86%. The company had revenue of $24.90 billion during the quarter, compared to analyst estimates of $24.75 billion. During the same period in the previous year, the firm earned $0.73 earnings per share. Tesla’s quarterly revenue was down 3.1% compared to the same quarter last year. On average, sell-side analysts anticipate that Tesla, Inc. will post 2.56 earnings per share for the current year. Analyst Ratings Changes TSLA has been the subject of several research analyst reports. Morgan Stanley set a $415.00 price target on Tesla and gave the company an “equal weight” rating in a report on Thursday, January 29th. China Renaissance increased their target price on Tesla from $380.00 to $382.00 and gave the company a “hold” rating in a research report on Monday, February 2nd. BNP Paribas Exane cut their target price on shares of Tesla from $313.00 to $280.00 and set an “underperform” rating for the company in a report on Monday, March 2nd. Wells Fargo & Company reduced their price target on shares of Tesla from $130.00 to $125.00 and set an “underweight” rating on the stock in a research report on Thursday, January 29th. Finally, Needham & Company LLC reaffirmed a “hold” rating on shares of Tesla in a research note on Thursday, January 29th. Nineteen analysts have rated the stock with a Buy rating, thirteen have given a Hold rating and nine have given a Sell rating to the company’s stock. Based on data from MarketBeat.com, the stock has an average rating of “Hold” and an average target price of $406.84. Read Our Latest Research Report on Tesla Trending Headlines about Tesla Here are the key news stories impacting Tesla this week: Positive Sentiment: US government-confirmed supply deal: Reuters reports a $4.3 billion LFP prismatic battery cell supply agreement between Tesla and LG Energy Solution — a material, multi‑year supply commitment that supports cost and scale for Tesla’s lower-cost vehicle programs and energy products. Read More.\n\nUS government-confirmed supply deal: Reuters reports a $4.3 billion LFP prismatic battery cell supply agreement between Tesla and LG Energy Solution — a material, multi‑year supply commitment that supports cost and scale for Tesla’s lower-cost vehicle programs and energy products. Read More. Positive Sentiment: Solar manufacturing push: Multiple reports say Tesla is in talks to buy ~$2.9B of solar equipment from Chinese suppliers to build out U.S. solar panel/cell capacity — supports Elon Musk’s 100 GW U.S. solar goal and diversifies revenue beyond vehicles. Read More.\n\nSolar manufacturing push: Multiple reports say Tesla is in talks to buy ~$2.9B of solar equipment from Chinese suppliers to build out U.S. solar panel/cell capacity — supports Elon Musk’s 100 GW U.S. solar goal and diversifies revenue beyond vehicles. Read More. Positive Sentiment: Chip/AI roadmap progressing: Elon Musk and Reuters/Barron’s coverage indicate Tesla is targeting a December 2026 tape‑out for next‑gen AI chips (AI6/AI5) and pursuing “Terafab” initiatives — a successful chip program would reduce supply risk and accelerate Tesla’s autonomy/robotics ambitions. Read More.\n\nChip/AI roadmap progressing: Elon Musk and Reuters/Barron’s coverage indicate Tesla is targeting a December 2026 tape‑out for next‑gen AI chips (AI6/AI5) and pursuing “Terafab” initiatives — a successful chip program would reduce supply risk and accelerate Tesla’s autonomy/robotics ambitions. Read More. Neutral Sentiment: Semi truck early traction: Media reports (WSJ) show positive early feedback from truckers on Tesla’s Semi — encouraging for commercial product credibility, but near‑term revenue impact is modest. Read More.\n\nSemi truck early traction: Media reports (WSJ) show positive early feedback from truckers on Tesla’s Semi — encouraging for commercial product credibility, but near‑term revenue impact is modest. Read More. Neutral Sentiment: Geographic/energy expansion: Job listings and reporting show Tesla preparing an India push into industrial energy storage — long‑term optionality for energy business, but execution and timing unclear. Read More.\n\nGeographic/energy expansion: Job listings and reporting show Tesla preparing an India push into industrial energy storage — long‑term optionality for energy business, but execution and timing unclear. Read More. Negative Sentiment: Regulatory overhang — FSD probe escalates: U.S. regulators (NHTSA) upgraded the FSD investigation to engineering analysis covering millions of vehicles after crashes in reduced‑visibility conditions — this raises recall/enforcement risk and is a primary driver of today’s weakness. Read More.\n\nRegulatory overhang — FSD probe escalates: U.S. regulators (NHTSA) upgraded the FSD investigation to engineering analysis covering millions of vehicles after crashes in reduced‑visibility conditions — this raises recall/enforcement risk and is a primary driver of today’s weakness. Read More. Negative Sentiment: Analyst/market pressure on deliveries and valuation: UBS and others have cut Q1 delivery forecasts and reiterated cautious ratings; HSBC headlines predicting deep downside amplify negative sentiment and volatility. Read More. • Read More.\n\nAnalyst/market pressure on deliveries and valuation: UBS and others have cut Q1 delivery forecasts and reiterated cautious ratings; HSBC headlines predicting deep downside amplify negative sentiment and volatility. Read More. • Read More. Negative Sentiment: Competition & robotaxi doubts: Rivian/Uber alliance and commentary that Waymo leads the AV race increase skepticism about Tesla’s robotaxi timeline and margins for autonomy/Optimus. Read More. About Tesla (Free Report) Tesla, Inc (NASDAQ: TSLA) is an American company that designs, manufactures and sells electric vehicles, energy generation and energy storage products. Founded in 2003 by Martin Eberhard and Marc Tarpenning, Tesla grew into a vertically integrated mobility and clean‑energy company with Elon Musk serving as its chief executive officer. The company’s stated mission is to accelerate the world’s transition to sustainable energy, reflected in its combined focus on electric drivetrains, battery technology, renewable energy products and software. Tesla’s automotive business includes a lineup of battery‑electric vehicles and related services. See Also Five stocks we like better than Tesla Receive News & Ratings for Tesla Daily - Enter your email address below to receive a concise daily summary of the latest news and analysts' ratings for Tesla and related companies with MarketBeat.com's FREE daily email newsletter.",
+            "company_name": "Tesla",
+            "publisher": "defenseworld",
+            "published_date": "2026-03-23 10:52:44",
+            "source": "Wokelo",
+            "author": "Defense World Staff"
+        },
+        {
+            "ai_summary": "Tesla Inc. is negotiating with Chinese companies to purchase $2.9 billion worth of solar manufacturing equipment, including machinery from Suzhou Maxwell Technologies, Shenzhen S.C New Energy Technology, and Laplace Renewable Energy Technology. The equipment, intended mainly for the U.S. market, requires export approval from Chinese regulators, with deliveries expected by autumn to support Musk's solar capacity expansion. This effort is part of Musk's broader vision to achieve 100GW of solar energy capacity in the U.S. by 2028. ",
+            "type": "Equity Fund-Raising",
+            "url": "https://finance.yahoo.com/sectors/energy/articles/tesla-talks-purchase-2-9-120959379.html",
+            "title": "Tesla In Talks To Purchase $2.9 Billion Worth Of Solar Equipment From Chinese Suppliers: Report",
+            "scraped_text": "Tesla Inc. is reportedly in discussions with several Chinese companies to acquire solar manufacturing equipment worth $2.9 billion. Suzhou Maxwell Technologies, a leading maker of screen-printing equipment for solar cell manufacturing, is among the top contenders to supply machinery for the project and is currently seeking export approval from China's commerce ministry, reported Reuters on Friday. Other potential suppliers include Shenzhen S.C New Energy Technology and Laplace Renewable Energy Technology. The $2.9 billion worth of equipment, including screen-printing production lines, will require export approval from Chinese regulators. However, the specifics of the equipment requiring approval and the duration of the approval process remain uncertain. Don't Miss: Fast Company Calls It a ‘Groundbreaking Step for the Creator Economy' — Investors Can Still Get In at $0.91/Share\n\nThis Energy Storage Company Already Has $185M in Contracts—Shares Are Still Available Chinese suppliers have been asked to deliver equipment by autumn, some to Texas, for Elon Musk's planned solar capacity, which will mainly support Tesla, with a portion powering SpaceX satellites, as per the publication. Tesla did not immediately respond to Benzinga’s request for comment. Tesla Targets 100GW US Solar Push This move is a part of Musk’s 100-gigawatt solar goal, which includes an active U.S. manufacturing push by exploring multiple sites to manufacture solar cells. The company had also considered expanding its Buffalo, New York, factory to increase capacity to about 10 gigawatts and discussed the possibility of constructing a second facility in New York in the long term. Tesla’s job listings also hint at the company’s objective to deploy 100 GW of “solar manufacturing from raw materials on American soil before the end of 2028”. See Also: What If Tires Didn't Need Air — Or Replacing? This Startup Says It's Possible Musk-Trump Policy Clash On Solar Elon Musk has called solar the \"biggest source of power\" as the AI industry searches for scalable energy solutions. He criticized U.S. tariffs for making solar deployment \"artificially expensive,\" even as demand surges from AI data centers and manufacturing—drawing a sharp contrast with President Donald Trump's push to expand fossil fuels and scale back support for renewables. An October report by Deloitte says new U.S. tax changes under Trump’s One Big Beautiful Bill Act (OBBA) have rolled back clean energy incentives, putting pressure on early-stage wind and solar projects. Investments fell 18% to about $35 billion in early 2025, and solar program costs are expected to rise from 36% in 2025 to 55% in 2026, as tax credits phase out.\n\nStory Continues",
+            "company_name": "Tesla",
+            "publisher": "yahoo",
+            "published_date": "2026-03-22 12:09:59",
+            "source": "Wokelo",
+            "author": "Namrata Sen"
+        },
+        {
+            "ai_summary": "Tesla Inc.'s energy division was granted a license to supply electricity in the UK, allowing it to target British homes and businesses. The license was issued after a seven-month process and is limited to Great Britain. ",
+            "type": "Partnerships & Alliances",
+            "url": "https://www.bloomberg.com/news/articles/2026-03-12/tesla-s-energy-division-gets-uk-license-to-supply-electricity",
+            "title": "Tesla’s Energy Division Gets UK License to Supply Electricity",
+            "scraped_text": "Tesla Inc.’s energy division has been granted a license to supply electricity in the UK, giving the company access to potential customers in British homes and businesses.\n\nTesla Energy Ventures Ltd. received the license following a seven-month process, regulator Ofgem said in a statement Thursday. The license for the division of Elon Musk’s Tesla took effect at 6 p.m. local on Wednesday and it only applies to Great Britain.\n\nThe move comes as UK energy suppliers face pressure from soaring household debt and stringent rules, even as wholesale prices drop from the energy crisis peak. For Tesla, it’s an opportunity to expand into markets beyond the US, where it supplies power to customers in Texas by allowing owners of its electric vehicles to charge their cars cheaply and paying them to feed surplus electricity back to the grid.\n\nThere are more than 250,000 Tesla electric vehicles and thousands of home storage batteries in the UK, according to price comparison website U-switch.\n\nTesla Motors Ltd., a separate company incorporated in England and Wales, was granted an electricity generation license in June 2020, Ofgem said.",
+            "company_name": "Tesla",
+            "publisher": "bloomberg",
+            "published_date": "2026-03-12 07:55:50",
+            "source": "Wokelo",
+            "author": "['Priscila Azevedo Rocha', 'Follow All New Stories Priscila Azevedo Rochaplus Followingplus Get Alertsplus Get Alertsx', 'Follow All New Stories Priscila Azevedo Rocha', 'Plus Followingplus Get Alertsplus Get Alertsx', 'Priscila Azevedo Rochamarch', 'At Am', 'At Am Utc', 'March', 'Harry Black', 'Andrew Dickson']"
+        },
+        {
+            "ai_summary": "Israel's Jazz raised $61 million in funding to develop an AI-driven platform for data loss prevention. The funding rounds were led by Glilot Capital Partners and Team8, with participation from several venture firms, and the company has been marketing its product for seven months. ",
+            "type": "Equity Fund-Raising",
+            "url": "https://www.bloomberg.com/news/articles/2026-03-10/israel-s-jazz-raises-61-million-for-ai-data-loss-prevention",
+            "title": "Israel’s Jazz Raises $61 Million for AI Data Loss Prevention",
+            "scraped_text": "Israel’s Jazz raised $61 million in funding to create a platform that uses artificial intelligence to tackle data loss prevention. The Seed and Series A rounds were led by Glilot Capital Partners and Team8, with participation from Ten Eleven Ventures, Merlin Ventures, Encoded Ventures and MassMutual Ventures, the 15-month old company said in a statement Tuesday. “We built an AI agent that investigates, learns your business, data, context, business processes, and can determine if a situation is risky,” Chief Executive Officer and co-founder Ido Livneh said in an interview. “The agent does human work at scale and efficiency that wasn't possible before.” There have been an increasing number of high-impact incidents involving data loss, which can stem from employees using AI chatbots inappropriately or through theft. A data loss incident at South Korean ecommerce leader Coupang Inc. last year compromised the data of 34 million people and led to the resignation of CEO Park Dae-jun. A 2023 data breach carried out Bloomberg Terminal by former employees at Tesla Inc. exposed personal information of 75,000 workers. Jazz has been marketing its product for seven months, with 15 paying customers to date, according to Livneh, who is a veteran of Israel Defense Forces’ secretive tech-focused Unit 81. He declined to disclose the company’s valuation.\n\n(Corrects spelling of Livneh in fifth paragraph.)\n\nLink Copy Link\n\nFollow all new stories by Jake Rudnitsky Plus Following Plus Get Alerts Plus Get Alerts X\n\nFacebook X LinkedIn Email Link Gift",
+            "company_name": "Tesla",
+            "publisher": "bloomberg",
+            "published_date": "2026-03-10 13:00:07",
+            "source": "Wokelo",
+            "author": "['Jake Rudnitsky', 'Follow All New Stories Jake Rudnitskyplus Followingplus Get Alertsplus Get Alertsx', 'Follow All New Stories Jake Rudnitsky', 'Plus Followingplus Get Alertsplus Get Alertsx', 'Jake Rudnitskymarch', 'At Pm Utccorrected March', 'At Pm', 'At Pm Utc', 'March', 'Corrected March']"
+        }
+    ],
+    "count": 4
+}
+```
+
+**Example of Asynchronous API response**
+
+Company Enrichment API will return a request\_id as a response. One has to use Request Result API to fetch the result of this request\_id.,
+
+```json
+{
+    "request_id": "931643e9-b6c7-45d4-9ba9-bd3b534221e7",
+    "status": "PENDING"
+}
+```
+
+Company Research API will return a report\_id as a response. One has to use Download Report API to view the report output.
+
+```json
+{
+    "report_id": 123345
+}
+```
+
+## Estimated Time
+
+| **API** | **Approximate Time** |
+| :-- | :-- |
+| Company Instant Enrichment | \<10s |
+| Company Instant Enrichment (Batch) | \<1 min |
+| Company Deep Intelligence | 5-10 mins |
+| Industry Deep Intelligence | 5-10 mins |
+| Market Map | 10-15 mins |
+| Target Screening | 10-15 mins |
+| Buyer Screening | 10-15 mins |
+| Competitor List | 10-15 mins |
+| M&A Activity | 10-15 mins |
+| Fundraising Activity | 10-15 mins |
+| Company News Monitoring | \<1 min |
+| Industry News Monitoring | \<1 min |
+| Newsfeed | \<1 min |
+| Company Research | 20-25 mins |
+| Industry Research | 20-25 mins |
+| Peer Comparison | 15-20 mins |
+| Custom Workflow | Custom |

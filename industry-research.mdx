@@ -1,0 +1,152 @@
+---
+title: "Industry Research"
+api: "POST https://api.wokelo.ai/api/workflow_manager/start/"
+---
+
+## Overview
+
+Starts generating an Industry Research report for your specified industry.
+
+## Endpoint Details
+
+- **Method:** POST
+- **Endpoint:** `api/workflow_manager/start/`
+
+## Authentication requirements
+
+- Include a valid JWT token in your request header
+- If you don't have a token yet, you can get one from the `/auth/token/` endpoint first.
+
+## Request
+
+### Request Parameters
+
+#### Header Parameters
+
+<ParamField header="Authorization" type="string" required>
+  JWT token obtained from the Authentication request
+</ParamField>
+
+
+#### Body Parameters
+
+<ParamField body="industry" type="string" required>
+  Industry on which the report will be created
+</ParamField>
+
+<ParamField body="workflow" type="string" required>
+  `industry_primer`
+</ParamField>
+
+<ParamField body="custom_files" type="array of objects">
+  Files to include in the report. Use fileName values from the file upload response
+</ParamField>
+
+## Response
+
+Success response will include the report\_id of the Industry Research report
+
+#### Successful Response Fields
+
+<ResponseField name="report_id" type="integer">
+  Report id of the Industry Research
+</ResponseField>
+
+<RequestExample>
+
+```javascript JavaScript - Fetch
+const myHeaders = new Headers();
+myHeaders.append("Content-Type", "application/json");
+myHeaders.append("Authorization", "your token");
+
+const raw = JSON.stringify({
+  "workflow": "industry_primer",
+  "industry": "gaming",
+  "workbook_name": "Industry Research - Gaming"
+});
+
+const requestOptions = {
+  method: "POST",
+  headers: myHeaders,
+  body: raw,
+  redirect: "follow"
+};
+
+fetch("{{path}}/api/workflow_manager/start/", requestOptions)
+  .then((response) => response.text())
+  .then((result) => console.log(result))
+  .catch((error) => console.error(error));
+```
+
+```python Python
+import requests
+
+headers = {"Content-Type": "application/json", "Authorization": "Bearer YOUR_TOKEN"}
+payload = {"workflow": "industry_primer", "industry": "gaming", "workbook_name": "Industry Research - Gaming"}
+response = requests.post("https://api.wokelo.ai/api/workflow_manager/start/", headers=headers, json=payload)
+print(response.json())
+```
+
+```bash cURL
+curl --request POST \
+  --url https://api.wokelo.ai/api/workflow_manager/start/ \
+  --header 'Authorization: Bearer YOUR_TOKEN' \
+  --header 'Content-Type: application/json' \
+  --data '{"workflow":"industry_primer","industry":"gaming","workbook_name":"Industry Research - Gaming"}'
+```
+
+```go Go
+package main
+
+import (
+  "bytes"
+  "encoding/json"
+  "fmt"
+  "io"
+  "net/http"
+)
+
+func main() {
+  payload := map[string]string{"workflow": "industry_primer", "industry": "gaming", "workbook_name": "Industry Research - Gaming"}
+  body, _ := json.Marshal(payload)
+  req, _ := http.NewRequest("POST", "https://api.wokelo.ai/api/workflow_manager/start/", bytes.NewBuffer(body))
+  req.Header.Set("Authorization", "Bearer YOUR_TOKEN")
+  req.Header.Set("Content-Type", "application/json")
+  resp, _ := http.DefaultClient.Do(req)
+  defer resp.Body.Close()
+  respBody, _ := io.ReadAll(resp.Body)
+  fmt.Println(string(respBody))
+}
+```
+
+```java Java
+import java.net.URI;
+import java.net.http.*;
+
+public class IndustryResearch {
+  public static void main(String[] args) throws Exception {
+    String body = "{\"workflow\":\"industry_primer\",\"industry\":\"gaming\",\"workbook_name\":\"Industry Research - Gaming\"}";
+    HttpRequest request = HttpRequest.newBuilder()
+        .uri(URI.create("https://api.wokelo.ai/api/workflow_manager/start/"))
+        .header("Authorization", "Bearer YOUR_TOKEN")
+        .header("Content-Type", "application/json")
+        .POST(HttpRequest.BodyPublishers.ofString(body))
+        .build();
+    HttpResponse<String> response = HttpClient.newHttpClient()
+        .send(request, HttpResponse.BodyHandlers.ofString());
+    System.out.println(response.body());
+  }
+}
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200
+{
+    "report_id": 123345
+}
+```
+
+</ResponseExample>

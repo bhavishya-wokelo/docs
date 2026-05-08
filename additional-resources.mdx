@@ -1,0 +1,107 @@
+---
+title: "Additional resources"
+---
+
+## Polling strategy
+
+All async APIs require polling. Poll the status endpoint **once per minute** for up to **90 minutes**. If your request has not completed within 90 minutes, treat it as timed out — our team is automatically notified and will investigate promptly.
+
+<CodeGroup>
+
+```json JavaScript expandable wrap
+async function pollRequest(requestId, token, opts = {}) {
+  const {
+    maxAttempts = 90,
+    interval = 60000,       // 1 minute between each poll
+  } = opts;
+
+  for (let i = 0; i < maxAttempts; i++) {
+    const res = await fetch(
+      `https://api.wokelo.ai/api/enterprise/request/status/?request_id=${requestId}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    const { status } = await res.json();
+
+    if (status === "COMPLETED") return fetchResult(requestId);
+    if (status === "FAILED") throw new Error("Request failed");
+
+    await new Promise(r => setTimeout(r, interval));
+  }
+
+  // Timed out after 90 minutes — our team will be notified and look into it.
+  throw new Error(
+    "Polling timed out after 90 minutes. Our team has been notified and will investigate."
+  );
+}
+```
+
+```json Python expandable wrap
+import time
+import requests
+
+def poll_request(request_id: str, token: str, max_attempts: int = 90, interval: int = 60):
+    """
+    Polls the status endpoint once per minute for up to 90 minutes.
+    Raises an exception if the request does not complete within 90 minutes.
+    """
+    headers = {"Authorization": f"Bearer {token}"}
+
+    for attempt in range(max_attempts):
+        response = requests.get(
+            f"https://api.wokelo.ai/api/enterprise/request/status/",
+            params={"request_id": request_id},
+            headers=headers
+        )
+        response.raise_for_status()
+        status = response.json().get("status")
+
+        if status == "COMPLETED":
+            return fetch_result(request_id)
+        if status == "FAILED":
+            raise Exception("Request failed.")
+
+        time.sleep(interval)
+
+    # Timed out after 90 minutes — our team will be notified and look into it.
+    raise TimeoutError(
+        "Polling timed out after 90 minutes. Our team has been notified and will investigate."
+    )
+```
+
+</CodeGroup>
+
+## Error guides
+
+| **HTTP Code** | **Meaning** | **Retry?** | **Action** |
+| :-- | :-- | :-- | :-- |
+| `200` | Success (sync) | No | Parse response |
+| `202` | Accepted (async) | No | Poll with request\_id |
+| `400` | Bad Request | No | Fix request parameters |
+| `401` | Unauthorized | Once | Re-authenticate, then retry |
+| `403` | Forbidden | No | Check API access level |
+| `404` | Not Found | No | Verify endpoint URL and resource ID |
+| `429` | Rate Limited | Yes | Exponential backoff (start 1s, max 60s) |
+| `500` | Server Error | Yes | Retry with backoff (max 3 retries) |
+| `502/503` | Service Unavailable | Yes | Retry with backoff (max 5 retries) |
+
+## Webhooks
+
+Instead of polling for results after submitting a request, you can use **webhooks** to receive the data automatically once processing is complete. When a request finishes, we'll send the payload directly to your configured endpoint — no repeated status checks required.
+
+Webhook configuration is handled by our customer success team. Please reach out to our Customer Success team to get webhook endpoint registered and activated.
+
+#### How It Works
+
+1. Submit an enrichment request via any of the supported endpoints (e.g. `POST /api/enterprise/company/enrich/`). You'll receive a `request_id` with a `PENDING` status as usual.
+2. Once processing is complete, we'll send an HTTP `POST` request to your registered webhook URL.
+3. Your server should respond with a `200 OK` to acknowledge receipt.
+
+Here is sample payload.
+
+```json wrap
+{
+    "request_id": "5b5c8248-50e3-4e5d-b91e-5c75378971dd",
+    "status": "COMPLETED"
+}
+```

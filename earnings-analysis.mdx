@@ -1,0 +1,31 @@
+---
+title: "Earnings Analysis"
+hidden: true
+---
+
+Loreum Ipsum text to be updated
+
+## Request reference
+
+Generates a comprehensive multi-dimensional comparison of up to 5 companies covering fundamentals, product offerings, employee reviews, hiring trends, and market visibility.
+
+`POST   /api/workflow_manager/start/`
+
+```json
+curl 'https://api.wokelo.ai/api/workflow_manager/start/' \
+  --header 'Authorization: Bearer Token' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "workflow": "player_comparison",
+    "websites": ["stripe.com", "paypal.com", "square.com"],
+    "workbook_name": "Payments Competitive Landscape"
+  }'
+```
+
+View detailed API reference for details of each parameter.
+
+## Examples
+
+- Competitive benchmarking: compare a target company against its closest peers on key dimensions.
+- Investment committee: present a structured peer analysis alongside a Company Research report.
+- Market positioning: understand where a company stands relative to competitors on product, talent, and financials

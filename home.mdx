@@ -1,0 +1,276 @@
+---
+title: "Home"
+description: "Build with Wokelo"
+mode: "custom"
+---
+
+import { ApiCodeSwitcher } from "/snippets/api-code-switcher.jsx";
+import { ContactModal } from "/snippets/contact-modal.jsx"
+import { LogoTicker } from "/snippets/LogoTicker.jsx"
+
+<div style={{
+  position: 'relative',
+  maxHeight: 'calc(55vh)',
+  display: 'flex',
+  alignItems: 'start',
+  backgroundImage: "url('/images/grid.png')",
+  backgroundSize: 'cover',
+  backgroundPosition: 'center',
+  backgroundRepeat: 'no-repeat',
+  overflow: 'hidden',
+  marginTop: '0px'
+}}>
+  <div style={{ 
+    width: '100%',
+    maxWidth: '1030px',
+    margin: '0 auto',
+    padding: '10px 64px',
+    display: 'flex',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '48px',
+    position: 'relative',
+    zIndex: 1
+  }}>
+    <div style={{
+      flex: 1,
+      maxWidth: '900px',
+      marginBottom : '60px'
+    }}>
+      <h1 className="text-black dark:text-white" style={{
+        fontSize: '40px',
+        fontWeight: 700,
+        lineHeight: 1.15,
+        margin: '0 0 15px 0',
+        letterSpacing: '-0.02em'
+      }}>Build With Wokelo</h1>
+
+      <p className="text-gray-700 dark:text-gray-300" style={{
+        fontSize: '16px',
+        fontWeight: 400,
+        lineHeight: 1.6,
+        margin: '0 0 32px 0',
+        maxWidth: '520px'
+      }}>
+        Explore API reference, integration guides, and updates to seamlessly build with Wokelo
+      </p>
+
+      <div style={{
+        display: 'flex',
+        gap: '16px',
+        flexWrap: 'wrap'
+      }}>
+        <div onClick={() => {
+          const params = new URLSearchParams(window.location.search);
+          params.set("contact", "true");
+          const newUrl = `${window.location.pathname}?${params.toString()}`;
+          window.history.pushState({}, "", newUrl);
+          window.dispatchEvent(new Event("popstate"));
+        }} className="bg-black text-white dark:bg-white dark:text-black" style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '14px 24px',
+          borderRadius: '8px',
+          fontWeight: 600,
+          fontSize: '15px',
+          textDecoration: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+          transition: 'opacity 0.15s ease'
+        }}>
+          Request API Access
+        </div>
+        <a href="/getting-started-mcp" className="text-gray-900 dark:text-white border-gray-300 dark:border-white" style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '8px',
+          background: 'transparent',
+          padding: '14px 24px',
+          borderRadius: '8px',
+          fontWeight: 500,
+          fontSize: '15px',
+          textDecoration: 'none',
+          border: '1px solid',
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+          transition: 'border-color 0.15s ease, background 0.15s ease'
+        }}>
+          Setup MCP
+        </a>
+      </div>
+    </div>
+
+    <div className="hero-image-container wk-hero-image" style={{
+      flex: 1,
+      display: 'flex',
+      justifyContent: 'flex-end',
+      alignItems: 'center'
+    }}>
+         <img
+        src="/images/hero-image.png"
+        alt="Wokelo API Hero"
+        style={{
+          width: '100%',
+          maxWidth: '380px',
+          borderRadius: '12px',
+          marginBottom: '20px',
+          marginRight:'-50px'
+        }}
+        loading="lazy"
+      />
+    </div>
+  </div>
+  {/* Fade overlay at bottom - dark mode only */}
+  <div className="hidden dark:block" style={{
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '150px',
+    background: 'linear-gradient(to bottom, transparent, #0B0F14)',
+    pointerEvents: 'none'
+  }} />
+</div>
+
+{/* SEE IT WORK */}
+<section style={{ padding: '1rem 0' }}>
+  <div style={{ maxWidth: '960px', margin: '0 auto', padding: '0 28px' }}>
+    <h2 className="text-gray-900 dark:text-white" style={{
+      fontSize: '28px',
+      fontWeight: 650,
+      letterSpacing: '-0.02em',
+      marginBottom: '24px',
+    }}>
+      See it work
+    </h2>
+
+    <ApiCodeSwitcher />
+  </div>
+</section>
+
+{/* FOOTER LINKS */}
+<section style={{ paddingBottom: '4rem' , paddingTop: '1rem' }}>
+  <div style={{ maxWidth: '960px', margin: '0 auto', padding: '0 28px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
+     <div className="wk-footer-links">
+       <a
+        onClick={() => {
+          const params = new URLSearchParams(window.location.search);
+          params.set("contact", "true");
+          const newUrl = `${window.location.pathname}?${params.toString()}`;
+          window.history.pushState({}, "", newUrl);
+          window.dispatchEvent(new Event("popstate"));
+        }}
+        style={{
+     display: "flex",
+     alignItems: "center",
+     gap: "0.8rem",
+     textDecoration: "none",
+     lineHeight: 1.45,
+     transition: "transform 160ms ease, opacity 160ms ease, border-color 160ms ease, background 160ms ease, color 160ms ease, box-shadow 160ms ease",
+   }}
+      >
+        
+<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M17.6172 14.6093C16.9969 13.9843 15.4945 13.0722 14.7656 12.7046C13.8164 12.2265 13.7383 12.1874 12.9922 12.7417C12.4945 13.1116 12.1637 13.4421 11.5812 13.3179C10.9988 13.1937 9.73318 12.4933 8.62498 11.3886C7.51678 10.2839 6.77576 8.98155 6.65115 8.40108C6.52654 7.82061 6.86248 7.49366 7.22889 6.99483C7.74529 6.29171 7.70623 6.17452 7.26482 5.2253C6.92068 4.48702 5.98201 2.99874 5.35467 2.38155C4.68357 1.71866 4.68357 1.83585 4.25115 2.01553C3.89909 2.16363 3.56135 2.34368 3.24217 2.55343C2.61717 2.96866 2.27029 3.31358 2.02771 3.83194C1.78514 4.3503 1.67615 5.56553 2.92889 7.84132C4.18162 10.1171 5.06053 11.2808 6.87967 13.0948C8.69881 14.9089 10.0976 15.8843 12.1426 17.0312C14.6722 18.448 15.6426 18.1718 16.1625 17.9296C16.6824 17.6874 17.0289 17.3437 17.4449 16.7187C17.6552 16.4 17.8356 16.0626 17.984 15.7108C18.164 15.28 18.2812 15.28 17.6172 14.6093Z" stroke="#DEDEDE" stroke-width="1.25" stroke-miterlimit="10"/>
+</svg>
+
+        <span> Questions? <u style={{ textUnderlineOffset: "0.18em", color: "var(--wk-footer-link)" }}>Contact Sales</u></span>
+       </a>
+
+     <a
+       style={{
+     display: "flex",
+     alignItems: "center",
+     gap: "0.8rem",
+     textDecoration: "none",
+     lineHeight: 1.45,
+     transition: "transform 160ms ease, opacity 160ms ease, border-color 160ms ease, background 160ms ease, color 160ms ease, box-shadow 160ms ease",
+   }}
+       href="/2026"
+     >
+       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M8 9H16M8 13H14M18 4C18.7956 4 19.5587 4.31607 20.1213 4.87868C20.6839 5.44129 21 6.20435 21 7V15C21 15.7956 20.6839 16.5587 20.1213 17.1213C19.5587 17.6839 18.7956 18 18 18H13L8 21V18H6C5.20435 18 4.44129 17.6839 3.87868 17.1213C3.31607 16.5587 3 15.7956 3 15V7C3 6.20435 3.31607 5.44129 3.87868 4.87868C4.44129 4.31607 5.20435 4 6 4H18Z" stroke="#DEDEDE" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+
+
+       <span className="-ml-[2px]">Stay current? <u style={{ textUnderlineOffset: "0.18em", color: "var(--wk-footer-link)" }}>View Changelog</u></span>
+     </a>
+
+     <a
+       style={{
+     display: "flex",
+     alignItems: "center",
+     gap: "0.8rem",
+     textDecoration: "none",
+     lineHeight: 1.45,
+     transition: "transform 160ms ease, opacity 160ms ease, border-color 160ms ease, background 160ms ease, color 160ms ease, box-shadow 160ms ease",
+   }}
+       href="/getting-started-mcp"
+     >
+       <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3665_679)">
+<path d="M21.6941 10.4277L17.5691 7.67766C17.4655 7.60857 17.3451 7.56889 17.2208 7.56286C17.0964 7.55684 16.9728 7.58469 16.863 7.64345C16.7533 7.70222 16.6615 7.78968 16.5976 7.8965C16.5336 8.00333 16.4999 8.12551 16.5 8.25001V10.3125H6.1875V6.18751H9.02344C9.19077 6.83558 9.58872 7.40039 10.1427 7.77605C10.6967 8.1517 11.3686 8.31243 12.0326 8.22809C12.6966 8.14375 13.3071 7.82014 13.7495 7.31792C14.192 6.81569 14.4361 6.16934 14.4361 5.50001C14.4361 4.83067 14.192 4.18432 13.7495 3.6821C13.3071 3.17987 12.6966 2.85626 12.0326 2.77193C11.3686 2.68759 10.6967 2.84831 10.1427 3.22397C9.58872 3.59963 9.19077 4.16443 9.02344 4.81251H6.1875C5.82283 4.81251 5.47309 4.95737 5.21523 5.21523C4.95737 5.4731 4.8125 5.82283 4.8125 6.18751V10.3125H0.6875C0.505164 10.3125 0.330295 10.3849 0.201364 10.5139C0.0724328 10.6428 0 10.8177 0 11C0 11.1823 0.0724328 11.3572 0.201364 11.4861C0.330295 11.6151 0.505164 11.6875 0.6875 11.6875H4.8125V15.8125C4.8125 16.1772 4.95737 16.5269 5.21523 16.7848C5.47309 17.0426 5.82283 17.1875 6.1875 17.1875H8.9375V17.875C8.9375 18.2397 9.08237 18.5894 9.34023 18.8473C9.59809 19.1051 9.94783 19.25 10.3125 19.25H13.0625C13.4272 19.25 13.7769 19.1051 14.0348 18.8473C14.2926 18.5894 14.4375 18.2397 14.4375 17.875V15.125C14.4375 14.7603 14.2926 14.4106 14.0348 14.1527C13.7769 13.8949 13.4272 13.75 13.0625 13.75H10.3125C9.94783 13.75 9.59809 13.8949 9.34023 14.1527C9.08237 14.4106 8.9375 14.7603 8.9375 15.125V15.8125H6.1875V11.6875H16.5V13.75C16.4999 13.8745 16.5336 13.9967 16.5976 14.1035C16.6615 14.2103 16.7533 14.2978 16.863 14.3566C16.9728 14.4153 17.0964 14.4432 17.2208 14.4371C17.3451 14.4311 17.4655 14.3914 17.5691 14.3223L21.6941 11.5723C21.7884 11.5096 21.8657 11.4245 21.9192 11.3247C21.9727 11.2248 22.0007 11.1133 22.0007 11C22.0007 10.8867 21.9727 10.7752 21.9192 10.6754C21.8657 10.5755 21.7884 10.4904 21.6941 10.4277ZM11.6875 4.12501C11.9594 4.12501 12.2253 4.20565 12.4514 4.35674C12.6775 4.50782 12.8538 4.72257 12.9578 4.97382C13.0619 5.22506 13.0891 5.50153 13.0361 5.76826C12.983 6.03498 12.8521 6.27998 12.6598 6.47228C12.4675 6.66457 12.2225 6.79553 11.9557 6.84859C11.689 6.90164 11.4126 6.87441 11.1613 6.77034C10.9101 6.66627 10.6953 6.49003 10.5442 6.26392C10.3931 6.0378 10.3125 5.77196 10.3125 5.50001C10.3125 5.13533 10.4574 4.7856 10.7152 4.52773C10.9731 4.26987 11.3228 4.12501 11.6875 4.12501ZM10.3125 15.125H13.0625V17.875H10.3125V15.125ZM17.875 12.4652V9.53907L20.0733 11L17.875 12.4652Z" fill="#DEDEDE"/>
+</g>
+<defs>
+<clipPath id="clip0_3665_679">
+<rect width="22" height="22" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+
+
+       <span>Using an AI tool? <u style={{ textUnderlineOffset: "0.18em", color: "var(--wk-footer-link)" }}>Connect via MCP</u></span>
+     </a>
+
+     <a
+       style={{
+     display: "flex",
+     alignItems: "center",
+     gap: "0.8rem",
+     textDecoration: "none",
+     lineHeight: 1.45,
+     transition: "transform 160ms ease, opacity 160ms ease, border-color 160ms ease, background 160ms ease, color 160ms ease, box-shadow 160ms ease",
+   }}
+       href="/affinity"
+     >
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_3665_670)">
+<path fill-rule="evenodd" clip-rule="evenodd" d="M18.875 3.90007C19.0871 3.95738 19.2804 4.0696 19.4353 4.22541C19.5903 4.38122 19.7014 4.57512 19.7575 4.78757C20.3225 6.92507 19.7975 9.31257 18.1075 11.0001C17.3253 11.784 16.3538 12.3525 15.2872 12.6504C14.2206 12.9482 13.0952 12.9653 12.02 12.7001C11.9596 12.684 11.8965 12.6814 11.835 12.6926L11.8038 12.7026L5.45375 19.0526C4.85317 19.6516 4.03952 19.988 3.19125 19.988C2.34298 19.988 1.52934 19.6516 0.928753 19.0526C0.329701 18.452 -0.00671387 17.6383 -0.00671387 16.7901C-0.00671387 15.9418 0.329701 15.1281 0.928753 14.5276L7.27875 8.17757L7.28875 8.14632C7.29988 8.08485 7.29732 8.02168 7.28125 7.96132C7.0171 6.88355 7.03547 5.75586 7.33459 4.68727C7.63371 3.61867 8.20345 2.64532 8.98875 1.86132C9.78602 1.06172 10.781 0.487763 11.8723 0.197915C12.9637 -0.091933 14.1123 -0.0873084 15.2013 0.211317C15.4138 0.267399 15.6078 0.378541 15.7637 0.533533C15.9196 0.688524 16.0318 0.881884 16.0891 1.09411C16.1464 1.30633 16.1468 1.52991 16.0901 1.7423C16.0334 1.95469 15.9217 2.14838 15.7663 2.30382L13.1413 4.92882L13.62 6.36632L15.0575 6.84507L17.6825 4.22007C17.838 4.06465 18.0318 3.95299 18.2442 3.89637C18.4566 3.83975 18.6803 3.84016 18.8925 3.89757L18.875 3.90007ZM17.2125 10.1251C16.5808 10.757 15.7969 11.2155 14.9364 11.4564C14.076 11.6972 13.168 11.7123 12.3 11.5001C11.805 11.3801 11.2663 11.4713 10.9 11.8313L4.55 18.1813C3.79125 18.9413 2.55 18.9413 1.7875 18.1813C1.42339 17.8138 1.21912 17.3174 1.21912 16.8001C1.21912 16.2827 1.42339 15.7863 1.7875 15.4188L8.1375 9.06882C8.4975 8.70882 8.58875 8.16757 8.46875 7.66882C8.29203 6.93952 8.2737 6.1808 8.415 5.44382C8.61438 4.42699 9.1102 3.49189 9.84 2.75632C10.79 1.80632 12.015 1.30632 13.2525 1.25632C13.7914 1.23279 14.3308 1.29052 14.8525 1.42757L12.2275 4.05257C12.064 4.21628 11.9492 4.42215 11.8958 4.64725C11.8424 4.87236 11.8525 5.10787 11.925 5.32757L12.4038 6.76507C12.5288 7.13882 12.8213 7.43132 13.1938 7.55507L14.6313 8.03382C14.8508 8.10779 15.0867 8.11866 15.3121 8.06518C15.5375 8.0117 15.7433 7.89602 15.9063 7.73132L18.5313 5.10632C18.6688 5.62882 18.7263 6.16757 18.7025 6.70632C18.6486 7.99177 18.1131 9.20992 17.2025 10.1188L17.2125 10.1251Z" fill="#DEDEDE"/>
+</g>
+<defs>
+<clipPath id="clip0_3665_670">
+<rect width="20" height="20" fill="white"/>
+</clipPath>
+</defs>
+</svg>
+
+
+       <span>Works with your stack. <u style={{ textUnderlineOffset: "0.18em", color: "var(--wk-footer-link)" }}>View Integrations</u></span>
+     </a>
+
+     <a
+       style={{
+     display: "flex",
+     alignItems: "center",
+     gap: "0.8rem",
+     textDecoration: "none",
+     lineHeight: 1.45,
+     transition: "transform 160ms ease, opacity 160ms ease, border-color 160ms ease, background 160ms ease, color 160ms ease, box-shadow 160ms ease",
+   }}
+       href="/llms.txt"
+     >
+       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M5.55533 18.9732H14.4446C16.1775 18.9732 17.0396 18.0942 17.0396 16.3532V8.7528C17.0396 7.6728 16.9225 7.20423 16.2528 6.51781L11.6321 1.82209C10.9964 1.16888 10.4771 1.02673 9.5314 1.02673H5.55533C3.83104 1.02673 2.96033 1.91388 2.96033 3.6553V16.3532C2.96033 18.1024 3.83104 18.9732 5.55533 18.9732ZM5.62211 17.6257C4.75997 17.6257 4.30783 17.1649 4.30783 16.3282V3.68031C4.30783 2.85173 4.75997 2.37423 5.63068 2.37423H9.34711V7.23781C9.34711 8.29245 9.88283 8.81138 10.9207 8.81138H15.6921V16.3282C15.6921 17.1649 15.2482 17.6257 14.3778 17.6257H5.62211ZM11.0714 7.54709C10.745 7.54709 10.6107 7.41352 10.6107 7.07852V2.63388L15.4321 7.54745L11.0714 7.54709ZM13.0803 11.1132H6.72676C6.42568 11.1132 6.20818 11.3392 6.20818 11.6239C6.20818 11.9167 6.42604 12.1428 6.72711 12.1428H13.0803C13.1488 12.1439 13.2168 12.1313 13.2802 12.1056C13.3437 12.0799 13.4013 12.0417 13.4497 11.9933C13.4981 11.9449 13.5363 11.8872 13.562 11.8238C13.5877 11.7603 13.6004 11.6923 13.5993 11.6239C13.5993 11.3392 13.3732 11.1132 13.0803 11.1132ZM13.0803 14.0346H6.72676C6.42568 14.0346 6.20818 14.2689 6.20818 14.5617C6.20818 14.8464 6.42604 15.0642 6.72711 15.0642H13.0803C13.3732 15.0642 13.5993 14.8464 13.5993 14.5617C13.5993 14.2689 13.3732 14.0346 13.0803 14.0346Z" fill="#DEDEDE"/>
+</svg>
+
+
+       <span>For LLMs. <u style={{ textUnderlineOffset: "0.18em", color: "var(--wk-footer-link)" }}>llms.txt</u></span>
+     </a>
+    </div>
+    <ContactModal />
+  </div>
+</section>
+

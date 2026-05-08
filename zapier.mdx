@@ -1,0 +1,78 @@
+---
+title: "Zapier"
+---
+
+## Overview
+
+Wokelo's Zapier integration connects AI-powered research to your existing tools — CRMs, spreadsheets, project management systems, and more. Automate research workflows and eliminate manual data entry across 8,000\+ apps.
+
+## Available Actions
+
+### Research Generation
+
+| Action | What It Does | Required Input |
+| :-- | :-- | :-- |
+| Create Company Research Report | Full company analysis with market & competitive insights | Company website (\+ optional industry) |
+| Create Industry Research Report | Industry trends, key players, and market dynamics | Industry name |
+| Create Market Map | Competitive landscape mapping for an industry | Industry name |
+| Create Pre-Meeting Brief | Quick company briefing before a meeting | Company website (\+ optional industry) |
+| Create News Report | Recent news and developments for a company | Company website (\+ optional filters) |
+| Create Player Comparison Report | Side-by-side competitive analysis | Company websites |
+
+### Custom Workflows
+
+| Action | What It Does | Required Input |
+| :-- | :-- | :-- |
+| Create Company Custom Workflows | Run tailored research workflows for a company | Website \+ Workflow ID |
+| Create Industry Custom Workflows | Run specialized industry analysis workflows | Industry topic \+ Workflow ID |
+
+### Report Management
+
+| Action | What It Does | Required Input |
+| :-- | :-- | :-- |
+| Download Report (PDF / PPTX / DOCX / JSON) | Retrieve completed reports in your preferred format | Report ID |
+| Upload File | Upload files (from Drive, Box, etc.) for use in custom workflows | File URL(s) |
+| Get Report Status | Check report generation progress | Report ID |
+| Get Notebook Configurations | Retrieve report metadata (tags, workflow type, sections) | Report ID |
+
+### Triggers
+
+| Trigger | What It Does |
+| :-- | :-- |
+| Report Completion Update | Instantly notifies your Zap when a report is ready, passing the report ID, URL, title, and user details |
+
+---
+
+## Setting Up a Zap (Universal Steps)
+
+All Wokelo Zaps follow the same four-step pattern:
+
+**Step 1 — Create a Trigger** Log into [zapier.com](http://zapier.com), click **Zap**, then **Trigger**. Choose the app and event that starts your workflow (e.g., "New row in Google Sheets", "New lead in HubSpot").
+
+**Step 2 — Add Wokelo as an Action** Click **Action**, search for **Wokelo AI**, and select it. If it's your first time, authenticate and connect your Wokelo account.
+
+**Step 3 — Configure the Action** Select the specific Wokelo action, then map the required inputs from your trigger data. Press `/` to browse available dynamic fields from your connected tools.
+
+**Step 4 — Use the Output** Every action returns a **Report ID** and **Report URL**. Map these to your tools — save to a CRM field, update a spreadsheet column, or chain into another action (e.g., download the report, then upload to Google Drive).
+
+---
+
+## Example Workflows
+
+**Investment Pipeline** New company added to CRM, then Generate Company Research Report, then Save report URL to deal record, then Notify investment team via Slack
+
+**Pre-Meeting Prep** Meeting scheduled in calendar, then Generate Pre-Meeting Brief, then Attach report link to CRM opportunity, then Email brief to attendees
+
+**Competitive Intelligence** Weekly scheduled trigger, then Generate Market Maps for key industries, then Upload to Google Drive, then Share digest with leadership
+
+**Full Automation Loop** Trigger report creation, then Listen for Report Completion Update, then Download PPTX, then Upload to cloud storage, then Update CRM, then Notify team
+
+---
+
+## Best Practices
+
+- **Validate inputs:** Ensure website URLs include `https://` and industry names are specific (e.g., "B2B SaaS" not just "Software").
+- **Use the Report Completion trigger** before downloading — only attempt downloads on completed reports.
+- **Chain actions** for end-to-end automation: create → monitor completion → download → distribute.
+- **Store Report IDs** in your CRM or spreadsheet for future reference and audit tracking.
+- **For file uploads:** maximum 10 files per request, 20MB per file. Use the returned success string as input for custom workflow actions.

@@ -1,0 +1,111 @@
+---
+title: "Airtable"
+---
+
+## Overview
+
+Connect your Airtable instance with Wokelo to trigger AI-powered research directly from your base. Automatically generate company and industry research reports based on custom conditions, and receive real-time status updates and report URLs back into Airtable via webhooks.
+
+**Prerequisites:** Wokelo API access and an Airtable Team or Enterprise plan (required for custom scripting).
+
+## Key Features
+
+- Trigger company and industry research based on custom conditions (e.g., when a deal stage changes to "In Progress")
+- Auto-update report status in your base as reports are generated
+- Populate report URLs directly into Airtable without leaving the page
+
+## Set Up Your Airtable Base
+
+Create a new Workspace and Base in Airtable. We recommend including the following columns in your table:
+
+| Column | Type | Notes |
+| :-- | :-- | :-- |
+| Website | URL | Company's website |
+| Product Category | Single select | e.g., "Electric Cars" — used to define industry for research |
+| Company Research Status | Single select | Values: Initiated, Completed |
+| Company Research Report ID | Number |  |
+| Company Research URL | URL |  |
+| Industry Research Status | Single select | Values: Initiated, Completed |
+| Industry Research Report ID | Number |  |
+| Industry Research URL | URL |  |
+
+## Configure Automation Triggers
+
+Both Company Research and Industry Research follow the same automation pattern.
+
+**2a. Create the trigger** Go to the **Automations** tab, click **Add Trigger**, and select **When Record Updated**. Choose the relevant Table, View, and field to track (e.g., Deal Status).
+
+**2b. Add conditional logic** Click **Add Advanced Logic or Action** and select **Conditional Logic**. Example condition: trigger when Deal Status changes to "New" and the Report ID field is empty (to prevent duplicate reports).
+
+**2c. Set status to "Initiated"** Add an **Update Record** action and set the relevant Research Status field to "Initiated".
+
+**2d. Run the script** Add a **Run a Script** action. In the script window, add the following input variables:
+
+- For **Company Research**: `industry` (mapped to the Product Category column) and `website` (mapped to the Website column)
+- For **Industry Research**: `industry` (mapped to the Product Category column)
+
+Then paste the relevant script below, replacing the placeholder credentials with your actuals from the [credentials management page](https://app.wokelo.ai/).
+
+**Company Research Script**
+
+```javascript expandable wrap
+const formdata = JSON.stringify({
+  "username": "YOUR_USERNAME",
+  "password": "YOUR_PASSWORD",
+  "grant_type": "password",
+  "client_id": "YOUR_CLIENT_ID",
+  "client_secret": "YOUR_CLIENT_SECRET"
+});
+
+const myHeaders1 = new Headers();
+myHeaders1.append("Content-Type", "application/json");
+
+let auth_result = await fetch("<https://api.wokelo.ai/auth/token/>", {
+  method: "POST", body: formdata, headers: myHeaders1
+});
+auth_result = await auth_result.json();
+
+const myHeaders = new Headers();
+myHeaders.append("Content-Type", "application/json");
+myHeaders.append("Authorization", `Bearer ${auth_result.access_token}`);
+
+let inputConfig = input.config();
+const raw = JSON.stringify({ "industry": inputConfig.industry, "website": inputConfig.website });
+
+const report_id = await fetch("<https://api.wokelo.ai/api/company_primer/v3/start/>", {
+  method: "POST", headers: myHeaders, body: raw
+}).then(r => r.json()).catch(console.error);
+
+output.set('wkl_report_id', report_id.report_id);
+```
+
+**Industry Research Script** — same as above but use this endpoint and only the `industry` input:
+
+```javascript
+<https://api.wokelo.ai/api/industry_primer/v3/start/>
+```
+
+**2e. Save the Report ID** Add an **Update Record** action after the script. Map the Report ID field (e.g., "Report ID Company Research") dynamically to the `wkl_report_id` output from the script step.
+
+## Configure Webhooks (for Status and URL Updates)
+
+Webhooks allow Wokelo to push report completion updates back into Airtable automatically.
+
+**3a. Create a new automation** Click **Create Automation** and name it (e.g., "Update URL and Status"). Add a trigger and select **When a webhook is received**. Copy the webhook URL from the right panel and share it with your Wokelo account manager — they will configure it within 24 business hours. You can continue setup in the meantime.
+
+**3b. Filter by report type** Add a **Conditional Logic** block. Set the condition: `body > report_type` contains "Company" or "Industry" (one condition per automation, depending on which report type you're handling).
+
+**3c. Find the matching record** Add a **Find Records** action. Set the condition to match the relevant Report ID column (e.g., "Report ID Company Research") against `body > report_id` from the webhook payload (set to Dynamic via the gear icon).
+
+**3d. Update status and URL** Add an **Update Record** action. Map the Record ID from the Find Records step, then:
+
+- Set the Research Status field to "Completed"
+- Set the Report URL field to `https://app.wokelo.ai/notebook/` followed by `body > report_id` (dynamic)
+
+**Enable both automations** to ensure the full workflow runs end to end.
+
+## Best Practices
+
+- Set the Product Category / Industry field as **Single Select** type — required for research to function correctly. If left blank, Wokelo will auto-assign an industry.
+- Always add an **empty Report ID condition** to prevent duplicate reports from being triggered.
+- Share your webhook URL with your Wokelo account manager as early as possible to avoid delays.

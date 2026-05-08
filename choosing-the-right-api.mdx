@@ -1,0 +1,306 @@
+---
+title: "Choosing the right API"
+mode: "default"
+---
+
+## Overview
+
+Wokelo's API suite is organized into four capability groups. Use this page to find the right API for your use case.
+
+| # | API | Type | Description |
+| :-- | :-- | :-- | :-- |
+| 1 | Company Instant Enrichment | Sync | Instant firmographics and alternative data on 20M\+ cached companies |
+| 2 | Company Deep Intelligence | Async | On-demand AI-synthesized intelligence on any company |
+| 3 | Industry Deep Intelligence | Async | On-demand AI-synthesized intelligence on any industry |
+| 4 | Market Map | Async | Ranked company discovery within a market category |
+| 5 | Target Screening | Async | Scored acquisition targets for a defined acquirer |
+| 6 | Buyer Screening | Async | Scored buyers for a defined target company |
+| 7 | Competitor List | Async | Find peers of a given company |
+| 8 | M&A Activity | Async | Find all the acquisition activities of a given company |
+| 9 | Fundraising Activity | Async | Find all the fundrasing activities of a given company |
+| 8 | Company News Monitoring | Sync | Deduplicated, entity-resolved company news signals |
+| 9 | Industry News Monitoring | Sync | Deduplicated, entity-resolved industry news signals |
+| 10 | Newsfeed | Sync | Fetch news based on a set of filters |
+| 11 | Company Research | Async | In-depth company intelligence report |
+| 12 | Industry Research | Async | End-to-end sector coverage report |
+| 13 | Peer Comparison | Async | Side-by-side peer benchmarking report |
+| 14 | Earnings Analysis | Async | Earnings highlights, guidance, and sentiment report |
+| 15 | Custom Workflow | Async | Build and trigger custom research workflows via API |
+
+<Note>
+  APIs marked **Async** return a `request_id` immediately. You must poll `/request-status/` and then call `/request-result/` to retrieve the output. [Learn how async APIs work →](https://docs.wokelo.ai/how-async-apis-work)
+</Note>
+
+---
+
+## Enrichment
+
+### 1. Company Instant Enrichment
+
+**Overview:** Pull structured data on any company from Wokelo's native database of 20M\+ entity-resolved companies. Returns results in under 10 seconds — no async polling required.
+
+**Endpoint:** `POST /api/enterprise/company/enrich/single/`
+
+**What you get:** Choose from 9 available sections per request:
+
+| Section | What it contains |
+| :-- | :-- |
+| `firmographics` | Name, HQ, industry, founding year, operating status, description |
+| `products` | Product catalog with descriptions and categories |
+| `headcount` | Employee count, LinkedIn headcount, headcount growth trends |
+| `funding` | All funding rounds, investors, total raised, funding stage, last funding date |
+| `public_company_financials` | Revenue, margins, market cap, multiples (public companies only) |
+| `acquisitions` | M&A history including targets, dates, and deal values |
+| `investments` | Portfolio investments and venture bets made by the company |
+| `website_traffic` | Monthly visits, traffic sources, geographic distribution |
+| `uk_private_company_financials` | Financials for UK-based private companies (income statement, balance sheet) |
+
+**Use Cases:** CRM enrichment, coverage universe population, pipeline enrichment, prospect list building, deal screening pre-qualification.
+
+**Best for:** High-volume, latency-sensitive workflows where you need structured data fast and don't require AI-synthesized narratives.
+
+---
+
+### 2. Company Deep Intelligence
+
+**Overview:** Generate AI-synthesized intelligence on one or more companies across strategic and operational dimensions. Goes beyond raw data — returns analyzed narratives covering product positioning, strategic direction, customer sentiment, and more.
+
+**Endpoint:** `POST /api/enterprise/company/enrich/`
+
+**What you get:** Choose from 9 available sections per request:
+
+| Section | What it contains |
+| :-- | :-- |
+| `products_and_services` | Comprehensive product/service analysis including market positioning and differentiators |
+| `product_launches` | Recent product launches, announcements, and roadmap signals |
+| `strategic_initiatives` | Key strategic priorities, transformation programs, M&A strategy |
+| `partnerships` | Partnership ecosystem: technology partners, channel partners, strategic alliances |
+| `business_model` | Revenue model analysis, pricing strategy, monetization approach |
+| `key_customers` | Major customer identification with industry and deal context |
+| `management_profiles` | Leadership team analysis: background, track record, tenure |
+| `employee_sentiment` | Workplace culture analysis from employee reviews and Glassdoor data |
+| `product_sentiment` | Market perception analysis from product reviews and social signals |
+
+**Use Cases:** Target profiling, custom scoring, competitor intelligence, deal screening inputs, IC memo preparation.
+
+**Best for:** Workflows that require AI-synthesized insight rather than raw data points — particularly useful for diligence, origination, and competitive analysis across multiple companies in a single request.
+
+---
+
+### 3. Industry Deep Intelligence
+
+**Overview:** Generate AI-synthesized intelligence on any sector or industry topic, with optional controls for geography, keywords, and sample companies.
+
+**Endpoint:** `POST /api/enterprise/industry/enrich/`
+
+**What you get:** Configurable sections covering market structure, competitive dynamics, regulatory environment, and key players — enriched with geography and keyword filters.
+
+**Use Cases:** Sector entry evaluation, industry parameter lookup for a target vertical, client briefs, thematic research, fund thesis validation.
+
+**Best for:** Workflows that require deep sector context before or alongside company-level research — particularly useful for new vertical entry and LP/client reporting.
+
+---
+
+## Discovery
+
+### 4. Market Map
+
+**Overview:** Search and rank companies across Wokelo's 20M\+ entity graph using custom parameters such as sector, geography, funding stage, revenue range, headcount, and keywords.
+
+**Endpoint:** `POST /api/enterprise/market-map/enrich/`
+
+**What you get:** A ranked, enriched list of companies matching your criteria — each with firmographics, funding data, and relevance scoring.
+
+**Use Cases:** Deal sourcing, coverage universe building, competitive mapping, BD prospecting, whitespace identification.
+
+**Best for:** Situations where you have a thesis or category in mind and need a long list of matching companies to work from.
+
+---
+
+### 5. Target Screening
+
+**Overview:** Generate a scored list of acquisition or investment targets for a defined acquirer. Applies Wokelo's entity graph and configurable scoring logic — filtering by sector, geography, headcount, revenue, funding stage, and more.
+
+**Endpoint:** `POST /api/enterprise/target-screening/enrich/`
+
+**What you get:** Ranked targets with rationale, firmographic data, fit scores, and filtering metadata.
+
+**Use Cases:** Buy-side M&A screening, platform add-on identification, sector roll-up targeting, investment thesis validation, partnership candidate identification.
+
+**Best for:** Structured deal origination workflows where you need a scored, filterable list of candidates matched to a specific acquirer's criteria.
+
+---
+
+### 6. Buyer Screening
+
+**Overview:** Identify potential strategic and financial buyers for a target company. Uses Wokelo's entity graph and scoring logic to surface the most relevant acquirers based on strategic fit, sector overlap, and deal profile.
+
+**Endpoint:** `POST /api/enterprise/buyer-screening/enrich/`
+
+**What you get:** Ranked buyer list with strategic rationale, buyer type classification (strategic vs. financial), and fit scoring.
+
+**Use Cases:** Sell-side M&A process preparation, exit planning, fundraising target identification, secondary sale preparation.
+
+**Best for:** Sell-side advisors and founders looking to build a qualified buyer universe quickly — particularly useful early in a process.
+
+---
+
+### 7. Competitor List
+
+**Overview:** Discover companies similar to a given company, filtered by geography, funding stage, headcount, financials, and more — powered by Wokelo's 20M\+ entity graph. Returns results synchronously.
+
+**Endpoint:** `POST /api/enterprise/company-peers/enrich/`
+
+**What you get:** A list of peer companies with firmographic data, similarity scoring, and filter metadata.
+
+**Use Cases:** Competitive benchmarking, peer set construction, deal sourcing, coverage universe building, comparable company analysis.
+
+**Best for:** Quickly building a peer set or competitive landscape for a given company — without manually curating lists.
+
+---
+
+### **8. M&A Activity**
+
+**Overview:** Generate a structured, in-depth acquisitions report for a specific company, providing intelligence on acquisition history, target company profiles, and the broader M&A landscape. This is an asynchronous API — it returns a `report_id` that you use with the Report Status and Download Report endpoints to retrieve results.
+
+**Endpoint:** `POST /api/assets/process_common/`
+
+**What you get:** A comprehensive M&A workflow report covering a company's acquisition activity, details on acquired targets, and contextual analysis of its M&A strategy — filterable by geography, company type, funding stage, and headcount.
+
+**Use Cases:** Tracking acquirer behavior, sourcing acquisition targets, understanding a company's inorganic growth strategy, competitive intelligence on M&A patterns, deal origination research.
+
+**Best for:** Situations where you need to understand how actively a company acquires, what kinds of targets it pursues, or want to map the M&A landscape around a specific player.
+
+---
+
+### **9. Fundraising Activity**
+
+**Overview:** Generate a structured, in-depth fundraising report for a specific company, providing intelligence on funding rounds, investor landscape, and funding stage progression. This is an asynchronous API — it returns a `report_id` that you use with the Report Status and Download Report endpoints to retrieve results.
+
+**Endpoint:** `POST /api/assets/process_common/`
+
+**What you get:** A comprehensive fundraising workflow report covering a company's funding history, key investors, round details, and analysis of its capital-raising trajectory — filterable by geography, company type, funding stage, and headcount.
+
+**Use Cases:** Investor research, tracking funding activity in a sector, identifying recently funded companies as potential targets or partners, monitoring portfolio company fundraising, sourcing for outreach.
+
+**Best for:** Situations where you need a complete picture of a company's financing history, want to understand its investor base, or are tracking fundraising signals across a market.
+
+---
+
+## Monitoring
+
+### 10. Company News Monitoring
+
+**Overview:** Fetch the latest news for any company — deduplicated, entity-resolved, and enriched with AI-generated summaries, categories, sentiment scores, and publisher metadata. Returns results synchronously in real-time.
+
+**Endpoint:** `POST /api/enterprise/company/news/`
+
+**What you get:** Structured news feed with article title, publisher, date, URL, AI summary, category tags, sentiment, and company entity resolution.
+
+**Use Cases:** Portfolio monitoring, deal tracking, competitor surveillance, account monitoring, earnings event tracking, news-driven trade signals.
+
+**Best for:** Applications that need a clean, structured company news feed — particularly where deduplication and entity resolution across sources matter.
+
+---
+
+### 11. Industry News Monitoring
+
+**Overview:** Fetch deduplicated, entity-resolved industry news signals in real-time, enriched with AI-generated summaries, sentiment scores, and geo-tagging across any sector or topic.
+
+**Endpoint:** `POST /api/enterprise/industry/news/`
+
+**What you get:** Structured industry news feed with AI summaries, category tags, sentiment, geography signals, and topic classification.
+
+**Use Cases:** Sector trend tracking, thematic research, macro signal monitoring, client briefing, regulatory change detection.
+
+**Best for:** Workflows that need a continuously refreshed, AI-enriched industry news stream — useful for client-facing content, thematic alerts, and market monitoring dashboards.
+
+---
+
+### 12. Newsfeed
+
+**Overview:** Fetch a filtered stream of news articles across one or more industries, with controls for sentiment, geography, breaking news flags, and date range. Delivered synchronously.
+
+**Endpoint:** `POST /api/enterprise/newsfeed/`
+
+**What you get:** Paginated news articles with filters for industry, geography, date range, sentiment, and breaking news classification.
+
+**Use Cases:** Industry-level news aggregation, adverse signal detection, portfolio-level monitoring, investment theme tracking, client-facing news feeds.
+
+**Best for:** Applications that need a customizable news feed with fine-grained filtering — particularly where date range, geography, and sentiment controls are required.
+
+---
+
+## Workflow Reports
+
+Workflow APIs generate full-length research reports. All are asynchronous — they return a `report_id` that you use to poll for status and retrieve results.
+
+### 13. Company Research
+
+**Overview:** Generate a comprehensive company intelligence report covering 19 sections including firmographics, products and services, strategic moves, management profiles, financials, funding history, competitive landscape, and alternative signals.
+
+**Endpoint:** `POST /api/workflow_manager/start/` with `"workflow": "company_primer"`
+
+**What you get:** A structured JSON report with the following sections:
+
+`Quick Snapshot` · `Executive Summary` · `Product insights` · `Transaction highlights` · `Strategic moves and news` · `Earnings call highlights` · `Annual report highlights` · `Customer and business insights` · `Financial summary` · `Ownership structure` · `Management profiles` · `Headcount and hiring trends` · `Competitive landscape` · `Wokelo insights` · `Web and social footprint` · `Market insights` · `Annexure` · `meta` · `qna`
+
+**Use Cases:** Target deep-dives, investment memo inputs, client briefings, IC memo preparation, LP reporting.
+
+**Best for:** Situations where you need a complete, structured intelligence package on a company — replacing hours of manual research with a single API call.
+
+---
+
+### 14. Industry Research
+
+**Overview:** Generate a comprehensive sector coverage report covering market structure, deal activity, partnerships, market sizing, competitive landscape, regulatory environment, case studies, and more.
+
+**Endpoint:** `POST /api/workflow_manager/start/` with `"workflow": "industry_research"`
+
+**What you get:** A structured JSON report spanning market overview, key players, competitive dynamics, deal trends, regulations, and thematic signals.
+
+**Use Cases:** Market entry analysis, client engagements, thematic research, fund thesis validation, new vertical entry, sector coverage initiation.
+
+**Best for:** Situations where you need end-to-end sector intelligence — from sizing and structure to competitive dynamics and regulatory signals — in a single report.
+
+---
+
+### 15. Peer Comparison
+
+**Overview:** Benchmark up to 5 companies side-by-side across key business and financial dimensions. Generates a structured comparison report with custom parameters.
+
+**Endpoint:** `POST /api/workflow_manager/start/` with `"workflow": "peer_comparison"`
+
+**What you get:** A structured comparison report covering product positioning, financials, headcount, funding, strategic priorities, and competitive differentiation across all input companies.
+
+**Use Cases:** Competitive benchmarking, portfolio benchmarking, relative value analysis, IC presentation inputs.
+
+**Best for:** Diligence and coverage workflows where you need a structured, side-by-side view of multiple companies — replacing manual comparison grids.
+
+---
+
+### 16. Earnings Analysis
+
+**Overview:** Generate a structured report extracting key highlights, guidance, and sentiment from earnings calls and SEC filings for any public company.
+
+**Endpoint:** `POST /api/workflow_manager/start/` with `"workflow": "earnings_analysis"`
+
+**What you get:** Structured extraction of management commentary, forward guidance, analyst Q&A highlights, sentiment signals, and comparison to prior period themes.
+
+**Use Cases:** Earnings monitoring, portfolio review, public company coverage, long/short signal generation, consensus vs. actual tracking.
+
+**Best for:** Public equity workflows requiring fast, structured extraction from earnings events — particularly useful for tracking guidance changes and sentiment shifts across multiple companies.
+
+---
+
+### 17. Custom Workflow
+
+**Overview:** Build a custom research workflow in Wokelo's no-code agent builder — applying your own frameworks, section templates, and analytical methodologies — then trigger it via API in supported output formats (JSON, DOCX, PDF).
+
+**Endpoint:** `POST /api/workflow_manager/start/` with your custom `"workflow"` identifier
+
+**What you get:** Output in your configured format, following your defined structure and analytical framework. Supports Wokelo's full intelligence stack as underlying data sources.
+
+**Use Cases:** Repeatable internal research, custom client deliverables, proprietary scoring models, white-label research delivery, automated report generation pipelines.
+
+**Best for:** Teams with established research frameworks who want to automate report generation at scale — without being constrained to Wokelo's default report templates.

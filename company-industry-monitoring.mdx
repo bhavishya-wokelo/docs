@@ -1,0 +1,343 @@
+---
+title: "Industry News Monitoring"
+description: "Fetches the latest news articles for a given industry topic enriched with AI-generated summaries, categories and publisher details."
+openapi: "GET /api/enterprise/industry/news/"
+---
+
+## Overview
+
+The Monitoring API fetches the latest news articles for a given industry topic, enriched with AI-generated summaries, categories and publisher details. Optionally, you can refine the output by specifying date range, blacklisted publishers, article limit, and news categories. Results are returned in the API response.
+
+## Endpoint Details
+
+- **Method:** GET
+- **Endpoint:** `/api/enterprise/industry/news/`
+
+## Authentication requirements
+
+- Include a valid JWT token in your request header
+- If you don't have a token yet, you can get one from the `/auth/token/` endpoint first.
+
+## Request
+
+### Request Parameters
+
+#### Header Parameters
+
+<ParamField header="Authorization" type="string" required>
+  JWT token obtained from the Authentication request
+</ParamField>
+
+## URL Parameters
+
+<ParamField query="topic" type="string" required>
+  Industry topic for which news articles should be fetched. (Eg. "Warehouse Automation")
+</ParamField>
+
+<ParamField query="blacklisted" type="string">
+  Comma-separated list of publisher domains to exclude from results.
+</ParamField>
+
+<ParamField query="limit" type="integer">
+  Maximum number of news articles to return
+
+  Default = 100
+
+  Max value= 1000
+</ParamField>
+
+<ParamField query="offset" type="integer">
+  Number of news to skip before starting to return results
+</ParamField>
+
+<ParamField query="start_date" type="string">
+  Start date for the timeframe to consider when fetching news (e.g., `2024-01-01`)
+</ParamField>
+
+<ParamField query="end_date" type="string">
+  End date for the timeframe to consider when fetching news (e.g., `2024-12-31`)
+</ParamField>
+
+<ParamField query="geo" type="array of strings">
+  Comma-separated list of 3 letter ISO country codes
+</ParamField>
+
+## Response
+
+#### Successful Response Fields
+
+Returns a JSON object with the following structure:
+
+<ResponseField name="status" type="string">
+  `"success"` if the request was processed successfully.
+</ResponseField>
+
+<ResponseField name="data" type="array">
+  List of news
+</ResponseField>
+
+<ResponseField name="count" type="integer">
+  Total number of results returned.
+</ResponseField>
+
+<RequestExample>
+
+```javascript JavaScript - Fetch
+const myHeaders = new Headers();
+myHeaders.append("Authorization", "Bearer Token");
+myHeaders.append("Content-Type", "application/json");
+
+const requestOptions = {
+  method: "GET",
+  headers: myHeaders,
+  redirect: "follow"
+};
+
+fetch("https://api.wokelo.ai/api/enterprise/industry/news/?limit=100&start_date=2026-04-01&end_date=2026-04-30&topic=Real Estate Development&geo=ARE", requestOptions)
+  .then((response) => response.text())
+  .then((result) => console.log(result))
+  .catch((error) => console.error(error));
+```
+
+```python Python
+import requests
+import json
+
+url = "https://api.wokelo.ai/api/enterprise/industry/news/?limit=100&start_date=2026-04-01&end_date=2026-04-30&topic=Real Estate Development&geo=ARE"
+
+payload = {}
+headers = {
+  'Authorization': 'Bearer Token',
+  'Content-Type': 'application/json'
+}
+
+response = requests.request("GET", url, headers=headers, data=payload)
+
+print(response.text)
+```
+
+```bash cURL
+curl --location 'https://api.wokelo.ai/api/enterprise/industry/news/?limit=100&start_date=2026-04-01&end_date=2026-04-30&topic=Real%20Estate%20Development&geo=ARE' \
+--header 'Authorization: Bearer Token' \
+--header 'Content-Type: application/json'
+```
+
+```go Go
+package main
+
+import (
+  "fmt"
+  "net/http"
+  "io"
+)
+
+func main() {
+
+  url := "https://api.wokelo.ai/api/enterprise/industry/news/?limit=100&start_date=2026-04-01&end_date=2026-04-30&topic=Real%20Estate%20Development&geo=ARE"
+  method := "GET"
+
+  client := &http.Client {
+  }
+  req, err := http.NewRequest(method, url, nil)
+
+  if err != nil {
+    fmt.Println(err)
+    return
+  }
+  req.Header.Add("Authorization", "Bearer Token")
+  req.Header.Add("Content-Type", "application/json")
+
+  res, err := client.Do(req)
+  if err != nil {
+    fmt.Println(err)
+    return
+  }
+  defer res.Body.Close()
+
+  body, err := io.ReadAll(res.Body)
+  if err != nil {
+    fmt.Println(err)
+    return
+  }
+  fmt.Println(string(body))
+}
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200 expandable wrap
+{
+    "status": "success",
+    "data": [
+        {
+            "id": 10442144,
+            "ai_summary": "Nakheel has awarded contracts worth over Dh3.5 billion to construct 544 villas on Palm Jebel Ali, part of a major waterfront development in Dubai. Construction is set to start this quarter and aims for completion by late 2028, featuring smart and sustainable homes. ",
+            "url": "https://gulfnews.com/business/property/nakheel-awards-dh35-billion-contracts-for-palm-jebel-ali-villas-1.500520259",
+            "title": "Nakheel Awards Dh3.5 Billion Contracts for 544 Palm Jebel Ali Villas in Major Dubai Waterfront Push",
+            "published_date": "2026-04-27 05:20:10",
+            "source": "Wokelo",
+            "geo": [
+                "ARE"
+            ]
+        },
+        {
+            "id": 9833643,
+            "ai_summary": "Stake announced a strategic partnership with ACE & Company to develop a secondary transfer facility for fractional real estate investments in the UAE. The initiative aims to improve liquidity, transparency, and market stability, leveraging Stake’s digital platform and ACE & Company’s expertise in private markets. ",
+            "url": "https://pulse2.com/stake-partnership-with-ace-company-to-build-secondary-market-for-fractional-real-estate-in-the-uae/",
+            "title": "Stake: Partnership With ACE & Company To Build Secondary Market For Fractional Real Estate In The UAE",
+            "published_date": "2026-04-21 15:43:44",
+            "source": "Wokelo",
+            "geo": [
+                "ARE"
+            ]
+        },
+        {
+            "id": 9542088,
+            "ai_summary": "ORA Developers is expanding its land holdings in the UAE by acquiring an additional 4.8 million sqm of land from Modon Holding in Ghantoot, which raises its total land bank in the UAE to 9.6 million sqm. The firm projects a total project investment of AED 30 billion upon full development, reinforcing its confidence in the UAE real estate market. ",
+            "url": "https://www.prnewswire.com/news-releases/ora-developers-expands-uae-footprint-through-new-land-acquisition-from-modon-holding-total-project-investment-to-reach-aed-30-billion-302744922.html",
+            "title": "ORA Developers Expands UAE Footprint Through New Land Acquisition from Modon Holding, Total Project Investment to Reach AED 30 Billion",
+            "published_date": "2026-04-16 14:28:00",
+            "source": "Wokelo",
+            "geo": [
+                "ARE"
+            ]
+        },
+        {
+            "id": 9395930,
+            "ai_summary": "Gaia Living Real Estate, a Dubai-based brokerage, received the Silver 2024 Accreditation from the AI for Business Institute following a formal audit of its AI practices. The company developed its own AI software to support brokers and scored highly in project management, collaboration, and customer experience. ",
+            "url": "https://techbullion.com/gaia-living-real-estate-earns-silver-ai-accreditation-from-the-ai-for-business-institute/",
+            "title": "Gaia Living Real Estate Earns Silver AI Accreditation From the AI for Business Institute",
+            "published_date": "2026-04-15 17:31:52",
+            "source": "Wokelo",
+            "geo": [
+                "ARE"
+            ]
+        },
+        {
+            "id": 9290927,
+            "ai_summary": "Gaia Living Real Estate received the Silver 2024 AI accreditation from the AI for Business Institute after an audit assessing its AI usage and processes. The Dubai-based brokerage developed its own AI tools to assist brokers and plans to improve its leadership and security practices. ",
+            "url": "https://www.openpr.com/news/4471094/gaia-living-real-estate-earns-silver-ai-accreditation-from-the-ai",
+            "title": "Gaia Living Real Estate Earns Silver AI Accreditation From the AI for Business Institute",
+            "published_date": "2026-04-14 19:00:08",
+            "source": "Wokelo",
+            "geo": [
+                "ARE"
+            ]
+        },
+        {
+            "id": 9251527,
+            "ai_summary": "Sobha Realty has launched Sobha City, a 38 million square foot residential development in Abu Dhabi's Al Bahiya. The project aims to create an integrated community with green spaces, water features, and mixed-use facilities, reflecting the developer’s long-term commitment to Abu Dhabi's real estate market. ",
+            "url": "https://gulfnews.com/business/property/sobha-realty-enters-abu-dhabi-with-38m-sq-ft-waterfront-city-1.500505514",
+            "title": "Sobha Realty Launches 38 Million Sq Ft Waterfront Sobha City in Abu Dhabi’s Al Bahiya",
+            "published_date": "2026-04-13 13:44:05",
+            "source": "Wokelo",
+            "geo": [
+                "ARE"
+            ]
+        },
+        {
+            "id": 8867249,
+            "ai_summary": "Danube Group announced it will not lay off employees despite regional geopolitical uncertainty, citing past crises it has overcome and affirming its commitment to its workforce and clients. The company is focused on growth, timely delivery, and maintaining strong fundamentals amid changing market conditions. ",
+            "url": "https://www.constructionworld.in/latest-construction-news/real-estate-news/danube-group-rules-out-layoffs-amid-regional-uncertainty/89642",
+            "title": "Danube Group Rules Out Layoffs Amid Regional Uncertainty",
+            "published_date": "2026-04-08 00:00:00",
+            "source": "Wokelo",
+            "geo": [
+                "ARE"
+            ]
+        },
+        {
+            "id": 8827850,
+            "ai_summary": "Savills, a global real estate advisory firm, will acquire a majority stake in Hotelivate, a hospitality advisory firm operating across South Asia, to expand its advisory services in the Asia Pacific region. The investment aims to create a unified, institutional-grade hospitality advisory platform and leverage Hotelivate's established regional presence and expertise. ",
+            "url": "https://www.business-standard.com/companies/news/savills-acquires-majority-stake-in-hotelivate-to-expand-apac-advisory-126040700934_1.html",
+            "title": "Savills acquires majority stake in Hotelivate to expand APAC advisory",
+            "published_date": "2026-04-07 12:37:50",
+            "source": "Wokelo",
+            "geo": [
+                "IND",
+                "BGD",
+                "IDN",
+                "SGP",
+                "ARE"
+            ]
+        },
+        {
+            "id": 9128696,
+            "ai_summary": "Provident Estate organized an exclusive private investor event in collaboration with Meraas to focus on investor education in Dubai's real estate market. ",
+            "url": "https://www.zawya.com/en/press-release/events-and-conferences/provident-estate-hosts-exclusive-private-investor-event-with-meraas-to-guide-investors-through-dubais-evolving-market-eugwfu3e",
+            "title": "Provident Estate hosts exclusive private investor event with Meraas to guide investors through Dubai’s evolving market",
+            "published_date": "2026-04-07 00:00:00",
+            "source": "Wokelo",
+            "geo": [
+                "ARE"
+            ]
+        },
+        {
+            "id": 8786881,
+            "ai_summary": "Dubai's real estate market experienced a 23.4% increase in property sales value in Q1 2026, with off-plan projects being the primary driver of growth. The surge included increases in apartment, villa, commercial, and plot sales, as well as mortgage values. ",
+            "url": "https://www.constructionworld.in/latest-construction-news/real-estate-news/dubai-q1-property-sales-rise-23.4--in-value/89514",
+            "title": "Dubai Q1 Property Sales Rise 23.4% in Value",
+            "published_date": "2026-04-06 12:11:07",
+            "source": "Wokelo",
+            "geo": [
+                "ARE"
+            ]
+        },
+        {
+            "id": 8944783,
+            "ai_summary": "Dubai-based DAMAC Properties reported sales of approximately $850 million in March 2026, with a total of 3,663 units sold in the first quarter. Despite regional political tensions, the Dubai real estate market remains strong, with increasing investor confidence and a significant rise in total sales compared to the previous year. Construction and delivery timelines for DAMAC projects continue as scheduled, reinforcing Dubai's attractiveness as an investment destination. ",
+            "url": "https://www.tradingview.com/news/reuters.com,2026-04-06:newsml_Zaw50SNX0:0-zawya-dubai-developer-damac-sales-hit-850mln-in-march-despite-regional-turmoil/",
+            "title": "ZAWYA: Dubai developer DAMAC sales hit $850mln in March despite regional turmoil",
+            "published_date": "2026-04-06 00:00:00",
+            "source": "Wokelo",
+            "geo": [
+                "ARE"
+            ]
+        },
+        {
+            "id": 8931663,
+            "ai_summary": "Property developers in the UAE are offering payment deferment options to buyers facing financial difficulties due to regional tensions, while maintaining that construction activity continues as scheduled. Several developers, including Azizi Developments, Fakhruddin Properties, RRS International Development, and Casagrand, are accommodating deferment requests with various measures, and overall market sentiment remains resilient. ",
+            "url": "https://www.khaleejtimes.com/business/property/stressed-about-property-payments-in-the-uae-developers-offer-deferment",
+            "title": "Stressed about property payments in the UAE? Developers offer deferment",
+            "published_date": "2026-04-06 00:00:00",
+            "source": "Wokelo",
+            "geo": [
+                "ARE"
+            ]
+        },
+        {
+            "id": 8956805,
+            "ai_summary": "Abu Dhabi Islamic Bank (ADIB) strengthened its partnership with Jubail Investment Company to deliver the Jubail Island project in Abu Dhabi, with ADIB financing the development from start to finish. ",
+            "url": "https://www.zawya.com/en/press-release/companies-news/adib-strengthens-partnership-with-jubail-investment-company-to-deliver-landmark-development-in-abu-dhabi-tjwoe5p9",
+            "title": "ADIB strengthens partnership with Jubail Investment company to deliver landmark development in Abu Dhabi",
+            "published_date": "2026-04-02 00:00:00",
+            "source": "Wokelo",
+            "geo": [
+                "ARE"
+            ]
+        },
+        {
+            "id": 8639625,
+            "ai_summary": "Tract Capital, a company formed four years ago, controls over 30,000 acres of land across the US for data center development, with Nvidia as a major tenant and a $3.8 billion borrowing from the junk bond market. The article also covers various other real estate and financial events, including a UK corporate collapse, Blackstone’s strategy shift in India, and developments in Dubai, the UK, and Morocco. ",
+            "url": "https://www.bloomberg.com/news/newsletters/2026-04-01/hidden-giant-bets-big-on-land-for-us-data-centers",
+            "title": "Hidden Giant Bets Big on Land for US Data Centers",
+            "published_date": "2026-04-01 13:16:53",
+            "source": "Wokelo",
+            "geo": [
+                "USA",
+                "GBR",
+                "ARE",
+                "MAR"
+            ]
+        }
+    ],
+    "count": 14,
+    "total": 14,
+    "limit": 100,
+    "offset": 0
+}
+```
+
+</ResponseExample>

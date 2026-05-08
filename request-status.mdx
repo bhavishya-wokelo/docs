@@ -1,0 +1,168 @@
+---
+title: "Request Status"
+openapi: "GET /api/enterprise/request/status/"
+---
+
+## Overview
+
+Retrieves the current status of a previously submitted API request.
+
+## Endpoint Details
+
+- **Method:** GET
+- **Endpoint:** `/api/enterprise/request/status/`
+
+## Authentication requirements
+
+- Include a valid JWT token in your request header
+- If you don't have a token yet, you can get one from the `/auth/token/` endpoint first.
+
+## Request
+
+### Request Parameters
+
+#### Header Parameters
+
+<ParamField header="Authorization" type="string" required>
+  JWT token obtained from the Authentication request
+</ParamField>
+
+#### URL Parameters
+
+<ParamField query="request_id" type="string" required>
+  The unique identifier of the request whose status is being checked. Example: `11db67b6-8345-4837-950f-87bbd8d7dcbe`
+</ParamField>
+
+## Response
+
+Successful response will include the `request_id`, `status`, `request_type`, `created_at` and `updated_at` fields.
+
+**Sample Response**
+
+```json
+{
+    "request_id": "11db67b6-8345-4837-950f-87bbd8d7dcbe",
+    "status": "COMPLETED",
+    "request_type": "market_map",
+    "created_at": "2026-03-24T18:12:17.787415Z",
+    "updated_at": "2026-03-24T18:29:31.041441Z"
+}
+```
+
+**Possible Status values**
+
+| Status | Description |
+| --- | --- |
+| `PENDING` | The request has been received and is queued for processing. |
+| `PROCESSING` | The request is currently being processed. |
+| `COMPLETED` | The request has finished successfully. Result data is included in the response. |
+| `FAILED` | The request encountered an error during processing. |
+
+<RequestExample>
+
+```javascript JavaScript - Fetch
+const myHeaders = new Headers();
+myHeaders.append("Authorization", "Bearer Token");
+myHeaders.append("Content-Type", "application/json");
+
+const requestOptions = {
+  method: "GET",
+  headers: myHeaders,
+  redirect: "follow"
+};
+
+fetch("{{path}}/api/enterprise/request/status/?request_id=11db67b6-8345-4837-950f-87bbd8d7dcbe", requestOptions)
+  .then((response) => response.text())
+  .then((result) => console.log(result))
+  .catch((error) => console.error(error));
+```
+
+```python Python
+import requests, time
+
+headers = {"Authorization": "Bearer YOUR_TOKEN", "Content-Type": "application/json"}
+while True:
+    r = requests.get(
+        "https://api.wokelo.ai/api/enterprise/request/status/",
+        headers=headers,
+        params={"request_id": "11db67b6-8345-4837-950f-87bbd8d7dcbe"}
+    )
+    data = r.json()
+    if data["status"] in ("COMPLETED", "FAILED"):
+        break
+    time.sleep(5)
+print(data)
+```
+
+```bash cURL
+curl --request GET \
+  --url 'https://api.wokelo.ai/api/enterprise/request/status/?request_id=11db67b6-8345-4837-950f-87bbd8d7dcbe' \
+  --header 'Authorization: Bearer YOUR_TOKEN'
+```
+
+```go Go
+package main
+
+import (
+  "encoding/json"
+  "fmt"
+  "io"
+  "net/http"
+  "time"
+)
+
+func main() {
+  for {
+    req, _ := http.NewRequest("GET",
+      "https://api.wokelo.ai/api/enterprise/request/status/?request_id=11db67b6-8345-4837-950f-87bbd8d7dcbe", nil)
+    req.Header.Set("Authorization", "Bearer YOUR_TOKEN")
+    resp, _ := http.DefaultClient.Do(req)
+    body, _ := io.ReadAll(resp.Body)
+    resp.Body.Close()
+    var result map[string]interface{}
+    json.Unmarshal(body, &result)
+    if result["status"] == "COMPLETED" || result["status"] == "FAILED" {
+      fmt.Println(string(body)); break
+    }
+    time.Sleep(5 * time.Second)
+  }
+}
+```
+
+```java Java
+import java.net.URI;
+import java.net.http.*;
+
+public class RequestStatus {
+  public static void main(String[] args) throws Exception {
+    while (true) {
+      HttpRequest request = HttpRequest.newBuilder()
+          .uri(URI.create("https://api.wokelo.ai/api/enterprise/request/status/?request_id=11db67b6-8345-4837-950f-87bbd8d7dcbe"))
+          .header("Authorization", "Bearer YOUR_TOKEN")
+          .GET().build();
+      HttpResponse<String> response = HttpClient.newHttpClient()
+          .send(request, HttpResponse.BodyHandlers.ofString());
+      if (response.body().contains("COMPLETED") || response.body().contains("FAILED")) {
+        System.out.println(response.body()); break;
+      }
+      Thread.sleep(5000);
+    }
+  }
+}
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200
+{
+    "request_id": "b1f10ebf-a251-4e2d-b867-8482ac701987",
+    "status": "COMPLETED",
+    "request_type": "target_screening",
+    "created_at": "2026-03-25T07:24:40.333168Z",
+    "updated_at": "2026-03-25T07:30:41.503082Z"
+}
+```
+
+</ResponseExample>

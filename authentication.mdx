@@ -1,0 +1,186 @@
+---
+title: "Login"
+api: "POST /auth/token/"
+description: "Obtain a JSON Web Token (JWT) for subsequent API authentication"
+---
+
+All API requests must be authenticated using a JWT token. Follow the steps below to generate your token:
+
+## Overview
+
+Obtain a JSON Web Token (JWT) ffor subsequent API authentication
+
+## Endpoint Details
+
+- **Method:** POST
+- **Endpoint:** `/auth/token/`
+
+## Request
+
+### Request Parameters
+
+Submit the following parameters as form-data in the request body:
+
+<ParamField body="client_id" type="string" required>
+  Unique identifier for your organization, obtained from the [API Credentials page](https://app.wokelo.ai/dashboard/profile/api-credentials)
+</ParamField>
+
+<ParamField body="client_secret" type="string" required>
+  Secret key for your organization, obtained from the [API Credentials page](https://app.wokelo.ai/dashboard/profile/api-credentials)
+</ParamField>
+
+<ParamField body="username" type="string" required>
+  Your email address used for Wokelo login
+</ParamField>
+
+<ParamField body="password" type="string" required>
+  Your account password used for Wokelo login
+</ParamField>
+
+<ParamField body="grant_type" type="string" required>
+  Type of grant being requested (use `"password"` for credential-based authentication)
+</ParamField>
+
+## Response
+
+### Response Fields
+
+On successful authentication (HTTP 200), the response will contain:
+
+<ResponseField name="access_token" type="string">
+  JWT for authenticated API access
+</ResponseField>
+
+<ResponseField name="expires_in" type="integer">
+  Token validity duration in seconds
+</ResponseField>
+
+<ResponseField name="token_type" type="string">
+  Type of authentication token
+</ResponseField>
+
+<ResponseField name="scope" type="string">
+  Authorization scope of the token
+</ResponseField>
+
+<ResponseField name="refresh_token" type="string">
+  Token used to obtain a new access token
+</ResponseField>
+
+- Ensure the `client_id` and `client_secret` are kept confidential
+- Any token returned by the API is sensitive and should be stored securely. Wokelo tokens are long-lasting and should never be exposed on the client side.
+- The access token is time-limited; use the refresh token to obtain a new access token when it expires
+- Use HTTPS for all authentication requests
+
+<RequestExample>
+
+```javascript JavaScript - Fetch
+const formdata = new FormData();
+formdata.append("username", "sam@abconsulting.com");
+formdata.append("password", "password");
+formdata.append("grant_type", "password");
+formdata.append("client_id", "YOUR_CLIENT_ID");
+formdata.append("client_secret", "YOUR_CLIENT_SECRET");
+
+const requestOptions = {
+  method: "POST",
+  body: formdata,
+  redirect: "follow"
+};
+
+fetch("https://api.wokelo.ai/auth/token/", requestOptions)
+  .then((response) => response.text())
+  .then((result) => console.log(result))
+  .catch((error) => console.error(error));
+```
+
+```python Python
+import requests
+
+formdata = {
+    "username": "sam@abconsulting.com",
+    "password": "password",
+    "grant_type": "password",
+    "client_id": "YOUR_CLIENT_ID",
+    "client_secret": "YOUR_CLIENT_SECRET",
+}
+
+response = requests.post("https://api.wokelo.ai/auth/token/", data=formdata)
+print(response.json())
+```
+
+```bash cURL
+curl --request POST \
+  --url https://api.wokelo.ai/auth/token/ \
+  --form username=sam@abconsulting.com \
+  --form password=password \
+  --form grant_type=password \
+  --form client_id=YOUR_CLIENT_ID \
+  --form client_secret=YOUR_CLIENT_SECRET
+```
+
+```go Go
+package main
+
+import (
+  "fmt"
+  "net/http"
+  "net/url"
+  "io"
+)
+
+func main() {
+  formData := url.Values{
+    "username":      {"sam@abconsulting.com"},
+    "password":      {"password"},
+    "grant_type":    {"password"},
+    "client_id":     {"YOUR_CLIENT_ID"},
+    "client_secret": {"YOUR_CLIENT_SECRET"},
+  }
+  resp, _ := http.PostForm("https://api.wokelo.ai/auth/token/", formData)
+  defer resp.Body.Close()
+  body, _ := io.ReadAll(resp.Body)
+  fmt.Println(string(body))
+}
+```
+
+```java Java
+import java.net.URI;
+import java.net.http.*;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+
+public class WokeloAuth {
+  public static void main(String[] args) throws Exception {
+    String body = "username=" + URLEncoder.encode("sam@abconsulting.com", StandardCharsets.UTF_8)
+        + "&password=password&grant_type=password"
+        + "&client_id=YOUR_CLIENT_ID&client_secret=YOUR_CLIENT_SECRET";
+
+    HttpRequest request = HttpRequest.newBuilder()
+        .uri(URI.create("https://api.wokelo.ai/auth/token/"))
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .POST(HttpRequest.BodyPublishers.ofString(body))
+        .build();
+
+    HttpResponse<String> response = HttpClient.newHttpClient()
+        .send(request, HttpResponse.BodyHandlers.ofString());
+    System.out.println(response.body());
+  }
+}
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200
+{
+    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "expires_in": 2628288,
+    "token_type": "Bearer",
+    "scope": "read write",
+    "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+</ResponseExample>

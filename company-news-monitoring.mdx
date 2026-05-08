@@ -1,0 +1,200 @@
+---
+title: "Company News Monitoring"
+description: "Fetches the latest news articles for a given company, enriched with AI-generated summaries, categories and publisher details."
+openapi: "GET /api/enterprise/company/news/"
+---
+
+## Overview
+
+The Monitoring API fetches the latest news articles for a given company, enriched with AI-generated summaries, categories and publisher details. Optionally, you can refine the output by specifying date range, publisher list, blacklisted publishers, article limit, and news categories. Results are returned in the API response.
+
+## Endpoint Details
+
+- **Method:** GET
+- **Endpoint:** `api/enterprise/company/news/`
+
+## Authentication requirements
+
+- Include a valid JWT token in your request header
+- If you don't have a token yet, you can get one from the `/auth/token/` endpoint first.
+
+## Request
+
+### Request Parameters
+
+#### Header Parameters
+
+<ParamField header="Authorization" type="string" required>
+  JWT token obtained from the Authentication request
+</ParamField>
+
+## URL Parameters
+
+<ParamField query="company" type="string" required>
+  Company permalink or a valid company URL for which news articles need to be fetched (e.g., `tesla` or `https://www.tesla.com/`)
+</ParamField>
+
+<ParamField query="blacklisted" type="string">
+  Comma-separated list of publisher domains to exclude from results.
+</ParamField>
+
+<ParamField query="publishers" type="string">
+  Comma-separated list of publisher domains whose articles will be included.
+</ParamField>
+
+<ParamField query="limit" type="integer">
+  Maximum number of news articles to return
+
+  Default = 100
+
+  Max value= 1000
+</ParamField>
+
+<ParamField query="offset" type="integer">
+  Number of news to skip before starting to return results
+</ParamField>
+
+<ParamField query="start_date" type="string">
+  Start date for the timeframe to consider when fetching news (e.g., `2024-01-01`)
+</ParamField>
+
+<ParamField query="end_date" type="string">
+  End date for the timeframe to consider when fetching news (e.g., `2024-12-31`)
+</ParamField>
+
+<ParamField query="category" type="string">
+  Comma-separated list of news categories to filter by. [View](https://wkemails.blob.core.windows.net/clients/%28%27808dda00-141d-4952-b44c-c50bd41c2ce3%27%2C%29/news_category_names.csv) complete list of all the supported news categories.
+</ParamField>
+
+## Response
+
+#### Successful Response Fields
+
+Returns a JSON object with the following structure:
+
+<ResponseField name="status" type="string">
+  `"success"` if the request was processed successfully.
+</ResponseField>
+
+<ResponseField name="data" type="array">
+  List of news
+</ResponseField>
+
+<ResponseField name="count" type="integer">
+  Total number of results returned.
+</ResponseField>
+
+<RequestExample>
+
+```javascript JavaScript - Fetch
+const myHeaders = new Headers();
+myHeaders.append("Authorization", "Bearer Token");
+myHeaders.append("Content-Type", "application/json");
+
+const requestOptions = {
+  method: "GET",
+  headers: myHeaders,
+  redirect: "follow"
+};
+
+fetch("{{path}}/api/enterprise/company/news/?company=tesla&category=PRODUCT RELATED", requestOptions)
+  .then((response) => response.text())
+  .then((result) => console.log(result))
+  .catch((error) => console.error(error));
+```
+
+```python Python
+import requests
+
+headers = {
+    "Authorization": "Bearer YOUR_TOKEN",
+    "Content-Type": "application/json"
+}
+response = requests.get(
+    "https://api.wokelo.ai/api/enterprise/company/news/",
+    headers=headers,
+    params={"company": "tesla", "category": "PRODUCT RELATED", "limit": 100}
+)
+print(response.json())
+```
+
+```bash cURL
+curl --request GET \
+  --url 'https://api.wokelo.ai/api/enterprise/company/news/?company=tesla&category=PRODUCT%20RELATED' \
+  --header 'Authorization: Bearer YOUR_TOKEN'
+```
+
+```go Go
+package main
+
+import (
+  "fmt"
+  "io"
+  "net/http"
+  "net/url"
+)
+
+func main() {
+  params := url.Values{"company": {"tesla"}, "category": {"PRODUCT RELATED"}}
+  req, _ := http.NewRequest("GET",
+    "https://api.wokelo.ai/api/enterprise/company/news/?"+params.Encode(), nil)
+  req.Header.Set("Authorization", "Bearer YOUR_TOKEN")
+  resp, _ := http.DefaultClient.Do(req)
+  defer resp.Body.Close()
+  body, _ := io.ReadAll(resp.Body)
+  fmt.Println(string(body))
+}
+```
+
+```java Java
+import java.net.URI;
+import java.net.http.*;
+
+public class NewsMonitoring {
+  public static void main(String[] args) throws Exception {
+    HttpRequest request = HttpRequest.newBuilder()
+        .uri(URI.create("https://api.wokelo.ai/api/enterprise/company/news/?company=tesla&category=PRODUCT%20RELATED"))
+        .header("Authorization", "Bearer YOUR_TOKEN")
+        .GET()
+        .build();
+    HttpResponse<String> response = HttpClient.newHttpClient()
+        .send(request, HttpResponse.BodyHandlers.ofString());
+    System.out.println(response.body());
+  }
+}
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200
+{
+    "status": "success",
+    "data": [
+        {
+            "ai_summary": "Nordea Investment Management AB reduced its stake in Tesla, Inc. by 8.4% in the fourth quarter, according to its SEC filing. Several institutional investors increased their holdings, and Tesla reported quarterly earnings with a net margin of 4%, revenue of $24.90 billion, and an EPS of $0.50. ",
+            "type": "Secondary Transactions",
+            "url": "https://www.defenseworld.net/2026/03/23/nordea-investment-management-ab-lowers-position-in-tesla-inc-tsla.html",
+            "title": "Nordea Investment Management AB Lowers Position in Tesla, Inc. $TSLA",
+            "company_name": "Tesla",
+            "publisher": "defenseworld",
+            "published_date": "2026-03-23 10:52:44",
+            "source": "Wokelo",
+            "author": "Defense World Staff",
+            "countries": ["USA"],
+            "sentiment": "Neutral",
+            "primary_tag": "Secondary Transactions",
+            "original_language": "EN",
+            "secondary_tags": ["Earnings Releases", "Revenue & Growth Metrics", "Guidance & Forecast Revisions"],
+            "newsworthiness_impact": "Medium"
+        }
+    ],
+    "count": 4,
+    "total": 4,
+    "limit": 100,
+    "offset": 0
+}
+```
+
+</ResponseExample>

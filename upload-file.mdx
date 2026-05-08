@@ -1,0 +1,212 @@
+---
+title: "Upload File"
+openapi: "POST /api/assets/upload/"
+---
+
+## Overview
+
+Upload your files to Wokelo to supplement research reports with proprietary data. Each uploaded file receives a unique identifier that you can reference in the `custom_files` parameter when creating reports.
+
+## Endpoint Details
+
+- **Method:** POST
+- **Endpoint:** `/api/assets/upload/`
+
+## Authentication requirements
+
+- Include a valid JWT token in your request header
+- If you don't have a token yet, you can get one from the /auth/token/ endpoint first.
+
+## Request
+
+### Request Parameters
+
+#### Header Parameters
+
+<ParamField header="Authorization" type="string" required>
+  JWT token obtained from the Authentication request
+</ParamField>
+
+#### Body Parameters
+
+<ParamField body="files" type="array of files" required>
+  Array of files to be uploaded
+</ParamField>
+
+<ParamField body="fileUUID" type="array of uuids">
+  Your own UUIDs to track files. Must match the length and order of the `files` array. These UUIDs will be returned in the response alongside Wokelo's `fileName` identifiers.
+</ParamField>
+
+**Recommended Usage:**
+
+- **Individual uploads preferred** - For best performance, upload files individually
+- **Bulk upload limits** - When uploading multiple files, the maximum is 10 files per request with a 20MB limit per file.
+
+## Response
+
+Successful response will include the details of files uploaded successfully and those that failed to upload.
+
+### Successful Response Fields
+
+<ResponseField name="status" type="String">
+  Overall upload status (success or error)
+</ResponseField>
+
+<ResponseField name="success" type="Array of Objects">
+  Array containing information on successfully uploaded files
+</ResponseField>
+
+<ResponseField name="success[].fileName" type="String">
+  Wokelo's unique file identifier—use this in the `custom_files` parameter when creating reports
+</ResponseField>
+
+<ResponseField name="originalName" type="String">
+  Original filename as uploaded
+</ResponseField>
+
+<ResponseField name="success[].mimeType" type="String">
+  Detected file type/format
+</ResponseField>
+
+<ResponseField name="uuid" type="String">
+  Your provided UUID (if supplied in request)
+</ResponseField>
+
+<ResponseField name="fails" type="Array of Objects">
+  Array containing information about failed uploads (empty on success)
+</ResponseField>
+
+<ResponseField name="files[].reason" type="String">
+  Reason for which the file upload failed
+</ResponseField>
+
+<RequestExample>
+
+```javascript JavaScript - Fetch
+const formdata = new FormData();
+formdata.append("files", fileInput.files[0], "lemonade.pdf");
+formdata.append("files", fileInput.files[0], "lemonade_diligence.pdf");
+formdata.append("fileUUID", "[\"k3m8n5p1q6\", \"a7f4b9e2c3\"]");
+
+const requestOptions = {
+  method: "POST",
+  body: formdata,
+  redirect: "follow"
+};
+
+fetch("{{path}}/api/assets/upload/", requestOptions)
+  .then((response) => response.text())
+  .then((result) => console.log(result))
+  .catch((error) => console.error(error));
+```
+
+```python Python
+import requests
+
+headers = {"Authorization": "Bearer YOUR_TOKEN"}
+with open("lemonade.pdf", "rb") as f:
+    response = requests.post(
+        "https://api.wokelo.ai/api/assets/upload/",
+        headers=headers,
+        files={"files": ("lemonade.pdf", f, "application/pdf")},
+        data={"fileUUID": "a7f4b9e2c3"}
+    )
+print(response.json())
+```
+
+```bash cURL
+curl --request POST \
+  --url https://api.wokelo.ai/api/assets/upload/ \
+  --header 'Authorization: Bearer YOUR_TOKEN' \
+  --form 'files=@/path/to/lemonade.pdf' \
+  --form 'fileUUID=a7f4b9e2c3'
+```
+
+```go Go
+package main
+
+import (
+  "bytes"
+  "fmt"
+  "io"
+  "mime/multipart"
+  "net/http"
+  "os"
+)
+
+func main() {
+  var buf bytes.Buffer
+  w := multipart.NewWriter(&buf)
+  file, _ := os.Open("lemonade.pdf")
+  defer file.Close()
+  fw, _ := w.CreateFormFile("files", "lemonade.pdf")
+  io.Copy(fw, file)
+  w.WriteField("fileUUID", "a7f4b9e2c3")
+  w.Close()
+  req, _ := http.NewRequest("POST", "https://api.wokelo.ai/api/assets/upload/", &buf)
+  req.Header.Set("Authorization", "Bearer YOUR_TOKEN")
+  req.Header.Set("Content-Type", w.FormDataContentType())
+  resp, _ := http.DefaultClient.Do(req)
+  defer resp.Body.Close()
+  body, _ := io.ReadAll(resp.Body)
+  fmt.Println(string(body))
+}
+```
+
+```java Java
+import java.net.URI;
+import java.net.http.*;
+import java.nio.file.*;
+
+public class UploadFile {
+  public static void main(String[] args) throws Exception {
+    String boundary = "----JavaBoundary";
+    byte[] fileBytes = Files.readAllBytes(Path.of("lemonade.pdf"));
+    String bodyPart1 = "--" + boundary + "\r\nContent-Disposition: form-data; name=\"files\"; filename=\"lemonade.pdf\"\r\nContent-Type: application/pdf\r\n\r\n";
+    String bodyPart2 = "\r\n--" + boundary + "--";
+    byte[] body = concat(bodyPart1.getBytes(), fileBytes, bodyPart2.getBytes());
+    HttpRequest request = HttpRequest.newBuilder()
+        .uri(URI.create("https://api.wokelo.ai/api/assets/upload/"))
+        .header("Authorization", "Bearer YOUR_TOKEN")
+        .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+        .POST(HttpRequest.BodyPublishers.ofByteArray(body))
+        .build();
+    HttpResponse<String> response = HttpClient.newHttpClient()
+        .send(request, HttpResponse.BodyHandlers.ofString());
+    System.out.println(response.body());
+  }
+  static byte[] concat(byte[]... arrays) {
+    int len = 0; for (byte[] a : arrays) len += a.length;
+    byte[] result = new byte[len]; int pos = 0;
+    for (byte[] a : arrays) { System.arraycopy(a, 0, result, pos, a.length); pos += a.length; }
+    return result;
+  }
+}
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200
+{
+    "status": "success",
+    "success": [
+        {
+            "fileName": "file_116e55ec-041d-4c1e-897c-3adef1576a09",
+            "originalName": "lemonade.pdf",
+            "mimeType": "pdf",
+            "uuid": "a7f4b9e2c3"
+        },
+        {
+            "fileName": "file_e30c7d3f-8bed-46b2-ae9c-eebc879323cc",
+            "originalName": "lemonade_diligence.pdf",
+            "mimeType": "pdf",
+            "uuid": "k3m8n5p1q6"
+        }
+    ],
+    "fails": []
+}
+```
+
+</ResponseExample>

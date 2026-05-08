@@ -1,0 +1,237 @@
+---
+title: "Fundraising Activity"
+api: "POST https://api.wokelo.ai/api/assets/process_common/"
+---
+
+## Overview
+
+Starts generating a Fundraise workflow report for a specific company, providing insights into fundraising activity, funding stages, and investor landscape.
+
+## Endpoint Details
+
+- **Method:** POST
+- **Endpoint:** `/api/assets/process_common/`
+
+## Authentication requirements
+
+- Include a valid JWT token in your request header
+- If you don't have a token yet, you can get one from the `/auth/token/` endpoint first.
+
+## Request
+
+### Request Parameters
+
+#### Header Parameters
+
+<ParamField header="Authorization" type="string" required>
+  JWT token obtained from the Authentication request
+</ParamField>
+
+#### Body Parameters
+
+<ParamField body="reportType" type="string" required>
+  `fundraisers_workflow`
+</ParamField>
+
+<ParamField body="reportSource" type="string" required>
+  `WKLAPP`
+</ParamField>
+
+<ParamField body="payload" type="object" required>
+  Report configuration object
+</ParamField>
+
+<ParamField body="payload.topic" type="string" required>
+  Company name to generate the fundraise report for
+</ParamField>
+
+<ParamField body="payload.workbook_name" type="string" required>
+  Name to assign to the generated workbook
+</ParamField>
+
+<ParamField body="payload.advanced_settings" type="object">
+  Advanced filtering options for the report
+</ParamField>
+
+<ParamField body="payload.advanced_settings.company_type" type="string">
+  Type of company to filter by. Use `"all"` to include all types
+</ParamField>
+
+<ParamField body="payload.advanced_settings.geography" type="array">
+  List of geographies to filter by (e.g. `["Worldwide"]`)
+</ParamField>
+
+<ParamField body="payload.advanced_settings.funding_stage" type="array">
+  List of funding stages to filter by. Pass an empty array to include all stages
+</ParamField>
+
+<ParamField body="payload.advanced_settings.employee_count" type="array">
+  List of employee count ranges to filter by. Pass an empty array to include all
+</ParamField>
+
+<ParamField body="payload.advanced_settings.total_funding_include_blanks" type="boolean">
+  Whether to include companies with no total funding data. Defaults to `true`
+</ParamField>
+
+## Response
+
+Successful response will include the report\_id of the initiated Fundraise report.
+
+#### Successful Response Fields
+
+<ResponseField name="report_id" type="integer">
+  Report id for the initiated Fundraise report
+</ResponseField>
+
+<RequestExample>
+
+```javascript JavaScript - Fetch
+const myHeaders = new Headers();
+myHeaders.append("Content-Type", "application/json");
+myHeaders.append("Authorization", "your token");
+
+const raw = JSON.stringify({
+  "reportType": "fundraisers_workflow",
+  "payload": {
+    "topic": "Apple",
+    "workbook_name": "Apple",
+    "advanced_settings": {
+      "company_type": "all",
+      "geography": ["Worldwide"],
+      "funding_stage": [],
+      "employee_count": [],
+      "total_funding_include_blanks": true
+    }
+  },
+  "reportSource": "WKLAPP"
+});
+
+const requestOptions = {
+  method: "POST",
+  headers: myHeaders,
+  body: raw,
+  redirect: "follow"
+};
+
+fetch("https://api.wokelo.ai/api/workflow_manager/start/", requestOptions)
+  .then((response) => response.text())
+  .then((result) => console.log(result))
+  .catch((error) => console.error(error));
+```
+
+```python Python
+import requests
+
+headers = {"Content-Type": "application/json", "Authorization": "Bearer YOUR_TOKEN"}
+payload = {
+    "reportType": "fundraisers_workflow",
+    "payload": {
+        "topic": "Apple",
+        "workbook_name": "Apple",
+        "advanced_settings": {
+            "company_type": "all",
+            "geography": ["Worldwide"],
+            "funding_stage": [],
+            "employee_count": [],
+            "total_funding_include_blanks": True
+        }
+    },
+    "reportSource": "WKLAPP"
+}
+response = requests.post("https://api.wokelo.ai/api/workflow_manager/start/", headers=headers, json=payload)
+print(response.json())
+```
+
+```bash cURL
+curl --request POST \
+  --url https://api.wokelo.ai/api/workflow_manager/start/ \
+  --header 'Authorization: Bearer YOUR_TOKEN' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "reportType": "fundraisers_workflow",
+    "payload": {
+      "topic": "Apple",
+      "workbook_name": "Apple",
+      "advanced_settings": {
+        "company_type": "all",
+        "geography": ["Worldwide"],
+        "funding_stage": [],
+        "employee_count": [],
+        "total_funding_include_blanks": true
+      }
+    },
+    "reportSource": "WKLAPP"
+  }'
+```
+
+```go Go
+package main
+
+import (
+  "bytes"
+  "encoding/json"
+  "fmt"
+  "io"
+  "net/http"
+)
+
+func main() {
+  advSettings := map[string]interface{}{
+    "company_type": "all",
+    "geography": []string{"Worldwide"},
+    "funding_stage": []string{},
+    "employee_count": []string{},
+    "total_funding_include_blanks": true,
+  }
+  innerPayload := map[string]interface{}{
+    "topic": "Apple",
+    "workbook_name": "Apple",
+    "advanced_settings": advSettings,
+  }
+  payload := map[string]interface{}{
+    "reportType": "fundraisers_workflow",
+    "payload": innerPayload,
+    "reportSource": "WKLAPP",
+  }
+  body, _ := json.Marshal(payload)
+  req, _ := http.NewRequest("POST", "https://api.wokelo.ai/api/workflow_manager/start/", bytes.NewBuffer(body))
+  req.Header.Set("Authorization", "Bearer YOUR_TOKEN")
+  req.Header.Set("Content-Type", "application/json")
+  resp, _ := http.DefaultClient.Do(req)
+  defer resp.Body.Close()
+  respBody, _ := io.ReadAll(resp.Body)
+  fmt.Println(string(respBody))
+}
+```
+
+```java Java
+import java.net.URI;
+import java.net.http.*;
+
+public class FundraiseWorkflow {
+  public static void main(String[] args) throws Exception {
+    String body = "{\"reportType\":\"fundraisers_workflow\",\"payload\":{\"topic\":\"Apple\",\"workbook_name\":\"Apple\",\"advanced_settings\":{\"company_type\":\"all\",\"geography\":[\"Worldwide\"],\"funding_stage\":[],\"employee_count\":[],\"total_funding_include_blanks\":true}},\"reportSource\":\"WKLAPP\"}";
+    HttpRequest request = HttpRequest.newBuilder()
+        .uri(URI.create("https://api.wokelo.ai/api/workflow_manager/start/"))
+        .header("Authorization", "Bearer YOUR_TOKEN")
+        .header("Content-Type", "application/json")
+        .POST(HttpRequest.BodyPublishers.ofString(body))
+        .build();
+    HttpResponse<String> response = HttpClient.newHttpClient()
+        .send(request, HttpResponse.BodyHandlers.ofString());
+    System.out.println(response.body());
+  }
+}
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200
+{
+    "report_id": 123345
+}
+```
+
+</ResponseExample>

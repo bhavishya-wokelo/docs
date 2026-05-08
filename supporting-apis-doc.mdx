@@ -1,0 +1,329 @@
+---
+title: "Supporting APIs"
+---
+
+## Company Search
+
+Search the Wokelo database by company name, website, or ticker symbol to retrieve permalinks and key attributes needed for other API calls.
+
+Note: If you are unable to find a company from the wokelo database using this API, you can still use our APIs (except Monitoring API) by using complete URL of the company's website instead of its permalink.
+
+`GET   /api/enterprise/company/search`
+
+NOTE: This is a synchronous API, which means the results will be returned in the HTTP response itself.
+
+<CodeGroup>
+
+```json cURL expandable wrap
+curl --location 'https://api.wokelo.ai/api/enterprise/company/search?query=wokelo&search_by=name&company_type=all' \
+--header 'Authorization: Bearer Token' \
+--header 'Content-Type: application/json'
+```
+
+```json Python expandable wrap
+import requests
+import json
+
+url = "https://api.wokelo.ai/api/enterprise/company/search?query=wokelo&search_by=name&company_type=all"
+
+payload = json.dumps({
+  "q": "wokelo"
+})
+headers = {
+  'Authorization': 'Bearer Token',
+  'Content-Type': 'application/json'
+}
+
+response = requests.request("GET", url, headers=headers, data=payload)
+
+print(response.text)
+```
+
+</CodeGroup>
+
+Example response:
+
+```json
+{
+  "status": "success",
+  "data": [
+    {
+      "name": "Wokelo AI",
+      "permalink": "wokelo-ai",
+      "short_description": "Wokelo builds purpose-built AI agents...",
+      "founded_year": "2023",
+      "ipo_status": "private",
+      "hq": "Seattle, United States",
+      "website": "https://www.wokelo.ai/",
+      "ticker": "",
+      "country_code": "US",
+      "last_funding_round": "Seed"
+    }
+  ],
+  "count": 1
+}
+```
+
+## File upload
+
+Upload your proprietary files to Wokelo to supplement research reports with internal data. Each uploaded file receives a unique identifier (fileName) that you reference in the custom\_files parameter when creating reports.
+
+`POST   /api/assets/upload/`
+
+<CodeGroup>
+
+```json cURL expandable wrap
+curl --location 'https://api.wokelo.ai/api/assets/upload/' \
+--header 'Authorization: Bearer Token' \
+--header 'Content-Type: application/json' \
+--form 'files=@"/Users/sahilmalhotra/Downloads/lemonade_diligence.pdf"' \
+--form 'files=@"/Users/sahilmalhotra/Downloads/lemonade.pdf"' \
+--form 'fileUUID="[\"k3m8n5p1q6\", \"a7f4b9e2c3\"]"'
+```
+
+```json Python expandable wrap
+import requests
+import json
+
+url = "https://api.wokelo.ai/api/assets/upload/"
+
+payload = {'fileUUID': '["k3m8n5p1q6", "a7f4b9e2c3"]'}
+files=[
+  ('files',('lemonade_diligence.pdf',open('/Users/sahilmalhotra/Downloads/lemonade_diligence.pdf','rb'),'application/pdf')),
+  ('files',('lemonade.pdf',open('/Users/sahilmalhotra/Downloads/lemonade.pdf','rb'),'application/pdf'))
+]
+headers = {
+  'Authorization': 'Bearer Token',
+  'Content-Type': 'application/json'
+}
+
+response = requests.request("POST", url, headers=headers, data=payload, files=files)
+
+print(response.text)
+```
+
+</CodeGroup>
+
+## Request lifecycle
+
+Enrichment, Insights, and Company Grid APIs are all asynchronous. After submitting a request, use these endpoints to track and retrieve results.
+
+### Check status
+
+This API can be used to check request status.
+
+`GET   /api/enterprise/request/status/`
+
+<CodeGroup>
+
+```json cURL expandable wrap
+curl --location 'https://api.wokelo.ai/api/enterprise/request/status/?request_id=b1f10ebf-a251-4e2d-b867-8482ac701987' \
+--header 'Authorization: Bearer Token' \
+--header 'Content-Type: application/json'
+```
+
+```json Python expandable wrap
+import requests
+import json
+
+url = "https://api.wokelo.ai/api/enterprise/request/status/?request_id=11db67b6-8345-4837-950f-87bbd8d7dcbe"
+
+payload = {}
+headers = {
+  'Authorization': 'Bearer Token',
+  'Content-Type': 'application/json'
+}
+
+response = requests.request("GET", url, headers=headers, data=payload)
+
+print(response.text)
+```
+
+</CodeGroup>
+
+**List of possible statuses**
+
+| **Status** | **Description** |
+| :-- | :-- |
+| PENDING | Request has been received and is queued for processing |
+| PROCESSING | Request is currently being processed |
+| COMPLETED | Request finished successfully — results are available |
+| FAILED | Request failed — check error details in the result endpoint |
+| CANCELLED | Request was cancelled by the user |
+
+### Cancel request
+
+This API can be used to cancel a request that is already placed and is in “PENDING” or “PROCESSING” state. \*\* \*\*
+
+`POST   /api/enterprise/request/cancel`
+
+<CodeGroup>
+
+```json cURL expandable wrap
+curl --location --globoff 'https://api.wokelo.ai/api/enterprise/request/cancel' \
+--header 'Authorization: Bearer Token' \
+--header 'Content-Type: application/json' \
+--data '{
+    "request_id": "5b8eff600-366f-465c-b795-68837043a2d3"
+}'
+```
+
+```json Python expandable wrap
+import requests
+import json
+
+url = "https://api.wokelo.ai/api/enterprise/request/cancel"
+
+payload = json.dumps({
+  "request_id": "5b8eff600-366f-465c-b795-68837043a2d3"
+})
+headers = {
+  'Authorization': 'Bearer Token',
+  'Content-Type': 'application/json'
+}
+
+response = requests.request("POST", url, headers=headers, data=payload)
+
+print(response.text)
+```
+
+</CodeGroup>
+
+### Request result
+
+This API helps you get the result of a request after its status is “COMPLETED”.
+
+`GET   /api/enterprise/request/result/`
+
+<CodeGroup>
+
+```json cURL expandable wrap
+curl --location 'https://api.wokelo.ai/api/enterprise/request/result/?request_id=d7a78d10-663a-493f-9b79-be1e6094f3bb'
+```
+
+```json Python expandable wrap
+import requests
+
+url = "https://api.wokelo.ai/api/enterprise/request/result/?request_id=d7a78d10-663a-493f-9b79-be1e6094f3bb"
+
+payload = {}
+headers = {
+  'Authorization': 'Bearer Token'
+}
+
+response = requests.request("GET", url, headers=headers, data=payload)
+
+print(response.text)
+```
+
+</CodeGroup>
+
+## Report lifecycle
+
+Workflow APIs (Company Research, Industry Research, Peer Comparison, Custom) are asynchronous and produce downloadable reports. Use these endpoints to track and export them.
+
+### Report status
+
+This API can be used to get the status of report that is already placed using any of the workflow APIs.
+
+`GET   /api/assets/get_notebook_status/`
+
+<CodeGroup>
+
+```json cURL expandable wrap
+curl --location 'https://api.wokelo.ai/api/assets/get_notebook_status/?report_id=109196' \
+--header 'Authorization: your token'
+```
+
+```json Python expandable wrap
+import requests
+
+url = "https://api.wokelo.ai/api/assets/get_notebook_status/?report_id=109196"
+
+payload = {}
+headers = {
+  'Authorization': 'your token'
+}
+
+response = requests.request("GET", url, headers=headers, data=payload)
+
+print(response.text)
+```
+
+</CodeGroup>
+
+### Download report
+
+This API can be used to download the report after its completed. Export Formats supported: "pdf", "docx", "ppt", or "json”. Note: ppt format is only supported for company research, industry research reports.
+
+<CodeGroup>
+
+```json cURL expandable wrap
+curl --location 'https://api.wokelo.ai/api/assets/download_report/' \
+--header 'Content-Type: application/json' \
+--header 'Authorization: Bearer Token' \
+--data '{
+    "report_id": 109196,
+    "file_type": "json"
+}'
+```
+
+```json Python expandable wrap
+import requests
+import json
+
+url = "https://api.wokelo.ai/api/assets/download_report/"
+
+payload = json.dumps({
+  "report_id": 109196,
+  "file_type": "json"
+})
+headers = {
+  'Content-Type': 'application/json',
+  'Authorization': 'Bearer Token'
+}
+
+response = requests.request("POST", url, headers=headers, data=payload)
+
+print(response.text)
+```
+
+</CodeGroup>
+
+### Report config
+
+Retrieve the settings originally used to trigger a report. View detailed [<u>API reference</u>](/notebook-configuration).\
+\
+`POST api/wkl/notebook/configuration/`
+
+<CodeGroup>
+
+```json cURL expandable wrap
+curl --location --globoff 'https://api.wokelo.ai/api/wkl/notebook/configuration/' \
+--header 'Authorization: Bearer Token' \
+--header 'Content-Type: application/json' \
+--data '{
+    "notebook_id": 103737
+}'
+```
+
+```json Python expandable wrap
+import requests
+import json
+
+url = "https://api.wokelo.ai/api/wkl/notebook/configuration/"
+
+payload = json.dumps({
+  "notebook_id": 107303
+})
+headers = {
+  'Authorization': 'Bearer Token',
+  'Content-Type': 'application/json'
+}
+
+response = requests.request("POST", url, headers=headers, data=payload)
+
+print(response.text)
+```
+
+</CodeGroup>

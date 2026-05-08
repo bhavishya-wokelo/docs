@@ -1,0 +1,216 @@
+---
+title: "Company Search"
+openapi: "GET /api/enterprise/company/search"
+---
+
+## Overview
+
+Search for companies using name, website or ticker. It returns a list of companies with their permalink and other attributes.
+
+## Endpoint Details
+
+- **Method:** GET
+- **Endpoint:** `/api/enterprise/company/search`
+
+## Authentication requirements
+
+- Include a valid JWT token in your request header
+- If you don't have a token yet, you can get one from the `/auth/token/` endpoint first.
+
+## Request
+
+#### Header Parameters
+
+<ParamField header="Authorization" type="string" required>
+  JWT token obtained from the Authentication request
+</ParamField>
+
+#### URL Parameters
+
+<ParamField query="query" type="string" required>
+  The search query string (e.g., company name, website or ticker).
+
+  Examples: Tesla OR `https://tesla.com` OR TSLA
+</ParamField>
+
+<ParamField query="search_by" type="string">
+  Field to search by. Supported value: `name`, `website`, `ticker`
+</ParamField>
+
+<ParamField query="company_type" type="string">
+  Filter by company type. Supported values: `private`, `public`, `all`
+
+  Note: Use `all` to return all types. (This is the default value is nothing is mentioned)
+</ParamField>
+
+## Response
+
+**Successful Response Fields**
+
+Returns a JSON object with the following structure:
+
+<ResponseField name="status" type="string">
+  `"success"` if the request was processed successfully.
+</ResponseField>
+
+<ResponseField name="data" type="array">
+  List of matching company objects.
+</ResponseField>
+
+<ResponseField name="count" type="integer">
+  Total number of results returned.
+</ResponseField>
+
+**Company Object Fields**
+
+| Field | Description |
+| --- | --- |
+| `name` | Company name. |
+| `permalink` | Unique identifier/slug for the company. |
+| `short_description` | Brief description of the company. |
+| `founded_year` | Year the company was founded. |
+| `ipo_status` | IPO status (e.g., `private`, `public`). |
+| `hq` | Headquarters location. |
+| `industries` | Industry or sector the company operates in. |
+| `website` | Company website URL. |
+| `ticker` | Stock ticker symbol (if applicable). |
+| `country_code` | ISO country code. |
+| `country` | Full country name. |
+| `domain` | Company domain name. |
+| `last_funding_round` | Most recent funding round (e.g., `Seed`, `Pre Seed` etc) |
+
+**Sample Response**
+
+```json
+{
+    "status": "success",
+    "data": [
+        {
+            "name": "Wokelo AI",
+            "permalink": "wokelo-ai",
+            "short_description": "Wokelo builds purpose-built AI agents for dealmaking and consulting, designed by domain-experts to power sourcing, diligence and strategy.",
+            "founded_year": "2023",
+            "ipo_status": "private",
+            "hq": "Seattle, United States",
+            "industries": "AI Investment Research Platform",
+            "website": "https://www.wokelo.ai/",
+            "ticker": "",
+            "country_code": "US",
+            "country": "United States",
+            "domain": "wokelo.ai",
+            "last_funding_round": "Seed"
+        }
+    ],
+    "count": 10
+}
+```
+
+<RequestExample>
+
+```javascript JavaScript - Fetch
+const myHeaders = new Headers();
+myHeaders.append("Authorization", "Bearer Token");
+myHeaders.append("Content-Type", "application/json");
+
+const raw = JSON.stringify({
+  "q": "wokelo"
+});
+
+const requestOptions = {
+  method: "GET",
+  headers: myHeaders,
+  body: raw,
+  redirect: "follow"
+};
+
+fetch("{{path}}/api/enterprise/company/search?query=wokelo&search_by=name&company_type=all", requestOptions)
+  .then((response) => response.text())
+  .then((result) => console.log(result))
+  .catch((error) => console.error(error));
+```
+
+```python Python
+import requests
+
+headers = {"Authorization": "Bearer YOUR_TOKEN", "Content-Type": "application/json"}
+response = requests.get(
+    "https://api.wokelo.ai/api/enterprise/company/search",
+    headers=headers,
+    params={"query": "wokelo", "search_by": "name", "company_type": "all"}
+)
+print(response.json())
+```
+
+```bash cURL
+curl --request GET \
+  --url 'https://api.wokelo.ai/api/enterprise/company/search?query=wokelo&search_by=name&company_type=all' \
+  --header 'Authorization: Bearer YOUR_TOKEN'
+```
+
+```go Go
+package main
+
+import (
+  "fmt"
+  "io"
+  "net/http"
+)
+
+func main() {
+  req, _ := http.NewRequest("GET",
+    "https://api.wokelo.ai/api/enterprise/company/search?query=wokelo&search_by=name&company_type=all", nil)
+  req.Header.Set("Authorization", "Bearer YOUR_TOKEN")
+  resp, _ := http.DefaultClient.Do(req)
+  defer resp.Body.Close()
+  body, _ := io.ReadAll(resp.Body)
+  fmt.Println(string(body))
+}
+```
+
+```java Java
+import java.net.URI;
+import java.net.http.*;
+
+public class CompanySearch {
+  public static void main(String[] args) throws Exception {
+    HttpRequest request = HttpRequest.newBuilder()
+        .uri(URI.create("https://api.wokelo.ai/api/enterprise/company/search?query=wokelo&search_by=name&company_type=all"))
+        .header("Authorization", "Bearer YOUR_TOKEN")
+        .GET()
+        .build();
+    HttpResponse<String> response = HttpClient.newHttpClient()
+        .send(request, HttpResponse.BodyHandlers.ofString());
+    System.out.println(response.body());
+  }
+}
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200
+{
+    "status": "success",
+    "data": [
+        {
+            "name": "Wokelo AI",
+            "permalink": "wokelo-ai",
+            "short_description": "Wokelo builds purpose-built AI agents for dealmaking and consulting.",
+            "founded_year": "2023",
+            "ipo_status": "private",
+            "hq": "Seattle, United States",
+            "industries": "AI Investment Research Platform",
+            "website": "https://www.wokelo.ai/",
+            "ticker": "",
+            "country_code": "US",
+            "country": "United States",
+            "domain": "wokelo.ai",
+            "last_funding_round": "Seed"
+        }
+    ],
+    "count": 10
+}
+```
+
+</ResponseExample>

@@ -1,0 +1,321 @@
+---
+title: "Getting started"
+---
+
+## What is Wokelo MCP?
+
+Wokelo MCP is a [Model Context Protocol](https://modelcontextprotocol.io) server that gives your AI assistant — Claude, ChatGPT, or any MCP-compatible client — direct access to Wokelo's dealmaking research stack. Once connected, you can run company enrichment, market maps, M&A screening, news monitoring, and full research workflows in plain language, without leaving chat.
+
+Under the hood, the server is backed by:
+
+- A proprietary database of **100M\+ entity-resolved companies**
+- **30\+ premium data sources** for financials, transactions, filings, reviews, news, and IP
+- Domain-tuned LLMs and pre-built workflows that codify dealmaking methodology
+- An **exhaustive transactions database** covering global fundraises and M&A
+
+> **Server URL:** `https://mcp.wokelo.ai/mcp` **Auth:** OAuth 2.0 **Supported clients:** Claude (Web, Desktop), ChatGPT (Business, Enterprise)
+
+## Who should use this
+
+| If you are… | What you'll do |
+| :-- | :-- |
+| **An analyst, banker, or PE/VC investor** | Ask your AI assistant for company briefings, deal comps, peer analyses, and bulk enrichment — get verified, source-cited answers in seconds to minutes. |
+| **A research lead or knowledge manager** | Codify your firm's research methodology once and run it consistently across the team. |
+| **A developer or IT admin** | Stand up the connector for your firm, configure tool permissions, and route Wokelo into agentic workflows. |
+
+If you want use-case examples and sample queries before installing, see [MCP use cases](/mcp-use-cases).
+
+---
+
+## Prerequisites
+
+Before you connect, make sure you have:
+
+- A **Wokelo account** with MCP access enabled (contact your account manager if you're not sure)
+- One of the supported AI clients:
+  - **Claude** — Web or Desktop, on any plan that supports custom connectors
+  - **ChatGPT** — Business (Team) or Enterprise plan; **only workspace admins** can add custom apps
+- The Wokelo **Skill File** — [download here](https://wkemails.blob.core.windows.net/clients/%28%279a7adb3f-b1d2-4fe0-9062-3aea68bae540%27%2C%29/SKILL.md)
+
+<Tip>
+  The skill file is the orchestration layer. It tells your AI assistant when to use Wokelo, which tools to chain for which questions, and how to format outputs. Without it, the connector still works — but the assistant won't reliably know to use Wokelo over web search, and you'll get shallower answers.
+</Tip>
+
+---
+
+## Connect to Claude
+
+<video src="/videos/Screen-sharing---2026-04-06-4_56_09-PM.mp4" controls />
+
+### Claude Web
+
+<Steps>
+  <Step title="Open Claude Settings">
+    From any Claude conversation, open **Settings**.
+  </Step>
+  <Step title="Add a connector">
+    Navigate to **Connectors → Add Connectors**.
+  </Step>
+  <Step title="Enter the Wokelo MCP details">
+    - **Name:** `Wokelo`
+    - **Remote MCP server URL:** `https://mcp.wokelo.ai/mcp`
+
+    Click **Add**.
+  </Step>
+  <Step title="Authenticate via OAuth">
+    You'll be redirected to Wokelo to log in. Complete authentication, and the Wokelo connector will appear in your Claude connectors list.
+  </Step>
+</Steps>
+
+### Claude Desktop
+
+The flow is identical to Claude Web — open **Settings → Connectors → Add Connectors**, enter the same URL, and authenticate.
+
+### Upload the Skill File in Claude
+
+<Steps>
+  <Step title="Open the Customize tab">
+    From Claude's left navigation panel, click **Customize**.
+  </Step>
+  <Step title="Add a new skill">
+    In the **Skills** section, click **\+** and upload the [Wokelo Skill File](https://wkemails.blob.core.windows.net/clients/%28%279a7adb3f-b1d2-4fe0-9062-3aea68bae540%27%2C%29/SKILL.md).
+
+    <Frame>
+      ![Upload Wokelo skill in Claude](/images/Screenshot-2026-04-17-at-9.43.26-AM.png)
+    </Frame>
+  </Step>
+</Steps>
+
+---
+
+## Connect to ChatGPT
+
+<Note>
+  ChatGPT custom apps are available on the **Business (Team)** and **Enterprise** plans only. **Workspace admins** are the only role that can register custom apps.
+</Note>
+
+<Steps>
+  <Step title="Enable Developer Mode">
+    Go to **Settings → Apps → Advanced Settings** and enable **Developer Mode**.
+
+    <Frame>
+      ![Enable Developer Mode in ChatGPT](/images/Screenshot-2026-04-16-at-10.51.22-AM.png)
+    </Frame>
+  </Step>
+  <Step title="Create a new app">
+    From your workspace settings, go to **Apps** and click **Create**.
+
+    <Frame>
+      ![Create a new app in ChatGPT](/images/Screenshot-2026-04-16-at-10.46.25-AM.png)
+    </Frame>
+  </Step>
+  <Step title="Configure the Wokelo MCP">
+    - **Name:** `Wokelo`
+    - **MCP Server URL:** `https://mcp.wokelo.ai/mcp`
+    - **Authentication:** OAuth
+
+    Click **Create**.
+
+    <Frame>
+      ![Configure Wokelo MCP in ChatGPT](/images/Screenshot-2026-04-16-at-10.47.09-AM.avif)
+    </Frame>
+  </Step>
+  <Step title="Authenticate">
+    You'll be redirected to Wokelo to log in. Once authenticated, the Wokelo connector is live in your workspace.
+  </Step>
+</Steps>
+
+### Upload the Skill File in ChatGPT
+
+<Steps>
+  <Step title="Open Skills">
+    In the left navigation panel, click **Skills**.
+
+    <Frame>
+      ![Open Skills in ChatGPT](/images/Screenshot-2026-04-17-at-10.07.50-AM.png)
+    </Frame>
+  </Step>
+  <Step title="Upload the file">
+    Click **New Skill** and upload the [Wokelo Skill File](https://wkemails.blob.core.windows.net/clients/%28%279a7adb3f-b1d2-4fe0-9062-3aea68bae540%27%2C%29/SKILL.md).
+
+    <Frame>
+      ![Upload Wokelo skill in ChatGPT](/images/Screenshot-2026-04-17-at-10.08.07-AM.png)
+    </Frame>
+  </Step>
+</Steps>
+
+---
+
+## Your first query
+
+Once connected, try one of these to confirm the integration works:
+
+| Query | What it triggers |
+| :-- | :-- |
+| _"Tell me about Stripe — recent news, funding, headcount, and key acquisitions."_ | `search_company` → `get_company_news` → `submit_company_enrichment` |
+| _"Who are the top 10 LLM observability startups, and what have they raised?"_ | `submit_market_map` → `submit_company_enrichment` |
+| _"Pull employee reviews for Notion and its three closest peers."_ | `get_employee_reviews` across the peer set |
+| _"Run a peer comparison on Stripe, Adyen, and Checkout.com."_ | `list_workflows` → `start_workflow` (peer comparison) |
+
+For a fuller catalog of scenarios with sample prompts and expected outputs, see [MCP use cases](/mcp-use-cases).
+
+---
+
+## Tool Reference
+
+The Wokelo MCP exposes ~20 tools across four categories. Most casual questions are answered by **instant tools** in seconds. **Async tools** submit a job, return a `request_id`, and your assistant polls until the result is ready.
+
+### Instant tools — return in seconds
+
+| Tool | Purpose | Typical use |
+| :-- | :-- | :-- |
+| `search_company` | Resolve a company name to a unique permalink | Always run first for any named company |
+| `get_company_news` | Latest articles on a company, with summaries and publisher metadata | "Latest on \[company\]" |
+| `get_employee_reviews` | Glassdoor-style sentiment, culture scores, leadership ratings | "What's the culture like at \[company\]?" |
+| `get_product_reviews` | G2-style product reputation and customer feedback | "How is \[product\] reviewed?" |
+| `list_workflows` | Catalog of available workflows (including custom firm workflows) | Required before triggering any report |
+| `list_notebooks` | Past reports generated for the user/firm | Find an existing report before re-running |
+| `list_earnings_calls` | Available earnings transcripts for a company | Required before earnings analysis |
+
+### Async tools — submit, poll, retrieve
+
+| Tool | Purpose | Typical runtime |
+| :-- | :-- | :-- |
+| `submit_company_enrichment` | Structured data on 1–200 companies (firmographics, funding, financials, headcount, acquisitions) | 1–5 min (fast sections) / ~15 min (AI sections) |
+| `submit_industry_enrichment` | Sector intelligence — market size, trends, M&A, regulations | 10–30 min |
+| `submit_market_map` | Discover companies in a space; map the competitive landscape | 10–20 min |
+| `submit_target_screening` | Find M&A acquisition targets for an acquirer | 10–20 min |
+| `submit_buyer_screening` | Find potential acquirers for a target | 10–20 min |
+| `start_workflow` | Trigger a structured report or notebook (company research, IC memo, peer comparison, earnings, custom) | 20–60 min depending on workflow |
+
+### Utility tools
+
+| Tool | Purpose |
+| :-- | :-- |
+| `get_request_status` | Poll the status of an async job |
+| `get_request_result` | Retrieve results once status is `COMPLETED` |
+| `wait_for_result` | Convenience wrapper for short jobs (enrichment only — not for market maps, screenings, or industry reports) |
+| `download_notebook` | Download a finished report as PDF, DOCX, PPTX, or JSON |
+| `cancel_request` | Abort a pending or in-progress job |
+
+---
+
+## Tool permissions
+
+Open the **Connectors** page in Claude (Web or Desktop) and click **Configure** next to the Wokelo connector. You'll see every tool listed with three permission options:
+
+- **Always allow** — runs without prompting
+- **Needs approval** — asks before each call
+- **Blocked** — disabled
+
+<Frame>
+  ![Configure tool permissions in Claude](/images/Screenshot-2026-04-06-at-5.12.36-PM.png)
+</Frame>
+
+### Recommended defaults
+
+| Permission | Tools | Why |
+| :-- | :-- | :-- |
+| **Always allow** | `search_company`, `get_company_news`, `get_employee_reviews`, `get_product_reviews`, `list_workflows`, `list_notebooks`, `list_earnings_calls`, `get_request_status`, `get_request_result` | Fast, read-only, low-credit cost |
+| **Needs approval** | `submit_company_enrichment`, `submit_industry_enrichment`, `submit_market_map`, `submit_target_screening`, `submit_buyer_screening`, `start_workflow`, `download_notebook` | Long-running and consume more credits |
+| **Blocked** | `cancel_request` (optional) | Block only if you want to prevent accidental cancellation of teammates' jobs |
+
+---
+
+## Limits and quotas
+
+| Limit | Value | Notes |
+| :-- | :-- | :-- |
+| Companies per enrichment call (fast sections only) | 200 | Firmographics, funding, headcount, financials, etc. |
+| Companies per enrichment call (with AI sections) | 20 | Drops sharply when slow AI sections are included |
+| Companies per peer comparison workflow | 5 | Hard cap on the `websites` parameter |
+| Concurrent async jobs | Plan-dependent | Contact your account manager for limits |
+| Credit consumption | Varies by tool | Async report workflows consume the most |
+
+If you hit a limit, your assistant will return an error from Wokelo. Re-prompt with a smaller batch or contact your account manager to raise quotas.
+
+---
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="The Wokelo connector doesn't appear after I add it">
+    Check that you completed OAuth — if the auth window closed early, the connector won't register. Remove and re-add it, then watch for the redirect to Wokelo's login page. If you're on ChatGPT, also confirm Developer Mode is enabled at the workspace level.
+  </Accordion>
+
+  <Accordion title="Claude isn't using Wokelo even though it's connected">
+    The skill file is almost certainly missing or out of date. Re-upload the latest [Skill File](https://wkemails.blob.core.windows.net/clients/%28%279a7adb3f-b1d2-4fe0-9062-3aea68bae540%27%2C%29/SKILL.md). The skill tells the assistant to prefer Wokelo over web search for company queries.
+  </Accordion>
+
+  <Accordion title="A tool returns 'unauthorized' or 'token expired'">
+    Your OAuth session has expired. Open **Connectors → Configure → Wokelo** and re-authenticate. No data is lost.
+  </Accordion>
+
+  <Accordion title="An async job has been pending for over an hour">
+    Industry research and full company reports can legitimately take 30–60 minutes. If a job exceeds 90 minutes with no result, ask your assistant to call `cancel_request` and resubmit, or contact support with the `request_id`.
+  </Accordion>
+
+  <Accordion title="Bulk enrichment fails on more than 20 companies">
+    You're including a slow AI section (e.g. `business_model`, `management_profiles`). Either drop the AI section, or split into batches of 20.
+  </Accordion>
+
+  <Accordion title="My firm has custom workflows — how do I trigger them?">
+    Ask your assistant: _"List my available Wokelo workflows."_ It will call `list_workflows` and surface your firm's custom workflow codes. Then ask it to run the one you want.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## FAQ
+
+<AccordionGroup>
+  <Accordion title="What's the difference between the Wokelo MCP and the Wokelo API?">
+    The MCP server is a wrapper that exposes Wokelo's research capabilities to AI assistants in a chat-native way. The [REST API](/overview) is for direct integration into your own applications. Most MCP tools map 1:1 to API endpoints, but the MCP layer adds orchestration — chaining tools, handling polling, and formatting outputs for chat.
+  </Accordion>
+
+  <Accordion title="Which AI clients work with Wokelo MCP?">
+    Officially supported: **Claude Web**, **Claude Desktop**, **ChatGPT Business**, and **ChatGPT Enterprise**. Any MCP-compliant client (Cursor, Cline, custom agents) should also work, but isn't officially tested.
+  </Accordion>
+
+  <Accordion title="Do I need a paid Wokelo plan?">
+    Yes — MCP access requires an active Wokelo account with MCP enabled. Contact your account manager if you're unsure of your plan.
+  </Accordion>
+
+  <Accordion title="Is my data private?">
+    All MCP traffic is authenticated via OAuth and uses HTTPS. Wokelo doesn't train on your queries or share them with third parties. See your customer agreement for full data handling terms.
+  </Accordion>
+
+  <Accordion title="Can I use Wokelo MCP in agentic / scheduled workflows?">
+    Yes. Async tools return a `request_id` that can be polled by an agent or scheduled job — including via [Cowork](https://www.anthropic.com/) or similar orchestration layers — for unattended deliverables like Monday-morning portfolio digests.
+  </Accordion>
+
+  <Accordion title="What happens if Wokelo doesn't have data on a company?">
+    The relevant tool returns an empty or partial result. Your assistant should fall back to web search for that specific request — the skill file enforces this behavior.
+  </Accordion>
+
+  <Accordion title="How do I retrieve a report I generated last week?">
+    Ask: _"Show me my recent Wokelo notebooks"_ — the assistant calls `list_notebooks`, finds the report, and can download it as PDF, DOCX, or PPTX via `download_notebook`.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Explore use cases" icon="lightbulb" href="/mcp-use-cases">
+    Sample queries and dealmaking workflows you can run today.
+  </Card>
+
+  <Card title="API Reference" icon="code" href="/overview">
+    Direct REST API access for custom integrations.
+  </Card>
+
+  <Card title="Integrations" icon="plug" href="/affinity">
+    Connect Wokelo with Affinity, Salesforce, DealCloud, and more.
+  </Card>
+
+  <Card title="Contact us" icon="headset" href="/contact">
+    Questions about plans, limits, or onboarding.
+  </Card>
+</CardGroup>

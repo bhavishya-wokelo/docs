@@ -1,0 +1,484 @@
+---
+title: "Newsfeed"
+---
+
+## Quick start
+
+The newsfeed API fetches the latest news articles for a given industry, enriched with AI-generated summaries, event categories, publisher metadata, and article text.
+
+Results are returned synchronously in the response
+
+`POST: /api/enterprise/newsfeed/news/`
+
+NOTE: This is a synchronous API, which means the results will be returned in the HTTP response itself.
+
+Lets start with a simple one.
+
+<CodeGroup>
+
+```json cURL expandable wrap
+curl --location 'https://api.wokelo.ai/api/enterprise/newsfeed/news/' \
+--header 'Authorization: Bearer Token' \
+--header 'Content-Type: application/json' \
+--data '{
+  "industry": ["Energy, Utilities & Environment", "Industrials & Manufacturing"],
+  "breaking_news": true,
+  "sentiment":"positive",
+  "published_date_after":"2026-04-01",
+  "published_date_before":"2026-04-30",
+  "limit":100
+}'
+```
+
+```json Python expandable wrap
+import requests
+import json
+
+url = "https://api.wokelo.ai/api/enterprise/newsfeed/news/"
+
+payload = json.dumps({
+  "industry": [
+    "Energy, Utilities & Environment",
+    "Industrials & Manufacturing"
+  ],
+  "breaking_news": True,
+  "sentiment": "positive",
+  "published_date_after": "2026-04-01",
+  "published_date_before": "2026-04-30",
+  "limit": 100
+})
+headers = {
+  'Authorization': 'Bearer Token',
+  'Content-Type': 'application/json'
+}
+
+response = requests.request("POST", url, headers=headers, data=payload)
+
+print(response.text)
+```
+
+</CodeGroup>
+
+The response will return a set of news articles:
+
+```json expandable
+{
+    "status": "success",
+    "data": [
+        {
+            "id": 10655466,
+            "url": "https://www.bgr.com/2160481/sustainable-air-conditioner-alternative-nescod-ammonium-nitrate-cooling/",
+            "title": "Not A Fan, Not AC: This Cheap Cooling System Works Without Using Electricity",
+            "ai_summary": "Scientists from King Abdullah University of Science and Technology developed Nescod, a cooling system that uses ammonium nitrate and requires no electricity, achieving significant temperature drops during experiments. The system can be regenerated using solar energy, making it suitable for off-grid and low-income areas. ",
+            "published_date": "2026-04-29 17:46:56",
+            "source": "Wokelo",
+            "geo": [
+                "SAU"
+            ],
+            "sentiment": "Positive",
+            "newsworthiness_impact": "Medium"
+        },
+        {
+            "id": 10654876,
+            "url": "https://www.globalbankingandfinance.com/kone-buy-rival-tk-elevator-34-4-billion-deal/",
+            "title": "Kone to Acquire TK Elevator in Historic $34.4 Billion Finance Deal",
+            "ai_summary": "Finnish elevator manufacturer Kone has agreed to acquire German rival TK Elevator (TKE) in a €29.4 billion ($34.4 billion) deal. The merger is expected to create the world's largest lift manufacturer with over €700 million in annual synergies and more than 100,000 employees. ",
+            "published_date": "2026-04-29 05:42:53",
+            "source": "Wokelo",
+            "geo": [
+                "FIN",
+                "DEU"
+            ],
+            "sentiment": "Positive",
+            "newsworthiness_impact": "High"
+        },
+        {
+            "id": 10628677,
+            "url": "https://www.newsweek.com/gm-adds-digital-in-car-personalization-to-current-older-models-11888578",
+            "title": "GM Adds Digital In-Car Personalization to Current, Older Models",
+            "ai_summary": "General Motors announced that they are updating model year 2022 and newer Cadillac, Chevrolet, Buick, and GMC vehicles with Google Gemini to enhance in-car AI capabilities via over-the-air software updates. The upgrade will reach approximately 4 million vehicles in the U.S. and is part of GM's strategy to phase out Apple CarPlay and Android Auto by 2028. ",
+            "published_date": "2026-04-28 00:00:00",
+            "source": "Wokelo",
+            "geo": [
+                "USA"
+            ],
+            "sentiment": "Positive",
+            "newsworthiness_impact": "Medium"
+        },
+        {
+            "id": 10635667,
+            "url": "https://www.dw.com/en/will-the-iran-war-reshape-the-auto-industry/video-76914859",
+            "title": "Will the Iran war reshape the auto industry?",
+            "ai_summary": "Rising fuel prices due to the Iran war and shifting energy politics are accelerating the adoption of electric vehicles globally, especially in Europe and China. ",
+            "published_date": "2026-04-27 12:28:27",
+            "source": "Wokelo",
+            "geo": [
+                "DEU",
+                "USA",
+                "CHN"
+            ],
+            "sentiment": "Positive",
+            "newsworthiness_impact": "High"
+        },
+        {
+            "id": 10586019,
+            "url": "https://tech.eu/2026/04/27/spacetech-investor-seraphim-space-targets-350m-raise/",
+            "title": "Spacetech investor Seraphim Space targets £350M raise",
+            "ai_summary": "Seraphim Space, a spacetech investor listed on the London Stock Exchange, announced plans to raise up to £350 million through new share issuance. The fundraising aims to capitalize on growing interest in the spacetech sector, driven by reduced costs and upcoming IPOs such as SpaceX. ",
+            "published_date": "2026-04-27 11:15:00",
+            "source": "Wokelo",
+            "geo": [
+                "GBR"
+            ],
+            "sentiment": "Positive",
+            "newsworthiness_impact": "High"
+        },
+        {
+            "id": 10451190,
+            "url": "https://techcrunch.com/2026/04/27/meta-inks-deal-for-solar-power-at-night-beamed-from-space/",
+            "title": "Meta inks deal for solar power at night, beamed from space",
+            "ai_summary": "Meta signed an agreement with Overview Energy to receive power from satellites transmitting infrared light to terrestrial solar farms. Overview plans to launch a fleet of 1,000 spacecraft by 2030 to beam space-generated power to Earth, aiming to reduce reliance on fossil fuels. ",
+            "published_date": "2026-04-27 10:00:00",
+            "source": "Wokelo",
+            "geo": [
+                "USA"
+            ],
+            "sentiment": "Positive",
+            "newsworthiness_impact": "High"
+        },
+        {
+            "id": 10653832,
+            "url": "https://www.skynews.com.au/australia-news/politics/australian-army-to-receive-next-generation-laserarmed-bushmasters-as-part-of-12-billion-defence-industry-investment/news-story/685ad8797431e573904bed0062ed15ca",
+            "title": "Australian Army to receive 'next generation' laser-armed Bushmasters as part of $1.2 billion defence industry investment",
+            "ai_summary": "Australia announced a $1.2 billion investment in armed Bushmaster vehicles, including mounting lasers to destroy drones. The order will create 300 defence jobs and support the production of new vehicles for the Australian Army and Netherlands. The new vehicles will feature advanced power systems, remote weapon stations, and directed energy weapons. ",
+            "published_date": "2026-04-27 02:01:28",
+            "source": "Wokelo",
+            "geo": [
+                "AUS",
+                "NLD"
+            ],
+            "sentiment": "Positive",
+            "newsworthiness_impact": "High"
+        },
+        {
+            "id": 10630707,
+            "url": "https://www.morningstar.com/news/pr-newswire/20260422sf41523/hyperscale-data-sees-rising-demand-across-defense-portfolio-amid-heightened-global-activity",
+            "title": "Hyperscale Data Sees Rising Demand Across Defense Portfolio Amid Heightened Global Activity",
+            "ai_summary": "Hyperscale Data announced increased demand in its defense portfolio, supported by its subsidiaries Gresham Worldwide, Inc. and TurnOnGreen, Inc., due to recent global conflicts in the Middle East and Ukraine. The company's Defense Systems Group is experiencing a rise in inquiries and orders for mission-critical defense electronics and technologies. ",
+            "published_date": "2026-04-22 15:30:00",
+            "source": "Wokelo",
+            "geo": [
+                "ISR",
+                "RUS"
+            ],
+            "sentiment": "Positive",
+            "newsworthiness_impact": "High"
+        },
+        {
+            "id": 10640525,
+            "url": "https://markets.businessinsider.com/news/stocks/from-lab-to-field-hpq-and-novacium-secure-first-battery-order-from-european-drone-manufacturer-using-gen4-cells-1036048062",
+            "title": "From Lab to Field: HPQ and Novacium Secure First Battery Order from European Drone Manufacturer Using GEN4 Cells",
+            "ai_summary": "HPQ Silicon and its strategic partner Novacium announced that they received an initial battery pack order from a European drone manufacturer, marking a step towards commercialization of high-capacity lithium-ion batteries for drones. The order involves proposed 8S2P and 8S3P configurations based on GEN4 21700 cells, with ongoing discussions about larger capacity options. ",
+            "published_date": "2026-04-22 00:00:00",
+            "source": "Wokelo",
+            "geo": [
+                "ESP"
+            ],
+            "sentiment": "Positive",
+            "newsworthiness_impact": "Medium"
+        },
+        {
+            "id": 9385534,
+            "url": "https://www.independent.co.uk/news/world/europe/uk-ukraine-drones-aid-russia-b2958133.html",
+            "title": "UK to send £752m and 120,000 drones to Ukraine to bolster defences against Russia",
+            "ai_summary": "The UK announced a military support package for Ukraine, including £752 million in aid and 120,000 drones. The aid aims to help Ukraine defend itself against Russia's ongoing invasion, with a focus on advanced military equipment and drone capabilities. ",
+            "published_date": "2026-04-15 12:18:16",
+            "source": "Wokelo",
+            "geo": [
+                "GBR",
+                "UKR"
+            ],
+            "sentiment": "Positive",
+            "newsworthiness_impact": "High"
+        },
+        {
+            "id": 10654930,
+            "url": "https://www.morningstar.com/news/accesswire/1155961msn/cubic-to-showcase-edge-compute-and-digital-intelligence-advancing-marine-corps-operations-at-modern-day-marine-2026",
+            "title": "Cubic to Showcase Edge Compute and Digital Intelligence Advancing Marine Corps Operations at Modern Day Marine 2026",
+            "ai_summary": "Cubic Defense will showcase its edge compute and digital intelligence capabilities at Modern Day Marine 2026 in Washington, D.C., demonstrating how its technologies support Marine Corps operations in contested environments. The company highlighted solutions like high-speed computing, resilient networking, and shared operational mapping to enhance situational awareness and decision-making. This event emphasizes the integration of advanced digital tools for military operational effectiveness. ",
+            "published_date": "2026-04-14 08:00:00",
+            "source": "Wokelo",
+            "geo": [
+                "USA"
+            ],
+            "sentiment": "Positive",
+            "newsworthiness_impact": "Medium"
+        },
+        {
+            "id": 10635235,
+            "url": "https://www.arabnews.com/node/2638449/amp",
+            "title": "Pakistan signs carbon market deal with Norway to reduce emissions, attract green investment",
+            "ai_summary": "Pakistan signed its first bilateral carbon market deal with Norway under the Paris Agreement, aiming to reduce emissions and promote sustainable development. The agreement allows Pakistan to generate and trade carbon credits from projects in various sectors, supporting climate and economic goals. ",
+            "published_date": "2026-04-01 00:00:00",
+            "source": "Wokelo",
+            "geo": [
+                "PAK",
+                "NOR"
+            ],
+            "sentiment": "Positive",
+            "newsworthiness_impact": "High"
+        }
+    ],
+    "count": 12,
+    "total": 12,
+    "limit": 100,
+    "offset": 0
+}
+```
+
+## Request reference
+
+A sample request containing all the possible parameters
+
+<CodeGroup>
+
+```json cURL expandable wrap
+curl --location 'https://api.wokelo.ai/api/enterprise/newsfeed/news/' \
+--header 'Authorization: Bearer Token' \
+--header 'Content-Type: application/json' \
+--data '{
+  "industry": ["Energy, Utilities & Environment", "Industrials & Manufacturing"],
+  "breaking_news": true,
+  "geo":["USA"],
+  "sentiment":"positive",
+  "published_date_after":"2026-04-01",
+  "published_date_before":"2026-04-30",
+  "limit":100,
+  "offset":2
+}'
+```
+
+```json Python expandable wrap
+import requests
+import json
+
+url = "https://api.wokelo.ai/api/enterprise/newsfeed/news/"
+
+payload = json.dumps({
+  "industry": [
+    "Energy, Utilities & Environment",
+    "Industrials & Manufacturing"
+  ],
+  "breaking_news": True,
+  "geo": [
+    "USA"
+  ],
+  "sentiment": "positive",
+  "published_date_after": "2026-04-01",
+  "published_date_before": "2026-04-30",
+  "limit": 100,
+  "offset": 2
+})
+headers = {
+  'Authorization': 'Bearer Token',
+  'Content-Type': 'application/json'
+}
+
+response = requests.request("POST", url, headers=headers, data=payload)
+
+print(response.text)
+```
+
+</CodeGroup>
+
+The table below lists all the parameters available to filter the results.
+
+| URL Parameters | Description |
+| :-- | :-- |
+| `industry` | Array of industry names. [View](https://docs.wokelo.ai/industry-names) supported industry names. |
+| `geo` | Array of 3 letter ISO country codes |
+| `sentiment` | News sentiment- positive, negative, neutral |
+| `breaking_news` | Boolean value. To fetch breaking news, set this to true |
+| `published_date_after` | Lower bound for date range to filter news articles |
+| `published_date_before` | Upper bound for date range to filter news articles |
+| `limit` | Maximum number of news to return |
+| `offset` | Number of records to skip before starting to return results |
+| `blacklisted` | Comma-separated list of publisher domains to exclude from results. (include complete domain starting with https://) |
+
+## Examples
+
+**Portfolio adverse signal monitoring**: Get all legal, compliance, layoff, leadership change news for Brex.
+
+### Sample Request
+
+<CodeGroup>
+
+```json cURL
+curl --location 'https://api.wokelo.ai/api/enterprise/newsfeed/news/' \
+--header 'Authorization: Bearer Token' \
+--header 'Content-Type: application/json' \
+--data '{
+  "industry": ["Financial Services & Fintech"],
+  "breaking_news": true,
+  "geo":["USA"],
+  "sentiment":"positive",
+  "published_date_after":"2026-04-01",
+  "published_date_before":"2026-04-30"
+}'
+```
+
+```json Python
+import requests
+import json
+
+url = "https://api.wokelo.ai/api/enterprise/newsfeed/news/"
+
+payload = json.dumps({
+  "industry": [
+    "Financial Services & Fintech"
+  ],
+  "breaking_news": True,
+  "geo": [
+    "USA"
+  ],
+  "sentiment": "positive",
+  "published_date_after": "2026-04-01",
+  "published_date_before": "2026-04-30"
+})
+headers = {
+  'Authorization': 'Bearer Token',
+  'Content-Type': 'application/json'
+}
+
+response = requests.request("POST", url, headers=headers, data=payload)
+
+print(response.text)
+```
+
+</CodeGroup>
+
+### Sample Response
+
+```json expandable
+{
+    "status": "success",
+    "data": [
+        {
+            "id": 10659271,
+            "url": "https://tech.eu/2026/04/29/cleo-labs-secures-eur15m-to-scale-ai-driven-product-compliance-globally/",
+            "title": "Cleo Labs secures €1.5M to scale AI-driven product compliance globally",
+            "ai_summary": "Cleo Labs, a Paris-based regtech company, has raised €1.5 million to develop its AI-driven platform for international product compliance. The funding aims to expand its capabilities in Europe and prepare for entry into the United States. ",
+            "published_date": "2026-04-29 10:00:00",
+            "source": "Wokelo",
+            "geo": [
+                "FRA",
+                "USA"
+            ],
+            "sentiment": "Positive",
+            "newsworthiness_impact": "Medium"
+        },
+        {
+            "id": 10630723,
+            "url": "https://www.morningstar.com/news/pr-newswire/20260428la45630/vendavo-named-a-leader-in-the-gartner-magic-quadrant-for-b2b-pricing-rebate-optimization-software",
+            "title": "Vendavo Named a Leader in the Gartner® Magic Quadrant™ for B2B Pricing & Rebate Optimization Software",
+            "ai_summary": "Vendavo has been named a Leader in the Gartner Magic Quadrant for B2B Pricing & Rebate Optimization Software. The company offers a comprehensive suite of solutions to support complex pricing and rebate requirements globally. ",
+            "published_date": "2026-04-28 11:13:00",
+            "source": "Wokelo",
+            "geo": [
+                "USA"
+            ],
+            "sentiment": "Positive",
+            "newsworthiness_impact": "Medium"
+        },
+        {
+            "id": 10656268,
+            "url": "https://financefeeds.com/sec-chair-paul-atkins-says-crypto-and-blockchain-innovation-will-strengthen-u-s-economy/",
+            "title": "SEC Chair Paul Atkins Says Crypto and Blockchain Innovation Will Strengthen U.S. Economy",
+            "ai_summary": "SEC Chair Paul Atkins expressed support for cryptocurrency and blockchain innovation, suggesting it will enhance the U.S. economy and financial system. His comments indicate a shift towards clearer, more innovation-friendly regulation of digital assets by the SEC, amid ongoing legislative debates. ",
+            "published_date": "2026-04-28 10:56:03",
+            "source": "Wokelo",
+            "geo": [
+                "USA"
+            ],
+            "sentiment": "Positive",
+            "newsworthiness_impact": "Medium"
+        },
+        {
+            "id": 10655532,
+            "url": "https://markets.ft.com/data/announce/detail?dockey=600-202604230900BIZWIRE_USPRX____20260423_BW750515-1",
+            "title": "Regions Bank + Dash Solutions Collaborate on New Treasury Management Solution to Modernize Client Payment Operations – Company Announcement",
+            "ai_summary": "Regions Bank launched a new Treasury Management solution called Regions ReimbursePro, powered by Dash Solutions, to modernize client payment operations and enable real-time fund transfers. The solution aims to improve refund efficiency, reduce errors, and support various industries with digital payment options. The development reflects Regions Bank’s focus on innovative payment technology and industry-specific service offerings. ",
+            "published_date": "2026-04-23 00:00:00",
+            "source": "Wokelo",
+            "geo": [
+                "USA"
+            ],
+            "sentiment": "Positive",
+            "newsworthiness_impact": "Medium"
+        },
+        {
+            "id": 10646613,
+            "url": "https://markets.businessinsider.com/news/stocks/maryland-emerges-as-a-national-leader-in-digital-asset-innovation-maryland-blockchain-association-celebrates-historic-legislative-sweep-1036037664",
+            "title": "Maryland Emerges as a National Leader in Digital Asset Innovation: Maryland Blockchain Association Celebrates Historic Legislative Sweep",
+            "ai_summary": "The Maryland Blockchain Association announced the passage of three landmark blockchain legislation acts by the Maryland General Assembly, now heading to the governor's desk for approval. These laws aim to establish a regulatory framework for blockchain technology, real estate land governance, and digital payments, positioning Maryland as a leader in digital asset innovation. ",
+            "published_date": "2026-04-20 00:00:00",
+            "source": "Wokelo",
+            "geo": [
+                "USA"
+            ],
+            "sentiment": "Positive",
+            "newsworthiness_impact": "Medium"
+        },
+        {
+            "id": 10626912,
+            "url": "https://www.latimes.com/b2b/banking-finance/story/2026-04-10/omni-agent-solutions-acquisition-fortress",
+            "title": "Fortress Investment Group Completes Omni Agent Solutions Acquisition",
+            "ai_summary": "Fortress Investment Group's affiliates have acquired Omni Agent Solutions, a provider of bankruptcy and restructuring services based in Woodland Hills. The investment aims to support Omni’s growth, technology development, and expansion in core service lines. ",
+            "published_date": "2026-04-10 17:00:00",
+            "source": "Wokelo",
+            "geo": [
+                "USA"
+            ],
+            "sentiment": "Positive",
+            "newsworthiness_impact": "Medium"
+        },
+        {
+            "id": 10659347,
+            "url": "https://www.morningstar.com/news/pr-newswire/20260407sf28608/katrisk-acquires-red-expanding-global-catastrophe-modeling-capabilities",
+            "title": "KatRisk Acquires RED, Expanding Global Catastrophe Modeling Capabilities",
+            "ai_summary": "KatRisk acquired RED, a catastrophe modeling provider, to expand its global risk modeling capabilities, particularly for earthquakes, floods, and other natural hazards. The acquisition aims to accelerate the development of high-fidelity models and integrate RED's European earthquake platform into KatRisk's software platform, SpatialKat. ",
+            "published_date": "2026-04-07 09:17:00",
+            "source": "Wokelo",
+            "geo": [
+                "USA",
+                "NPL"
+            ],
+            "sentiment": "Positive",
+            "newsworthiness_impact": "High"
+        },
+        {
+            "id": 10625369,
+            "url": "https://markets.ft.com/data/announce/detail?dockey=600-202604020900BIZWIRE_USPRX____20260401_BW646454-1",
+            "title": "Navan Launches AI-powered Audit Engine With Built-in Anti-Corruption & Bribery Flags – Company Announcement",
+            "ai_summary": "Navan announced the launch of its new AI-powered Audit Engine, a transaction screening system with over 45 risk and compliance checks, including anti-corruption and bribery flags. The system aims to automate risk detection in financial transactions and will be available globally, with the anti-corruption check in beta. ",
+            "published_date": "2026-04-02 00:00:00",
+            "source": "Wokelo",
+            "geo": [
+                "USA"
+            ],
+            "sentiment": "Positive",
+            "newsworthiness_impact": "Medium"
+        }
+    ],
+    "count": 8,
+    "total": 8,
+    "limit": 100,
+    "offset": 0
+}
+```
+
+## Best practices
+
+- Set a `published_date_after`/`published_date_before` range to avoid processing large backlogs — 30-day windows work well for regular monitoring runs.
+- Blacklist low-quality publishers (press release aggregators, forums) to improve signal quality.
+- Paginate with limit and offset when processing companies with high news volume (\>500 articles in your date range).
