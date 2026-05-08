@@ -2,72 +2,162 @@
 title: "M&A Activity"
 ---
 
-In-depth acquisitions workflow report for a specific company, providing structured intelligence on acquisition activity, target companies, and M&A landscape.
+In-depth acquisitions workflow report for a specific company, providing structured intelligence on acquisition activity, target companies, and the broader M&A landscape.
 
-NOTE: This is a asynchronous API, which means it will return a report\_id in the response. You would be required to fetch the [report status](https://docs.wokelo.ai/supporting-apis-doc#report-status) and then use [download report](https://docs.wokelo.ai/supporting-apis-doc#download-report) endpoint to obtain the results.
+NOTE: This is an asynchronous API. It returns a `report_id`, which you can use to fetch the [report status](https://docs.wokelo.ai/supporting-apis-doc#report-status) and later call the [download report](https://docs.wokelo.ai/supporting-apis-doc#download-report) endpoint to retrieve the final report.
 
 ## Request reference
 
-**A sample request**
+Here is a sample request containing all parameters:
 
-```json
+<CodeGroup>
+
+```bash cURL expandable wrap
 curl --location 'https://api.wokelo.ai/api/assets/process_common/' \
 --header 'Authorization: Bearer Token' \
 --header 'Content-Type: application/json' \
 --data '{
-    "reportType": "acquisition_workflow",
-    "payload": {
-        "topic": "Apple",
-        "workbook_name": "Apple",
-        "advanced_settings": {
-            "company_type": "all",
-            "geography": [
-                "Worldwide"
-            ],
-            "funding_stage": [],
-            "employee_count": [],
-            "total_funding_include_blanks": true
-        }
-    },
-    "reportSource": "WKLAPP"
+  "reportType": "acquisition_workflow",
+  "payload": {
+    "topic": "Apple",
+    "workbook_name": "Apple",
+    "advanced_settings": {
+      "company_type": "all",
+      "geography": [
+        "Worldwide"
+      ],
+      "funding_stage": [],
+      "employee_count": [],
+      "total_funding_include_blanks": true
+    }
+  },
+  "reportSource": "WKLAPP"
 }'
 ```
 
-The `topic` field specifies the company name to generate the acquisitions report for. Use `advanced_settings` to filter by company type, geography, funding stage, and employee count. Pass empty arrays to include all options.
+```python Python expandable wrap
+import requests
+import json
+
+url = "https://api.wokelo.ai/api/assets/process_common/"
+
+payload = json.dumps({
+  "reportType": "acquisition_workflow",
+  "payload": {
+    "topic": "Apple",
+    "workbook_name": "Apple",
+    "advanced_settings": {
+      "company_type": "all",
+      "geography": [
+        "Worldwide"
+      ],
+      "funding_stage": [],
+      "employee_count": [],
+      "total_funding_include_blanks": True
+    }
+  },
+  "reportSource": "WKLAPP"
+})
+
+headers = {
+  "Authorization": "Bearer Token",
+  "Content-Type": "application/json"
+}
+
+response = requests.post(url, headers=headers, data=payload)
+
+print(response.text)
+```
+
+</CodeGroup>
+
+The `topic` field specifies the company name for which the acquisitions report should be generated.
+
+Use `advanced_settings` to filter the acquisition universe by:
+
+| Parameter | Description |
+| --- | --- |
+| `company_type` | Filter by company type (`private`, `public`, or `all`) |
+| `geography` | Geographic scope for acquisition targets |
+| `funding_stage` | Filter by funding stage |
+| `employee_count` | Filter by employee size buckets |
+| `total_funding_include_blanks` | Include companies with missing funding data |
+
+Pass empty arrays (`[]`) to include all available options.
 
 ## Examples
 
-**Acquisitions Workflow**: Acquisitions report for Apple
+### Acquisitions Workflow
 
-**Sample Request**
+Generate an acquisitions workflow report for Apple.
 
-```json
-curl --location --globoff 'https://api.wokelo.ai/api/assets/process_common/' \
+#### Sample Request
+
+<CodeGroup>
+
+```bash cURL expandable wrap
+curl --location 'https://api.wokelo.ai/api/assets/process_common/' \
+--header 'Authorization: Bearer Token' \
 --header 'Content-Type: application/json' \
---header 'Authorization: your token' \
 --data '{
-    "reportType": "acquisition_workflow",
-    "payload": {
-        "topic": "Apple",
-        "workbook_name": "Apple",
-        "advanced_settings": {
-            "company_type": "all",
-            "geography": [
-                "Worldwide"
-            ],
-            "funding_stage": [],
-            "employee_count": [],
-            "total_funding_include_blanks": true
-        }
-    },
-    "reportSource": "WKLAPP"
+  "reportType": "acquisition_workflow",
+  "payload": {
+    "topic": "Apple",
+    "workbook_name": "Apple",
+    "advanced_settings": {
+      "company_type": "all",
+      "geography": [
+        "Worldwide"
+      ],
+      "funding_stage": [],
+      "employee_count": [],
+      "total_funding_include_blanks": true
+    }
+  },
+  "reportSource": "WKLAPP"
 }'
 ```
 
-**Sample Response**
+```python Python expandable wrap
+import requests
+import json
 
-```json
+url = "https://api.wokelo.ai/api/assets/process_common/"
+
+payload = json.dumps({
+  "reportType": "acquisition_workflow",
+  "payload": {
+    "topic": "Apple",
+    "workbook_name": "Apple",
+    "advanced_settings": {
+      "company_type": "all",
+      "geography": [
+        "Worldwide"
+      ],
+      "funding_stage": [],
+      "employee_count": [],
+      "total_funding_include_blanks": True
+    }
+  },
+  "reportSource": "WKLAPP"
+})
+
+headers = {
+  "Authorization": "Bearer Token",
+  "Content-Type": "application/json"
+}
+
+response = requests.post(url, headers=headers, data=payload)
+
+print(response.text)
+```
+
+</CodeGroup>
+
+#### Sample Response
+
+```json expandable wrap
 {
-    "report_id": 123345
+  "report_id": 123345
 }
 ```
