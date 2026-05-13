@@ -1,9 +1,8 @@
 ---
 title: "M&A Activity"
-hidden: true
 ---
 
-In-depth acquisitions workflow report for a specific company, providing structured intelligence on acquisition activity, target companies, and the broader M&A landscape.
+Surface M&A transactions across a topic, industry, or market segment. Given a topic (e.g. `"food tech"`, `"cybersecurity"`, `"EV charging infrastructure"`), the API returns a list of completed and announced acquisitions in that space — with structured details on the target, acquirer, deal, and geography.
 
 NOTE: This is an asynchronous API. It returns a `report_id`, which you can use to fetch the [report status](https://docs.wokelo.ai/supporting-apis-doc#report-status) and later call the [download report](https://docs.wokelo.ai/supporting-apis-doc#download-report) endpoint to retrieve the final report.
 
@@ -20,8 +19,8 @@ curl --location 'https://api.wokelo.ai/api/assets/process_common/' \
 --data '{
   "reportType": "acquisition_workflow",
   "payload": {
-    "topic": "Apple",
-    "workbook_name": "Apple",
+    "topic": "Food Tech",
+    "workbook_name": "Food Tech",
     "advanced_settings": {
       "company_type": "all",
       "geography": [
@@ -45,8 +44,8 @@ url = "https://api.wokelo.ai/api/assets/process_common/"
 payload = json.dumps({
   "reportType": "acquisition_workflow",
   "payload": {
-    "topic": "Apple",
-    "workbook_name": "Apple",
+    "topic": "Food Tech",
+    "workbook_name": "Food Tech",
     "advanced_settings": {
       "company_type": "all",
       "geography": [
@@ -72,7 +71,7 @@ print(response.text)
 
 </CodeGroup>
 
-The `topic` field specifies the company name for which the acquisitions report should be generated.
+The `topic` field specifies the industry, segment, or product category for which M&A transactions should be returned. Use `parameters` to filter the deal universe.
 
 Use `advanced_settings` to filter the acquisition universe by:
 
@@ -88,9 +87,7 @@ Pass empty arrays (`[]`) to include all available options.
 
 ## Examples
 
-### Acquisitions Workflow
-
-Generate an acquisitions workflow report for Apple.
+**Sector deal-flow tracking:** Surface M&A transactions in the EV charging infrastructure domain. 
 
 #### Sample Request
 
@@ -103,8 +100,8 @@ curl --location 'https://api.wokelo.ai/api/assets/process_common/' \
 --data '{
   "reportType": "acquisition_workflow",
   "payload": {
-    "topic": "Apple",
-    "workbook_name": "Apple",
+    "topic": "EV Charging infrastructure",
+    "workbook_name": "EV Charging Infra",
     "advanced_settings": {
       "company_type": "all",
       "geography": [
@@ -128,8 +125,8 @@ url = "https://api.wokelo.ai/api/assets/process_common/"
 payload = json.dumps({
   "reportType": "acquisition_workflow",
   "payload": {
-    "topic": "Apple",
-    "workbook_name": "Apple",
+    "topic": "EV Charging infrastructure",
+    "workbook_name": "EV Charging Infra",
     "advanced_settings": {
       "company_type": "all",
       "geography": [

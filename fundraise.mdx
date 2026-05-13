@@ -6,7 +6,7 @@ hidden: true
 
 ## Overview
 
-Starts generating a Fundraise workflow report for a specific company, providing insights into fundraising activity, funding stages, and investor landscape.
+Surface fundraising activity across a market segment.
 
 ## Endpoint Details
 
@@ -43,7 +43,7 @@ Starts generating a Fundraise workflow report for a specific company, providing 
 </ParamField>
 
 <ParamField body="payload.topic" type="string" required>
-  Company name to generate the fundraise report for
+  Industry topic to generate the fundraise report for
 </ParamField>
 
 <ParamField body="payload.workbook_name" type="string" required>
@@ -94,8 +94,8 @@ myHeaders.append("Authorization", "your token");
 const raw = JSON.stringify({
   "reportType": "fundraisers_workflow",
   "payload": {
-    "topic": "Apple",
-    "workbook_name": "Apple",
+    "topic": "EdTech",
+    "workbook_name": "EdTech",
     "advanced_settings": {
       "company_type": "all",
       "geography": ["Worldwide"],
@@ -127,8 +127,8 @@ headers = {"Content-Type": "application/json", "Authorization": "Bearer YOUR_TOK
 payload = {
     "reportType": "fundraisers_workflow",
     "payload": {
-        "topic": "Apple",
-        "workbook_name": "Apple",
+        "topic": "EdTech",
+        "workbook_name": "EdTech",
         "advanced_settings": {
             "company_type": "all",
             "geography": ["Worldwide"],
@@ -151,8 +151,8 @@ curl --request POST \
   --data '{
     "reportType": "fundraisers_workflow",
     "payload": {
-      "topic": "Apple",
-      "workbook_name": "Apple",
+      "topic": "EdTech",
+      "workbook_name": "EdTech",
       "advanced_settings": {
         "company_type": "all",
         "geography": ["Worldwide"],
@@ -185,8 +185,8 @@ func main() {
     "total_funding_include_blanks": true,
   }
   innerPayload := map[string]interface{}{
-    "topic": "Apple",
-    "workbook_name": "Apple",
+    "topic": "EdTech",
+    "workbook_name": "EdTech",
     "advanced_settings": advSettings,
   }
   payload := map[string]interface{}{
@@ -211,7 +211,7 @@ import java.net.http.*;
 
 public class FundraiseWorkflow {
   public static void main(String[] args) throws Exception {
-    String body = "{\"reportType\":\"fundraisers_workflow\",\"payload\":{\"topic\":\"Apple\",\"workbook_name\":\"Apple\",\"advanced_settings\":{\"company_type\":\"all\",\"geography\":[\"Worldwide\"],\"funding_stage\":[],\"employee_count\":[],\"total_funding_include_blanks\":true}},\"reportSource\":\"WKLAPP\"}";
+    String body = "{\"reportType\":\"fundraisers_workflow\",\"payload\":{\"topic\":\"EdTech\",\"workbook_name\":\"EdTech\",\"advanced_settings\":{\"company_type\":\"all\",\"geography\":[\"Worldwide\"],\"funding_stage\":[],\"employee_count\":[],\"total_funding_include_blanks\":true}},\"reportSource\":\"WKLAPP\"}";
     HttpRequest request = HttpRequest.newBuilder()
         .uri(URI.create("https://api.wokelo.ai/api/workflow_manager/start/"))
         .header("Authorization", "Bearer YOUR_TOKEN")

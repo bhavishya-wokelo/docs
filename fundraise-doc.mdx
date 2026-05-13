@@ -3,7 +3,7 @@ title: "Fundraising Activity"
 hidden: true
 ---
 
-In-depth fundraising workflow report for a specific company, providing structured intelligence on funding activity, investor landscape, and funding stage analysis.
+Surface fundraising activity across a topic, industry, or market segment. Given a topic (e.g. `"organic food delivery"`, `"climate tech"`, `"generative AI"`), the API returns a list of funding rounds raised in that space — with structured details on the company, round, investors, and geography.
 
 NOTE: This is an asynchronous API. It returns a `report_id`, which you can use to fetch the [report status](https://docs.wokelo.ai/supporting-apis-doc#report-status) and later call the [download report](https://docs.wokelo.ai/supporting-apis-doc#download-report) endpoint to retrieve the final report.
 
@@ -20,8 +20,8 @@ curl --location 'https://api.wokelo.ai/api/assets/process_common/' \
 --data '{
   "reportType": "fundraisers_workflow",
   "payload": {
-    "topic": "Apple",
-    "workbook_name": "Apple",
+    "topic": "organic food delivery",
+    "workbook_name": "organic food delivery",
     "advanced_settings": {
       "company_type": "all",
       "geography": [
@@ -45,8 +45,8 @@ url = "https://api.wokelo.ai/api/assets/process_common/"
 payload = json.dumps({
   "reportType": "fundraisers_workflow",
   "payload": {
-    "topic": "Apple",
-    "workbook_name": "Apple",
+    "topic": "Organic food delivery",
+    "workbook_name": "Organic food delivery",
     "advanced_settings": {
       "company_type": "all",
       "geography": [
@@ -72,7 +72,7 @@ print(response.text)
 
 </CodeGroup>
 
-The `topic` field specifies the company name for which the fundraising report should be generated.
+The `topic` field specifies the industry, segment, or product category for which fundraising rounds should be returned. Use `parameters` to filter the deal universe.
 
 Use `advanced_settings` to filter the fundraising universe by:
 
@@ -90,7 +90,7 @@ Pass empty arrays (`[]`) to include all available options.
 
 ### Fundraising Workflow
 
-Generate a fundraising workflow report for Apple.
+Get all the funding activities in the EdTech domain.
 
 #### Sample Request
 
@@ -103,8 +103,8 @@ curl --location 'https://api.wokelo.ai/api/assets/process_common/' \
 --data '{
   "reportType": "fundraisers_workflow",
   "payload": {
-    "topic": "Apple",
-    "workbook_name": "Apple",
+    "topic": "EdTech",
+    "workbook_name": "EdTech",
     "advanced_settings": {
       "company_type": "all",
       "geography": [
@@ -128,8 +128,8 @@ url = "https://api.wokelo.ai/api/assets/process_common/"
 payload = json.dumps({
   "reportType": "fundraisers_workflow",
   "payload": {
-    "topic": "Apple",
-    "workbook_name": "Apple",
+    "topic": "EdTech",
+    "workbook_name": "EdTech",
     "advanced_settings": {
       "company_type": "all",
       "geography": [
