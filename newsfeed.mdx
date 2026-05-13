@@ -1,4 +1,4 @@
-﻿---
+---
 title: "Newsfeed"
 openapi: "POST /api/enterprise/newsfeed/news/"
 ---
@@ -29,6 +29,10 @@ The Newsfeed API fetches the latest news articles based on user-defined filters 
 
 <ParamField body="industry" type="array">
   List of industry topics for which news articles should be fetched. E.g. `["Enterprise SaaS", "Cybersecurity"]`
+</ParamField>
+
+<ParamField body="category" type="array">
+  List of news categories for which news articles should be fetched. E.g. `["Strategic Development", "Leadership & Governance"]`
 </ParamField>
 
 <ParamField body="blacklisted" type="array">
@@ -84,7 +88,6 @@ A successful response returns news articles directly.
 <ResponseField name="total" type="integer">
   Total number of matching articles.
 </ResponseField>
-
 
 <ResponseExample>
 
