@@ -3,13 +3,9 @@ title: "Market Map"
 description: "Discover and map all companies competing in a specific market or product category using AI — returns a ranked, enriched list of companies with firmographic, financial, and AI-scored fit data."
 ---
 
-<Note>
-  Fetch the complete documentation index at: [https://docs.wokelo.ai/llms.txt](https://docs.wokelo.ai/llms.txt)
-</Note>
-
 ## 1. Overview
 
-The Market Map API generates a long list of companies operating in a defined market category, enriched with structured firmographic, funding, and financial data. Given a market topic (e.g. _"AI-powered CRM software"_) and a set of optional filters, Wokelo's AI pipeline searches its coverage universe of 3M\+ companies, evaluates each candidate against the market thesis, and returns a ranked list with AI-generated relevance scores and per-company commentary.
+The Market Map API generates a long list of companies operating in a defined market category, enriched with structured firmographic, funding, and financial data. Given a market topic (e.g. _"AI-powered CRM software"_) and a set of optional filters, Wokelo's AI pipeline searches its coverage universe of 20M\+ companies, evaluates each candidate against the market thesis, and returns a ranked list with AI-generated relevance scores and per-company commentary.
 
 This is an **asynchronous API** — submitting a request returns a `request_id` immediately, and you must poll for status and then retrieve results once the job is complete. Read more about the async pattern in [How Async APIs work](/how-async-apis-work).
 
@@ -124,7 +120,7 @@ All requests must include a **Bearer token** in the `Authorization` HTTP header.
 Authorization: Bearer <YOUR_API_TOKEN>
 ```
 
-API tokens are issued from your Wokelo account. Navigate to **Settings → API Keys** in the Wokelo dashboard to generate or rotate a key. Contact [support@wokelo.ai](mailto:support@wokelo.ai) if you do not yet have API access.
+API tokens are issued from your Wokelo account. Navigate to **Account Details → API Credentials** in the Wokelo dashboard to get your client id and client secret. Contact [support@wokelo.ai](mailto:support@wokelo.ai) if you do not yet have API access.
 
 <Warning>
   Never expose your token in client-side code, browser requests, or public repositories. A missing or invalid token returns `401 Unauthorized`. A valid token without sufficient plan permissions returns `403 Forbidden`.
@@ -499,36 +495,6 @@ response = requests.post(
     }
 )
 print(response.json()["request_id"])
-```
-
-### Exporting the market map to CSV
-
-Retrieve results and export the scored set to a CSV for further analysis, CRM upload, or client delivery.
-
-```python
-import requests, csv, time
-
-HEADERS = {"Authorization": "Bearer <YOUR_API_TOKEN>"}
-
-# ... (submit job and poll as shown above) ...
-
-companies = requests.get(
-    f"https://api.wokelo.ai/api/enterprise/request/{request_id}/result/",
-    headers=HEADERS
-).json()["result"]
-
-with open("market_map.csv", "w", newline="") as f:
-    fields = [
-        "Name", "Permalink", "Website", "HQ City", "HQ Country",
-        "Founded", "Type", "Product Category",
-        "Employees (Crunchbase)", "Funding Stage", "Total Funding",
-        "Last Funding Date", "Revenue", "Overall Score", "Commentary"
-    ]
-    writer = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
-    writer.writeheader()
-    writer.writerows(companies)
-
-print(f"Exported {len(companies)} companies to market_map.csv")
 ```
 
 ---
