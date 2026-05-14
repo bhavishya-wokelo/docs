@@ -1,522 +1,651 @@
 ---
-title: "Market  Map"
+title: "Market Map"
+description: "Discover and map all companies competing in a specific market or product category using AI — returns a ranked, enriched list of companies with firmographic, financial, and AI-scored fit data."
 ---
 
-Ranked company discovery within a market category.
+<Note>
+  Fetch the complete documentation index at: [https://docs.wokelo.ai/llms.txt](https://docs.wokelo.ai/llms.txt)
+</Note>
 
-NOTE: This is a asynchronous API, which means it will return a request\_id in the response. You would be required to poll the status and then retrieve the results. Read more about async APIs [here](https://docs.wokelo.ai/how-async-apis-work).
+## 1. Overview
 
-## Request reference
+The Market Map API generates a long list of companies operating in a defined market category, enriched with structured firmographic, funding, and financial data. Given a market topic (e.g. _"AI-powered CRM software"_) and a set of optional filters, Wokelo's AI pipeline searches its coverage universe of 3M\+ companies, evaluates each candidate against the market thesis, and returns a ranked list with AI-generated relevance scores and per-company commentary.
 
-Here is a request containing all the possible parameters:
+This is an **asynchronous API** — submitting a request returns a `request_id` immediately, and you must poll for status and then retrieve results once the job is complete. Read more about the async pattern in [How Async APIs work](/how-async-apis-work).
+
+Each company in the result set is returned with:
+
+- **Identity & firmographics** — name, website, HQ location, founding year, ownership type
+- **Product & business profile** — product category, AI-generated core offering description, product catalog
+- **Funding & employees** — funding stage, total funding raised, investor list, headcount
+- **Financials** — revenue, EBITDA, net income, market cap, EV multiples (for public companies)
+- **AI fit scoring** — an `Overall Score` (1–10) with a written commentary explaining each company's relevance to the queried market thesis
+
+**Common use cases:**
+
+- **Deal sourcing for private equity & venture capital** — Build a comprehensive, scored target universe within a specific vertical or thesis
+- **Corporate strategy & M&A** — Map the competitive landscape for a new market entry, partnership scan, or build-vs-buy analysis
+- **Investment banking** — Populate market landscape slides for pitch books, CIMs, or sector reports
+- **Market research & consulting** — Generate an exhaustive set of vendors in a category for benchmarking or category analysis
+- **Sales & GTM intelligence** — Identify all companies in an adjacent or competing category for partner mapping or competitive battlecards
+
+<Info>
+  This API is asynchronous. You submit a job, receive a `request_id`, poll until `status` is `"COMPLETED"`, and then read results from the same response. See [How Async APIs work](/how-async-apis-work).
+</Info>
+
+---
+
+## 2. Quick Start
+
+**Step 1 — Submit the job**
 
 <CodeGroup>
 
-```json cURL expandable wrap
+```bash cURL
 curl --location 'https://api.wokelo.ai/api/enterprise/market-map/enrich/' \
---header 'Authorization: Bearer Token' \
---header 'Content-Type: application/json' \
---data '{
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
     "topic": "AI-powered CRM software",
     "parameters": {
-        "detailed_query": "B2B CRM tools leveraging AI for sales automation",
-        "keywords": [
-            "AI",
-            "CRM",
-            "sales automation"
-        ],
-        "sample_companies": [
-            "salesforce",
-            "hubspot"
-        ],
-        "geography": [
-            "USA"
-        ],
-        "company_type": "private",
-        "employee_count": ["11-50"],
-        "founded_year": {
-            "from": 2015
-        },
-        "funding_stage": [ "Series A", "Series B"
-        ],
-        "total_funding": { "from": "5000000"},
-        "last_funding_round": {},
-        "revenue": {},
-        "ebitda": {},
-        "net_income": {},
-        "ev_ebitda": {}
+      "detailed_query": "B2B CRM tools leveraging AI for sales automation",
+      "keywords": ["AI", "CRM", "sales automation"],
+      "sample_companies": ["salesforce", "hubspot"],
+      "geography": ["USA"],
+      "company_type": "private"
     }
-}'
+  }'
 ```
 
-```json Python expandable wrap
+```python Python
 import requests
-import json
 
-url = "https://api.wokelo.ai/api/enterprise/market-map/enrich/"
-
-payload = json.dumps({
-  "topic": "AI-powered CRM software",
-  "parameters": {
-    "detailed_query": "B2B CRM tools leveraging AI for sales automation",
-    "keywords": [
-      "AI",
-      "CRM",
-      "sales automation"
-    ],
-    "sample_companies": [
-      "salesforce",
-      "hubspot"
-    ],
-    "geography": [
-      "USA"
-    ],
-    "company_type": "private",
-    "employee_count": [
-      "11-50"
-    ],
-    "founded_year": {
-      "from": 2015
+response = requests.post(
+    "https://api.wokelo.ai/api/enterprise/market-map/enrich/",
+    headers={
+        "Authorization": "Bearer <YOUR_API_TOKEN>",
+        "Content-Type": "application/json"
     },
-    "funding_stage": [
-      "Series A",
-      "Series B"
-    ],
-    "total_funding": {
-      "from": "5000000"
-    },
-    "last_funding_round": {},
-    "revenue": {},
-    "ebitda": {},
-    "net_income": {},
-    "ev_ebitda": {}
-  }
-})
-headers = {
-  'Authorization': 'Bearer Token',
-  'Content-Type': 'application/json'
-}
-
-response = requests.request("POST", url, headers=headers, data=payload)
-
-print(response.text)
+    json={
+        "topic": "AI-powered CRM software",
+        "parameters": {
+            "detailed_query": "B2B CRM tools leveraging AI for sales automation",
+            "keywords": ["AI", "CRM", "sales automation"],
+            "sample_companies": ["salesforce", "hubspot"],
+            "geography": ["USA"],
+            "company_type": "private"
+        }
+    }
+)
+request_id = response.json()["request_id"]
+print("Job submitted:", request_id)
 ```
 
 </CodeGroup>
 
-The table below lists all the parameters available to filter the results.
+**Step 2 — Poll for completion**
 
-| Parameter | Description |
-| :-- | :-- |
-| `topic` | The market or product category to map (e.g. `"AI-powered CRM software"`) |
-| `parameters.detailed_query` | A more descriptive query to refine the market map scope |
-| `parameters.keywords` | Keywords used to identify and filter relevant companies |
-| `parameters.sample_companies` | Permalinks or URLs of representative companies to anchor the market map |
-| `parameters.geography` | Geographic scope as [ISO country codes](https://docs.wokelo.ai/iso-country-codes) (e.g. `["USA", "GBR"]`) |
-| `parameters.company_type` | Type of company to include: `"private"`, `"public"`, or `"all"` |
-| `parameters.employee_count` | Filter by headcount range (e.g. `1-10`, `11-50`, ... `10000+`). Empty array = all |
-| `parameters.founded_year` | Filter by founding year. Accepts `from` and/or `to` integer values |
-| `parameters.funding_stage` | Filter by funding stage (e.g. `"Series A"`, `"Seed"`). Empty array = all |
-| `parameters.total_funding` | Filter by total funding raised. Accepts `from` and/or `to` values |
-| `parameters.last_funding_round` | Filter by last funding round. Accepts `from` and/or `to` values |
-| `parameters.revenue` | Filter by annual revenue. Accepts `from` and/or `to` values |
-| `parameters.ebitda` | Filter by EBITDA. Accepts `from` and/or `to` values |
-| `parameters.net_income` | Filter by net income. Accepts `from` and/or `to` values |
-| `parameters.ev_ebitda` | Filter by EV/EBITDA multiple. Accepts `from` and/or `to` values |
+```python
+import time
 
-View [detailed API reference](/market-map) for details about each parameter.
+while True:
+    status_resp = requests.get(
+        f"https://api.wokelo.ai/api/enterprise/request/{request_id}/status/",
+        headers={"Authorization": "Bearer <YOUR_API_TOKEN>"}
+    )
+    status = status_resp.json()["status"]
+    if status == "COMPLETED":
+        break
+    elif status == "FAILED":
+        raise Exception("Job failed")
+    print(f"Status: {status} — waiting...")
+    time.sleep(5)
+```
 
-## Examples
+**Step 3 — Read results**
 
-**Vertical SaaS deal sourcing**: Find all private field service management software companies for commercial HVAC and electrical contractors in the United States — 51 to 200 employees, Series A or B, founded after 2013.
+```python
+result_resp = requests.get(
+    f"https://api.wokelo.ai/api/enterprise/request/{request_id}/result/",
+    headers={"Authorization": "Bearer <YOUR_API_TOKEN>"}
+)
+companies = result_resp.json()["result"]
+for c in companies:
+    print(c["Name"], "—", c.get("Product Category"), "— Score:", c.get("Overall Score"))
+```
 
-A Sample Request
+---
+
+## 3. Authentication
+
+All requests must include a **Bearer token** in the `Authorization` HTTP header. No other authentication method is supported.
+
+```text
+Authorization: Bearer <YOUR_API_TOKEN>
+```
+
+API tokens are issued from your Wokelo account. Navigate to **Settings → API Keys** in the Wokelo dashboard to generate or rotate a key. Contact [support@wokelo.ai](mailto:support@wokelo.ai) if you do not yet have API access.
+
+<Warning>
+  Never expose your token in client-side code, browser requests, or public repositories. A missing or invalid token returns `401 Unauthorized`. A valid token without sufficient plan permissions returns `403 Forbidden`.
+</Warning>
+
+---
+
+## 4. Request Reference
+
+**Endpoint**
+
+```text
+POST https://api.wokelo.ai/api/enterprise/market-map/enrich/
+```
+
+The request body is JSON. Only `topic` is required; all `parameters` fields are optional refinements. Each filter that you add narrows the universe — the more precise your filters, the more focused and relevant the results.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `topic` | string | **Required** | The market or product category to map (e.g. `"AI-powered CRM software"`, `"Field service management software for HVAC contractors"`). Should be specific enough to define a clear category. |
+| `parameters.detailed_query` | string | Optional | A natural-language description of the market scope, ideal company profile, or thesis. The **single highest-impact parameter** for result quality. Example: `"B2B CRM tools leveraging AI for sales automation in mid-market and enterprise segments"`. |
+| `parameters.keywords` | string\[\] | Optional | Keywords used to identify and filter relevant companies. Use 3–6 product or category terms. Example: `["AI", "CRM", "sales automation"]`. |
+| `parameters.sample_companies` | string\[\] | Optional | Permalinks (e.g. `"salesforce"`) or full URLs of representative companies to anchor the search. Use the [Company Search API](/supporting-apis-doc) to resolve a permalink. Strongly recommended for niche markets. |
+| `parameters.geography` | string\[\] | Optional | Geographic scope as [ISO country codes](/iso-country-codes) (e.g. `["USA", "GBR"]`). Defaults to global if omitted. |
+| `parameters.company_type` | string | Optional | Ownership type filter. Accepted values: `"private"`, `"public"`, `"all"`. Defaults to `"all"`. |
+| `parameters.employee_count` | string\[\] | Optional | Headcount band filter. Accepted values: `"1-10"`, `"11-50"`, `"51-100"`, `"101-250"`, `"251-500"`, `"501-1000"`, `"1001-5000"`, `"5001-10000"`, `"10000+"`. Empty array = all. |
+| `parameters.founded_year` | object | Optional | Filter by founding year. Accepts `{ "from": 2015 }`, `{ "to": 2022 }`, or both. |
+| `parameters.funding_stage` | string\[\] | Optional | Filter by most-recent funding stage. Accepted values: `"Non-Equity Assistance"`, `"Angel round"`, `"Pre-seed"`, `"Seed"`, `"Series A"` through `"Series J"`, `"Corporate-Funded"`, `"Debt-Funded"`, `"Private equity round"`, `"Others"`. Empty array = all. |
+| `parameters.total_funding` | object | Optional | Filter by total funding raised in USD. Accepts `{ "from": 5000000 }`, `{ "to": 100000000 }`, or both. |
+| `parameters.last_funding_round` | object | Optional | Filter by last funding round size. Accepts `from` and/or `to` values. |
+| `parameters.revenue` | object | Optional | Filter by annual revenue (USD). Accepts `from` and/or `to` values. Most useful when combined with `company_type: "public"`. |
+| `parameters.ebitda` | object | Optional | Filter by EBITDA (USD). Accepts `from` and/or `to` values. |
+| `parameters.net_income` | object | Optional | Filter by net income (USD). Accepts `from` and/or `to` values. |
+| `parameters.ev_ebitda` | object | Optional | Filter by EV/EBITDA multiple. Accepts `from` and/or `to` values. |
+
+**Full request example:**
 
 <CodeGroup>
 
-```json cURL expandable wrap
+```bash cURL
 curl --location 'https://api.wokelo.ai/api/enterprise/market-map/enrich/' \
---header 'Authorization: Bearer Token' \
---header 'Content-Type: application/json' \
---data '{
-    "topic": "Field service management software companies for commercial HVAC and electrical contractors",
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "topic": "AI-powered CRM software",
     "parameters": {
-        "detailed_query": "Find all private field service management software companies for commercial HVAC and electrical contractors in the United States ",
-        "geography": [
-            "USA"
-        ],
-        "company_type": "private",
-        "employee_count": ["51-100", "101-250"],
-        "founded_year": {
-            "min": 2013
-        },
-        "funding_stage": ["Series A", "Series B"
-        ]
+      "detailed_query": "B2B CRM tools leveraging AI for sales automation",
+      "keywords": ["AI", "CRM", "sales automation"],
+      "sample_companies": ["salesforce", "hubspot"],
+      "geography": ["USA"],
+      "company_type": "private",
+      "employee_count": ["11-50", "51-100"],
+      "founded_year": { "from": 2015 },
+      "funding_stage": ["Series A", "Series B"],
+      "total_funding": { "from": 5000000 }
     }
-}'
+  }'
 ```
 
-```json Python expandable wrap
+```python Python
 import requests
-import json
 
-url = "https://api.wokelo.ai/api/enterprise/market-map/enrich/"
-
-payload = json.dumps({
-  "topic": "Field service management software companies for commercial HVAC and electrical contractors",
-  "parameters": {
-    "detailed_query": "Find all private field service management software companies for commercial HVAC and electrical contractors in the United States ",
-    "geography": [
-      "USA"
-    ],
-    "company_type": "private",
-    "employee_count": [
-      "51-100",
-      "101-250"
-    ],
-    "founded_year": {
-      "min": 2013
+response = requests.post(
+    "https://api.wokelo.ai/api/enterprise/market-map/enrich/",
+    headers={
+        "Authorization": "Bearer <YOUR_API_TOKEN>",
+        "Content-Type": "application/json"
     },
-    "funding_stage": [
-      "Series A",
-      "Series B"
-    ]
-  }
-})
-headers = {
-  'Authorization': 'Bearer Token',
-  'Content-Type': 'application/json'
-}
-
-response = requests.request("POST", url, headers=headers, data=payload)
-
-print(response.text)
+    json={
+        "topic": "AI-powered CRM software",
+        "parameters": {
+            "detailed_query": "B2B CRM tools leveraging AI for sales automation",
+            "keywords": ["AI", "CRM", "sales automation"],
+            "sample_companies": ["salesforce", "hubspot"],
+            "geography": ["USA"],
+            "company_type": "private",
+            "employee_count": ["11-50", "51-100"],
+            "founded_year": {"from": 2015},
+            "funding_stage": ["Series A", "Series B"],
+            "total_funding": {"from": 5000000}
+        }
+    }
+)
+print(response.json())
 ```
 
 </CodeGroup>
 
-Sample Response
+---
 
-```json expandable wrap
+## 5. Response
+
+### Job submission response
+
+When you submit the job, you receive a response immediately with a `request_id` and an initial `status`.
+
+```json
 {
-    "request_id": "a57a9100-e7e1-4c6c-9b29-cdd064516ba7",
-    "status": "COMPLETED",
-    "result": [
-        {
-            "Permalink": "75-fahrenheit",
-            "Name": "75F",
-            "Website": "75f.io",
-            "HQ City": "Bloomington",
-            "HQ Country": "United States",
-            "HQ Continent": "North America",
-            "Founded": "2012",
-            "Type": "Private",
-            "Operating Status": "Operating",
-            "Product Category": "IoT building management systems",
-            "Core Offering": "75F provides IoT-based building management systems that optimize energy consumption and improve indoor air quality through smart sensors and advanced analytics.",
-            "Product Catalog": "IoT Building Management System, Smart Sensors, HVAC Optimization Applications, Energy Monitoring Software, Building Control Systems",
-            "Employees (Crunchbase)": "51-100",
-            "Employees (LinkedIn)": 108,
-            "Funding Stage": "Series B",
-            "Total Funding": 74855000.0,
-            "Last Funding Date": "2025-02-06",
-            "Key Investors": [
-                "Evergreen Climate Innovations",
-                "N47",
-                "Accurant International",
-                "Gopher Angels",
-                "Breakthrough Energy Ventures",
-                "Building Ventures",
-                "Carrier Ventures",
-                "Revolution",
-                "Climate Investment",
-                "WIND Ventures",
-                "Revolution’s Rise of the Rest Seed Fund",
-                "BloombergNEF"
-            ],
-            "Revenue": "",
-            "Ticker": "",
-            "EBITDA": "",
-            "Net Income": "",
-            "EBITDA Margin (%)": "",
-            "Net Income Margin (%)": "",
-            "EPS Diluted": "",
-            "ROA (%)": "",
-            "Unlevered FCF": "",
-            "D/E": "",
-            "Market Cap": "",
-            "Enterprise Value": "",
-            "EV/Revenue (LTM)": "",
-            "EV/EBITDA (LTM)": "",
-            "P/E (LTM)": "",
-            "Acquisitions": "",
-            "Investments": "",
-            "Overall Score": 4.0,
-            "Commentary": "75F provides IoT-based building automation and HVAC energy optimization using smart sensors, analytics, and a cloud platform, including remote monitoring and control. However, it is not described as field service management software for commercial HVAC and electrical contractors’ scheduling/work orders in the USA."
-        },
-        {
-            "Permalink": "remi-d464",
-            "Name": "Remi",
-            "Website": "remihq.com",
-            "HQ City": "Lehi",
-            "HQ Country": "United States",
-            "HQ Continent": "North America",
-            "Founded": "2022",
-            "Type": "Private",
-            "Operating Status": "Operating",
-            "Product Category": "Roofing Contractor Marketplace",
-            "Core Offering": "Remi operates a roofing marketplace that connects homeowners with pre-vetted contractors for renovation and remodeling services. The platform also enables these businesses to create and sell NFT collections while accepting crypto payments.",
-            "Product Catalog": "Roofing services, Home renovations, Contractor connections, NFT platform, Crypto payment acceptance",
-            "Employees (Crunchbase)": "51-100",
-            "Employees (LinkedIn)": 96,
-            "Funding Stage": "Series A",
-            "Total Funding": 21500000.0,
-            "Last Funding Date": "2024-08-07",
-            "Key Investors": [
-                "Cervin Ventures",
-                "Pelion Venture Partners",
-                "Y Combinator"
-            ],
-            "Revenue": "",
-            "Ticker": "",
-            "EBITDA": "",
-            "Net Income": "",
-            "EBITDA Margin (%)": "",
-            "Net Income Margin (%)": "",
-            "EPS Diluted": "",
-            "ROA (%)": "",
-            "Unlevered FCF": "",
-            "D/E": "",
-            "Market Cap": "",
-            "Enterprise Value": "",
-            "EV/Revenue (LTM)": "",
-            "EV/EBITDA (LTM)": "",
-            "P/E (LTM)": "",
-            "Acquisitions": "",
-            "Investments": "",
-            "Overall Score": 3.0,
-            "Commentary": "Remi operates a roofing-focused marketplace connecting homeowners with pre-vetted contractors, emphasizing instant quotes and fast timelines. While it also lists HVAC services, the platform is not described as field service management software for commercial HVAC and electrical contractors in the US."
-        },
-        {
-            "Permalink": "esub-construction-software",
-            "Name": "eSUB Construction Software",
-            "Website": "esub.com",
-            "HQ City": "San Diego",
-            "HQ Country": "United States",
-            "HQ Continent": "North America",
-            "Founded": "2008",
-            "Type": "Private",
-            "Operating Status": "Operating",
-            "Product Category": "Construction Project Management Software",
-            "Core Offering": "ESUB Construction Software provides cloud-based project management solutions specifically designed for subcontractors in the construction industry, focusing on task management, document control, and efficient communication between field and office teams.",
-            "Product Catalog": "Construction Management Software, Project Management Tools, Document Control Software, Time Management Solutions, Job Costing Management",
-            "Employees (Crunchbase)": "51-100",
-            "Employees (LinkedIn)": 34,
-            "Funding Stage": "Series B",
-            "Total Funding": 22000000.0,
-            "Last Funding Date": "2023-05-01",
-            "Key Investors": [
-                "Autodesk",
-                "Revolution",
-                "Revolution Ventures",
-                "Farmers Investment Club",
-                "The Investor Group",
-                "Catalyst Investors"
-            ],
-            "Revenue": "",
-            "Ticker": "",
-            "EBITDA": "",
-            "Net Income": "",
-            "EBITDA Margin (%)": "",
-            "Net Income Margin (%)": "",
-            "EPS Diluted": "",
-            "ROA (%)": "",
-            "Unlevered FCF": "",
-            "D/E": "",
-            "Market Cap": "",
-            "Enterprise Value": "",
-            "EV/Revenue (LTM)": "",
-            "EV/EBITDA (LTM)": "",
-            "P/E (LTM)": "",
-            "Acquisitions": "",
-            "Investments": "",
-            "Overall Score": 7.0,
-            "Commentary": "eSUB Construction Software provides cloud-based project management and document control for commercial subcontractors, with mobile field reporting, timecards, RFIs, submittals, and change orders. The platform explicitly serves electrical and HVAC contractors in the United States, making it a strong direct fit for field service management workflows."
-        },
-        {
-            "Permalink": "sightcall",
-            "Name": "SightCall",
-            "Website": "sightcall.com",
-            "HQ City": "Redwood City",
-            "HQ Country": "United States",
-            "HQ Continent": "North America",
-            "Founded": "2008",
-            "Type": "Private",
-            "Operating Status": "Operating",
-            "Product Category": "Remote visual assistance software",
-            "Core Offering": "SightCall provides a cloud-based visual assistance platform that enables remote users to receive live video support enriched by augmented reality, facilitating real-time problem-solving across various sectors.",
-            "Product Catalog": "Visual Assistance Platform, Augmented Reality Solutions, AI-powered Insights, API Integrations, Remote Support Software",
-            "Employees (Crunchbase)": "51-100",
-            "Employees (LinkedIn)": 81,
-            "Funding Stage": "Series B",
-            "Total Funding": 54400000.0,
-            "Last Funding Date": "2021-05-11",
-            "Key Investors": [
-                "Idinvest Partners",
-                "Bpifrance",
-                "InfraVia Capital Partners"
-            ],
-            "Revenue": "",
-            "Ticker": "",
-            "EBITDA": "",
-            "Net Income": "",
-            "EBITDA Margin (%)": "",
-            "Net Income Margin (%)": "",
-            "EPS Diluted": "",
-            "ROA (%)": "",
-            "Unlevered FCF": "",
-            "D/E": "",
-            "Market Cap": "",
-            "Enterprise Value": "",
-            "EV/Revenue (LTM)": "",
-            "EV/EBITDA (LTM)": "",
-            "P/E (LTM)": "",
-            "Acquisitions": "",
-            "Investments": "",
-            "Overall Score": 4.0,
-            "Commentary": "SightCall provides AR-powered live video remote visual assistance and field service support for technicians, with integrations and digital process automation. However, its materials do not explicitly name commercial HVAC or electrical contractors, limiting direct industry fit in the United States."
-        },
-        {
-            "Permalink": "kloudgin",
-            "Name": "KloudGin",
-            "Website": "kloudgin.com",
-            "HQ City": "Sunnyvale",
-            "HQ Country": "United States",
-            "HQ Continent": "North America",
-            "Founded": "2014",
-            "Type": "Private",
-            "Operating Status": "Operating",
-            "Product Category": "Field Service Asset Management Software",
-            "Core Offering": "KloudGin provides cloud-based software solutions for field service management and asset management, enabling organizations to optimize their workflows, increase productivity, and streamline operations.",
-            "Product Catalog": "Field Service Suite, Asset Management Suite, ERP for Mid-Size",
-            "Employees (Crunchbase)": "101-250",
-            "Employees (LinkedIn)": 202,
-            "Funding Stage": "Series A",
-            "Total Funding": 8200000.0,
-            "Last Funding Date": "2020-07-29",
-            "Key Investors": [
-                "Cloud Apps Capital Partners"
-            ],
-            "Revenue": "",
-            "Ticker": "",
-            "EBITDA": "",
-            "Net Income": "",
-            "EBITDA Margin (%)": "",
-            "Net Income Margin (%)": "",
-            "EPS Diluted": "",
-            "ROA (%)": "",
-            "Unlevered FCF": "",
-            "D/E": "",
-            "Market Cap": "",
-            "Enterprise Value": "",
-            "EV/Revenue (LTM)": "",
-            "EV/EBITDA (LTM)": "",
-            "P/E (LTM)": "",
-            "Acquisitions": "",
-            "Investments": "",
-            "Overall Score": 7.0,
-            "Commentary": "KloudGin provides cloud-based field service management software and asset management, automating work management processes with scheduling, dispatch, mobile work orders, and billing. It serves industries including HVAC, and operates primarily in North America, aligning well with commercial contractor field service workflows in the United States."
-        },
-        {
-            "Permalink": "redlist",
-            "Name": "Redlist",
-            "Website": "getredlist.com",
-            "HQ City": "Pleasant Grove",
-            "HQ Country": "United States",
-            "HQ Continent": "North America",
-            "Founded": "2014",
-            "Type": "Private",
-            "Operating Status": "Operating",
-            "Product Category": "Maintenance management software",
-            "Core Offering": "Redlist provides a comprehensive lubrication management software solution that enables businesses to monitor and optimize their maintenance and safety operations through real-time digital inspections and insights.",
-            "Product Catalog": "Lubrication Management Software, Enterprise Asset Management Systems, Computerized Maintenance Management Systems (CMMS), Field Service Management Applications, Safety Communication Platforms",
-            "Employees (Crunchbase)": "51-100",
-            "Employees (LinkedIn)": 38,
-            "Funding Stage": "Series A",
-            "Total Funding": 0.0,
-            "Last Funding Date": "2019-12-20",
-            "Key Investors": [
-                "CSL Capital Management"
-            ],
-            "Revenue": "",
-            "Ticker": "",
-            "EBITDA": "",
-            "Net Income": "",
-            "EBITDA Margin (%)": "",
-            "Net Income Margin (%)": "",
-            "EPS Diluted": "",
-            "ROA (%)": "",
-            "Unlevered FCF": "",
-            "D/E": "",
-            "Market Cap": "",
-            "Enterprise Value": "",
-            "EV/Revenue (LTM)": "",
-            "EV/EBITDA (LTM)": "",
-            "P/E (LTM)": "",
-            "Acquisitions": "",
-            "Investments": "",
-            "Overall Score": 4.0,
-            "Commentary": "Redlist delivers cloud-based CMMS/EAM and field service management applications with mobile work orders, scheduling, and safety workflows, but the provided evidence does not specifically target commercial HVAC or electrical contractors in the U.S."
-        },
-        {
-            "Permalink": "odp-solutions-inc",
-            "Name": "Sky Systemz",
-            "Website": "skysystemz.com",
-            "HQ City": "Lexington",
-            "HQ Country": "United States",
-            "HQ Continent": "North America",
-            "Founded": "2017",
-            "Type": "Private",
-            "Operating Status": "Operating",
-            "Product Category": "Financial operations management platform",
-            "Core Offering": "Sky Systemz provides a digital payment processing platform integrated with business management tools, including subscription services, invoicing, and tailored analytics for operational insights.",
-            "Product Catalog": "Payment Processing, Business Management, Subscription Services",
-            "Employees (Crunchbase)": "51-100",
-            "Employees (LinkedIn)": 74,
-            "Funding Stage": "Series A",
-            "Total Funding": 3300000.0,
-            "Last Funding Date": "2020-10-10",
-            "Key Investors": [
-                "Reed's Healthy Home",
-                "Oxbow Reserve",
-                "PayArc"
-            ],
-            "Revenue": "",
-            "Ticker": "",
-            "EBITDA": "",
-            "Net Income": "",
-            "EBITDA Margin (%)": "",
-            "Net Income Margin (%)": "",
-            "EPS Diluted": "",
-            "ROA (%)": "",
-            "Unlevered FCF": "",
-            "D/E": "",
-            "Market Cap": "",
-            "Enterprise Value": "",
-            "EV/Revenue (LTM)": "",
-            "EV/EBITDA (LTM)": "",
-            "P/E (LTM)": "",
-            "Acquisitions": "",
-            "Investments": "",
-            "Overall Score": 3.0,
-            "Commentary": "Sky Systemz is a digital payment processing and business management SaaS platform with analytics and invoicing. It mentions bolt-on payment and business solutions optimized for HVAC, but it does not explicitly provide field service management software for commercial HVAC and electrical contractors."
-        }
-    ]
+  "request_id": "ed2ce223-3bd2-4a08-855f-79751bf1bd92",
+  "status": "PENDING"
 }
 ```
 
-## Best Pratices
+| Field | Type | Description |
+| --- | --- | --- |
+| `request_id` | string | Unique identifier for this job. Use it to poll status and retrieve results. |
+| `status` | string | Initial job state. One of `"PENDING"`, `"PROCESSING"`, `"COMPLETED"`, `"FAILED"`. |
 
-- Always fill in parameters.detailed\_query — it is the most important signal for result quality and relevance.
-- Use sample\_companies to anchor the search around known players and guide the algorithm toward the right sub-market.
-- Combine multiple filters (funding\_stage \+ geography \+ employee\_count) for better results.
+### Completed result response
+
+Once `status` is `"COMPLETED"`, the result contains a `result` array of company objects.
+
+```json
+{
+  "request_id": "ed2ce223-3bd2-4a08-855f-79751bf1bd92",
+  "status": "COMPLETED",
+  "result": [ ...company objects... ]
+}
+```
+
+### Company object fields
+
+Each object in the `result` array contains the following fields:
+
+**Identity & firmographics**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `Permalink` | string | Wokelo company identifier (e.g. `"esub-construction-software"`). Use this with other Wokelo APIs. |
+| `Name` | string | Display name of the company. |
+| `Website` | string | Primary domain (e.g. `"esub.com"`). |
+| `HQ City` | string | Headquarters city. |
+| `HQ Country` | string | Headquarters country. |
+| `HQ Continent` | string | Headquarters continent. |
+| `Founded` | string | Year the company was founded. |
+| `Type` | string | Ownership type: `"Public"` or `"Private"`. |
+| `Operating Status` | string | Current operational status (e.g. `"Operating"`, `"Acquired"`, `"IPO"`). |
+
+**Product & business**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `Product Category` | string | High-level category describing the company's primary product (e.g. `"Construction Project Management Software"`). |
+| `Core Offering` | string | AI-generated paragraph describing the company's core business and product. |
+| `Product Catalog` | string | Comma-separated list of key products and services offered. |
+
+**People & funding**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `Employees (Crunchbase)` | string | Employee count band from Crunchbase (e.g. `"51-100"`). |
+| `Employees (LinkedIn)` | integer or empty | Employee count from LinkedIn. May be empty. |
+| `Funding Stage` | string | Most recent funding stage (e.g. `"Series B"`). May be empty for public or bootstrapped companies. |
+| `Total Funding` | float or empty | Total disclosed funding raised in USD. |
+| `Last Funding Date` | string | Date of the most recent funding round (`YYYY-MM-DD`). |
+| `Key Investors` | string\[\] | Array of notable investors. |
+
+**Financials (primarily for public companies)**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `Revenue` | float or empty | Annual revenue in USD. |
+| `Ticker` | string | Exchange and ticker symbol (e.g. `"NASDAQ:CRM"`). |
+| `EBITDA` | float or empty | Earnings before interest, taxes, depreciation, and amortisation. |
+| `Net Income` | float or empty | Net income in USD. |
+| `EBITDA Margin (%)` | float or empty | EBITDA as a percentage of revenue. |
+| `Net Income Margin (%)` | float or empty | Net income as a percentage of revenue. |
+| `EPS Diluted` | float or empty | Diluted earnings per share. |
+| `ROA (%)` | float or empty | Return on assets. |
+| `Unlevered FCF` | float or empty | Unlevered free cash flow in USD. |
+| `D/E` | float or empty | Debt-to-equity ratio. |
+| `Market Cap` | float or empty | Market capitalisation in USD. |
+| `Enterprise Value` | float or empty | Enterprise value in USD. |
+| `EV/Revenue (LTM)` | float or empty | Enterprise value to last-twelve-months revenue multiple. |
+| `EV/EBITDA (LTM)` | float or empty | Enterprise value to LTM EBITDA multiple. |
+| `P/E (LTM)` | float or empty | Price-to-earnings ratio on LTM basis. |
+
+**M&A history**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `Acquisitions` | string | Comma-separated list of past acquisitions with year. |
+| `Investments` | string | Notable investments made by the company. May be empty. |
+
+**AI scoring**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `Overall Score` | float | Composite relevance score (1–10) measuring how well the company fits the queried market thesis. Higher is a stronger fit. |
+| `Commentary` | string | AI-written paragraph explaining why this company does or does not fit the market thesis — calls out specific product features, target customers, and geographic alignment. |
+
+<Info>
+  Private companies typically return populated funding fields and empty financial fields. Public companies return populated financial fields and typically empty funding-stage fields. Read the `Commentary` carefully — it explains _why_ the AI included each company and is the most useful signal for triaging the result set.
+</Info>
+
+---
+
+## 6. Examples
+
+### Vertical SaaS deal sourcing
+
+Find all private field service management software companies serving commercial HVAC and electrical contractors in the United States — 51 to 250 employees, Series A or B, founded after 2013.
+
+<CodeGroup>
+
+```bash cURL
+curl --location 'https://api.wokelo.ai/api/enterprise/market-map/enrich/' \
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "topic": "Field service management software for commercial HVAC and electrical contractors",
+    "parameters": {
+      "detailed_query": "Private field service management software companies serving commercial HVAC and electrical contractors in the United States with scheduling, dispatch, mobile work orders, and billing",
+      "geography": ["USA"],
+      "company_type": "private",
+      "employee_count": ["51-100", "101-250"],
+      "founded_year": { "from": 2013 },
+      "funding_stage": ["Series A", "Series B"]
+    }
+  }'
+```
+
+```python Python
+import requests, time
+
+HEADERS = {
+    "Authorization": "Bearer <YOUR_API_TOKEN>",
+    "Content-Type": "application/json"
+}
+
+# Submit
+job = requests.post(
+    "https://api.wokelo.ai/api/enterprise/market-map/enrich/",
+    headers=HEADERS,
+    json={
+        "topic": "Field service management software for commercial HVAC and electrical contractors",
+        "parameters": {
+            "detailed_query": "Private field service management software companies serving commercial HVAC and electrical contractors in the United States with scheduling, dispatch, mobile work orders, and billing",
+            "geography": ["USA"],
+            "company_type": "private",
+            "employee_count": ["51-100", "101-250"],
+            "founded_year": {"from": 2013},
+            "funding_stage": ["Series A", "Series B"]
+        }
+    }
+).json()
+
+request_id = job["request_id"]
+
+# Poll
+while True:
+    s = requests.get(
+        f"https://api.wokelo.ai/api/enterprise/request/{request_id}/status/",
+        headers=HEADERS
+    ).json()["status"]
+    if s == "COMPLETED": break
+    time.sleep(5)
+
+# Retrieve and rank by relevance
+companies = requests.get(
+    f"https://api.wokelo.ai/api/enterprise/request/{request_id}/result/",
+    headers=HEADERS
+).json()["result"]
+
+high_fit = sorted(
+    [c for c in companies if c.get("Overall Score", 0) >= 6],
+    key=lambda x: x["Overall Score"],
+    reverse=True
+)
+
+for c in high_fit:
+    print(f"{c['Name']} ({c['HQ City']}) — Score: {c['Overall Score']}")
+    print(f"  {c['Product Category']}")
+    print(f"  Funding: ${c.get('Total Funding', 0):,.0f} ({c.get('Funding Stage', 'n/a')})")
+```
+
+</CodeGroup>
+
+**Sample response (excerpt):**
+
+```json
+{
+  "request_id": "a57a9100-e7e1-4c6c-9b29-cdd064516ba7",
+  "status": "COMPLETED",
+  "result": [
+    {
+      "Permalink": "esub-construction-software",
+      "Name": "eSUB Construction Software",
+      "Website": "esub.com",
+      "HQ City": "San Diego",
+      "HQ Country": "United States",
+      "Founded": "2008",
+      "Type": "Private",
+      "Operating Status": "Operating",
+      "Product Category": "Construction Project Management Software",
+      "Core Offering": "ESUB Construction Software provides cloud-based project management solutions specifically designed for subcontractors in the construction industry...",
+      "Employees (Crunchbase)": "51-100",
+      "Funding Stage": "Series B",
+      "Total Funding": 22000000.0,
+      "Last Funding Date": "2023-05-01",
+      "Key Investors": ["Autodesk", "Revolution", "Catalyst Investors"],
+      "Overall Score": 7.0,
+      "Commentary": "eSUB Construction Software provides cloud-based project management and document control for commercial subcontractors, with mobile field reporting, timecards, RFIs, submittals, and change orders. The platform explicitly serves electrical and HVAC contractors in the United States, making it a strong direct fit for field service management workflows."
+    },
+    {
+      "Permalink": "kloudgin",
+      "Name": "KloudGin",
+      "Website": "kloudgin.com",
+      "HQ City": "Sunnyvale",
+      "HQ Country": "United States",
+      "Founded": "2014",
+      "Type": "Private",
+      "Product Category": "Field Service Asset Management Software",
+      "Employees (Crunchbase)": "101-250",
+      "Funding Stage": "Series A",
+      "Total Funding": 8200000.0,
+      "Overall Score": 7.0,
+      "Commentary": "KloudGin provides cloud-based field service management software and asset management, automating work management processes with scheduling, dispatch, mobile work orders, and billing..."
+    }
+  ]
+}
+```
+
+### Public-market competitive landscape
+
+Map the public companies in a category for a competitive landscape slide in a sector report. Use `company_type: "public"` and revenue filters to narrow to scaled players.
+
+```python
+import requests
+
+response = requests.post(
+    "https://api.wokelo.ai/api/enterprise/market-map/enrich/",
+    headers={
+        "Authorization": "Bearer <YOUR_API_TOKEN>",
+        "Content-Type": "application/json"
+    },
+    json={
+        "topic": "Cybersecurity endpoint protection platforms",
+        "parameters": {
+            "detailed_query": "Public cybersecurity vendors offering endpoint detection and response (EDR), XDR, and endpoint protection at enterprise scale",
+            "keywords": ["EDR", "XDR", "endpoint protection", "cybersecurity"],
+            "sample_companies": ["crowdstrike", "sentinelone"],
+            "company_type": "public",
+            "revenue": {"from": 100000000}
+        }
+    }
+)
+print(response.json()["request_id"])
+```
+
+### Anchored search for a niche market
+
+When the market is niche or jargon-heavy, anchor the search with 2–4 well-known players using `sample_companies`. This dramatically improves precision over keyword-only search.
+
+```python
+import requests
+
+response = requests.post(
+    "https://api.wokelo.ai/api/enterprise/market-map/enrich/",
+    headers={
+        "Authorization": "Bearer <YOUR_API_TOKEN>",
+        "Content-Type": "application/json"
+    },
+    json={
+        "topic": "AI-native legal contract review tools",
+        "parameters": {
+            "detailed_query": "AI-first contract review and CLM platforms targeting in-house legal teams, with LLM-based clause extraction and redlining",
+            "sample_companies": ["ironclad", "spellbook", "evisort"],
+            "company_type": "private",
+            "founded_year": {"from": 2018}
+        }
+    }
+)
+print(response.json()["request_id"])
+```
+
+### Exporting the market map to CSV
+
+Retrieve results and export the scored set to a CSV for further analysis, CRM upload, or client delivery.
+
+```python
+import requests, csv, time
+
+HEADERS = {"Authorization": "Bearer <YOUR_API_TOKEN>"}
+
+# ... (submit job and poll as shown above) ...
+
+companies = requests.get(
+    f"https://api.wokelo.ai/api/enterprise/request/{request_id}/result/",
+    headers=HEADERS
+).json()["result"]
+
+with open("market_map.csv", "w", newline="") as f:
+    fields = [
+        "Name", "Permalink", "Website", "HQ City", "HQ Country",
+        "Founded", "Type", "Product Category",
+        "Employees (Crunchbase)", "Funding Stage", "Total Funding",
+        "Last Funding Date", "Revenue", "Overall Score", "Commentary"
+    ]
+    writer = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
+    writer.writeheader()
+    writer.writerows(companies)
+
+print(f"Exported {len(companies)} companies to market_map.csv")
+```
+
+---
+
+## 7. Error Handling
+
+The API uses standard HTTP status codes. All error responses include a JSON body with a `detail` or `message` field.
+
+| Status | Meaning | Cause & Resolution |
+| --- | --- | --- |
+| `200 OK` / `202 Accepted` | Success | Job submitted (`202`) or result retrieved (`200`) successfully. |
+| `400 Bad Request` | Invalid parameters | A required field is missing or a parameter value is invalid — e.g. unrecognised `employee_count` band, malformed `founded_year` object, or invalid ISO country code. Check the `detail` field. |
+| `401 Unauthorized` | Auth failed | The `Authorization` header is missing, malformed, or contains an invalid token. Verify your key in **Settings → API Keys**. |
+| `403 Forbidden` | Insufficient access | Your plan does not include access to this endpoint. Contact [support@wokelo.ai](mailto:support@wokelo.ai) to review your plan. |
+| `404 Not Found` | Resource not found | A `sample_companies` permalink could not be resolved, or the `request_id` does not exist. Use the [Company Search API](/supporting-apis-doc) to verify permalinks. |
+| `429 Too Many Requests` | Rate limit exceeded | Implement exponential back-off. The response includes a `Retry-After` header. |
+| `500 Internal Server Error` | Server error | Retry after a brief delay. If the issue persists, contact [support@wokelo.ai](mailto:support@wokelo.ai) with your `request_id`. |
+
+**Error response example:**
+
+```json
+{
+  "status": "error",
+  "detail": "Invalid value for parameter 'employee_count': '50-100' is not a supported band."
+}
+```
+
+**Job failure handling:**
+
+```python
+import requests, time
+
+def poll_until_done(request_id, headers, interval=5, timeout=600):
+    elapsed = 0
+    while elapsed < timeout:
+        resp = requests.get(
+            f"https://api.wokelo.ai/api/enterprise/request/{request_id}/status/",
+            headers=headers
+        ).json()
+        status = resp["status"]
+        if status == "COMPLETED":
+            return True
+        elif status == "FAILED":
+            raise Exception(f"Job {request_id} failed: {resp.get('detail', 'unknown error')}")
+        time.sleep(interval)
+        elapsed += interval
+    raise TimeoutError(f"Job {request_id} did not complete within {timeout}s")
+```
+
+---
+
+## 8. Best Practices
+
+**Write a specific `detailed_query` — this matters most**
+
+The `detailed_query` is by far the highest-leverage parameter in this API. A vague query like `"CRM software"` will return a broad and noisy universe; a specific query naming the customer segment, product capabilities, distribution model, and use case will return a tight, relevant set. For example:
+
+> _"B2B CRM tools leveraging AI for sales automation in mid-market and enterprise segments with native pipeline forecasting and email-engagement scoring"_
+
+is far stronger than:
+
+> _"AI CRM"_
+
+**Anchor niche or jargon-heavy markets with `sample_companies`**
+
+For specialised verticals where the AI cannot fully infer the market from a topic and keywords alone, supply 2–4 representative permalinks in `sample_companies`. This dramatically improves precision. Use the [Company Search API](/supporting-apis-doc) to resolve company names to permalinks.
+
+**Combine multiple filters to bound the universe**
+
+Layering `geography`, `company_type`, `employee_count`, `founded_year`, and `funding_stage` produces a much tighter, more usable list than a single filter. For deal sourcing in particular, combining `funding_stage + employee_count + founded_year` is the standard recipe for finding scale-up-stage targets.
+
+**Sort and tier by `Overall Score` before review**
+
+The `Overall Score` is Wokelo's composite fit metric for the queried market. Sort results descending by `Overall Score` and segment into tiers (e.g. 8–10: Strong fit, 5–7: Adjacent, below 5: Tangential) to triage efficiently. The `Commentary` field then explains _why_ the AI scored each company that way.
+
+**Read the `Commentary` to validate inclusions and exclusions**
+
+The `Commentary` field is the most diagnostic signal in the response. It will often explain why a high-profile company _was_ or _was not_ a strong fit — for example, a marketplace adjacent to your category may be returned with a low score and a commentary noting that it is not a direct match. Use this both to triage and to refine your next query.
+
+**Use `company_type` to align with financial filters**
+
+Revenue, EBITDA, and EV multiple filters are most reliable for public companies. If you want to filter on `revenue` or `ev_ebitda`, set `company_type: "public"`. For private-company filtering, use `funding_stage`, `total_funding`, and `employee_count` instead.
+
+**Store the `request_id` for reproducibility**
+
+Each market map is a snapshot at a point in time. Store the `request_id` alongside the topic, parameters, and run date so you can re-retrieve the same result set later, compare runs over time as the market evolves, or audit which company list was used for a given investment thesis or report.
+
+**Iterate the query — don't expect one-shot perfection**
+
+Treat the first run as a diagnostic. Review the top 20 results and their commentaries, then refine `detailed_query`, swap `sample_companies`, or tighten filters and re-run. Two or three iterations typically produce a substantially better universe than a single pass.
+
+---
+
+## 9. Related APIs
+
+<CardGroup cols={3}>
+  <Card title="Target Screening" icon="crosshairs" href="/target-screening-doc">
+    Identify and score acquisition targets for a defined acquirer with deal-fit scoring.
+  </Card>
+
+  <Card title="Buyer Screening" icon="users" href="/buyer-screening-doc">
+    Identify and score potential acquirers for a target company.
+  </Card>
+
+  <Card title="Competitor List" icon="list" href="/market-map-doc-copied-1">
+    Generate a structured list of direct and indirect competitors for a specific company.
+  </Card>
+
+  <Card title="Company Deep Intelligence" icon="brain" href="/company-deep-intelligence-doc">
+    Generate deep AI intelligence on any company in the market map — business model, financials, strategy.
+  </Card>
+
+  <Card title="Company Instant Enrichment" icon="bolt" href="/company-instant-enrichment-doc">
+    Synchronously enrich firmographic and financial data for any company in the result set.
+  </Card>
+
+  <Card title="Industry Deep Intelligence" icon="chart-line" href="/industry-deep-intelligence-doc">
+    Generate a deep intelligence report on the industry behind the market map.
+  </Card>
+</CardGroup>

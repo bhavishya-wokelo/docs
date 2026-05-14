@@ -1,1174 +1,664 @@
 ---
 title: "Competitor List"
+description: "Generate a long list of companies similar to a given company using AI — returns a ranked, enriched peer set with firmographic, financial, and AI-scored similarity data."
 ---
 
-Find companies similar to a given company
+<Note>
+  Fetch the complete documentation index at: [https://docs.wokelo.ai/llms.txt](https://docs.wokelo.ai/llms.txt)
+</Note>
 
-NOTE: This is a asynchronous API, which means it will return a request\_id in the response. You would be required to poll the status and then retrieve the results. Read more about async APIs [here](https://docs.wokelo.ai/how-async-apis-work).
+## 1. Overview
 
-## Request reference
+The Competitor List API generates a ranked list of companies similar to a given seed company, enriched with structured firmographic, funding, and financial data. Given a single company permalink (e.g. `"del-air"`) and an optional set of refinements, Wokelo's AI pipeline searches its coverage universe of 3M\+ companies, evaluates each candidate against the seed company's product, customers, and business model, and returns a ranked peer set with AI-generated similarity scores and per-company commentary.
 
-Here is a request containing all the possible parameters:
+This is an **asynchronous API** — submitting a request returns a `request_id` immediately, and you must poll for status and then retrieve results once the job is complete. Read more about the async pattern in [How Async APIs work](/how-async-apis-work).
 
-<CodeGroup>
+Each peer in the result set is returned with:
 
-```json cURL expandable wrap
-curl --location 'https://api.wokelo.ai/api/enterprise/company-peers/enrich/' \
---header 'Authorization: Bearer Token' \
---header 'Content-Type: application/json' \
---data '{
-  "company": "del-air",
-  "parameters": {
-    "detailed_query": "Residential Home Services"
-}
-}'
-```
+- **Identity & firmographics** — name, website, HQ location, founding year, ownership type
+- **Product & business profile** — product category, AI-generated core offering description, product catalog
+- **Funding & employees** — funding stage, total funding raised, investor list, headcount
+- **Financials** — revenue, EBITDA, net income, market cap, EV multiples (for public companies)
+- **M&A history** — past acquisitions and investments
+- **AI similarity scoring** — an `Overall Score` (1–10) measuring how closely the peer matches the seed company, plus a `Commentary` paragraph explaining the overlap and differentiation
 
-```json Python expandable wrap
-import requests
-import json
+**How it differs from Market Map:** Market Map starts from a _market topic_ (e.g. "AI-powered CRM software"); Competitor List starts from a _specific company_ and returns peers most similar to it. Use Competitor List when you have a clear anchor company; use Market Map when you're defining the universe by category.
 
-url = "https://api.wokelo.ai/api/enterprise/company-peers/enrich/"
+**Common use cases:**
 
-payload = json.dumps({
-  "company": "del-air",
-  "parameters": {
-    "detailed_query": "Residential Home Services"
-  }
-})
-headers = {
-  'Authorization': 'Bearer Token',
-  'Content-Type': 'application/json'
-}
+- **Competitive intelligence** — Build a competitive battlecard or vendor landscape around a specific company
+- **Peer benchmarking** — Identify the right comparable set for valuation, financial benchmarking, or KPI comparisons
+- **Sales & GTM** — Map adjacent and competing vendors for partner strategy or competitive deal positioning
+- **M&A roll-up sourcing** — Find regional or sub-segment players similar to a platform company for bolt-on consolidation
+- **Investor research** — Build a peer set for diligence on a private or public company under evaluation
+- **Sell-side & corp dev** — Identify likely competitive intermediaries or strategic peers in a sale process
 
-response = requests.request("POST", url, headers=headers, data=payload)
+<Info>
+  This API is asynchronous. You submit a job, receive a `request_id`, poll until `status` is `"COMPLETED"`, and then read results from the same response. See [How Async APIs work](/how-async-apis-work).
+</Info>
 
-print(response.text)
-```
+---
 
-</CodeGroup>
+## 2. Quick Start
 
-The table below lists all the parameters available to filter the results.
-
-| Parameter | Description |
-| :-- | :-- |
-| `company` | Permalink or URL of the company (e.g. `"del-air"` ) |
-| `parameters.detailed_query` | A more descriptive query to refine the market map scope |
-| `parameters.sample_companies` | Permalinks or URLs of representative companies. |
-| `parameters.geography` | Geographic scope as [ISO country codes](https://docs.wokelo.ai/iso-country-codes) (e.g. `["USA", "GBR"]`) |
-| `parameters.company_type` | Type of company to include: `"private"`, `"public"`, or `"all"` |
-| `parameters.employee_count` | Filter by headcount range (e.g. `1-10`, `11-50`, ... `10000+`). Empty array = all |
-| `parameters.founded_year` | Filter by founding year. Accepts `from` and/or `to` integer values |
-| `parameters.funding_stage` | Filter by funding stage (e.g. `"Series A"`, `"Seed"`). Empty array = all |
-| `parameters.total_funding` | Filter by total funding raised. Accepts `from` and/or `to` values |
-| `parameters.last_funding_round` | Filter by last funding round. Accepts `from` and/or `to` values |
-| `parameters.revenue` | Filter by annual revenue. Accepts `from` and/or `to` values |
-| `parameters.ebitda` | Filter by EBITDA. Accepts `from` and/or `to` values |
-| `parameters.net_income` | Filter by net income. Accepts `from` and/or `to` values |
-| `parameters.ev_ebitda` | Filter by EV/EBITDA multiple. Accepts `from` and/or `to` values |
-
-## Examples
-
-Find all private companies based out of USA similar to Del-Air.
-
-A Sample Request
+**Step 1 — Submit the job**
 
 <CodeGroup>
 
-```json cURL expandable wrap
+```bash cURL
 curl --location 'https://api.wokelo.ai/api/enterprise/company-peers/enrich/' \
---header 'Authorization: Bearer Token' \
---header 'Content-Type: application/json' \
---data '{
-  "company": "del-air",
-  "parameters": {
-    "detailed_query": "Residential Home Services",
-    "geo": ["USA"],
-    "company_type": "private"
-}
-}'
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "company": "del-air",
+    "parameters": {
+      "detailed_query": "Residential home services companies",
+      "sample_companies": ["service-titan", "angi"],
+      "geography": ["USA"],
+      "company_type": "private"
+    }
+  }'
 ```
 
-```json Python expandable wrap
+```python Python
 import requests
-import json
 
-url = "https://api.wokelo.ai/api/enterprise/company-peers/enrich/"
-
-payload = json.dumps({
-  "company": "del-air",
-  "parameters": {
-    "detailed_query": "Residential Home Services",
-    "geo": [
-      "USA"
-    ],
-    "company_type": "private"
-  }
-})
-headers = {
-  'Authorization': 'Bearer Token',
-  'Content-Type': 'application/json'
-}
-
-response = requests.request("POST", url, headers=headers, data=payload)
-
-print(response.text)
-```
-
-</CodeGroup>
-
-Sample Response
-
-```json expandable wrap
-{
-    "request_id": "450c0d25-c83b-4fc7-8713-f96b63db7843",
-    "status": "COMPLETED",
-    "result": [
-        {
-            "Permalink": "bell-brothers-heating-and-air-conditioning",
-            "Name": "Bell Brothers Heating and Air Conditioning",
-            "Website": "bellbrothers.com",
-            "HQ City": "Des Moines",
-            "HQ Country": "United States",
-            "HQ Continent": "North America",
-            "Founded": "1955",
-            "Type": "Private",
-            "Operating Status": "Operating",
-            "Product Category": "HVAC and Plumbing Services",
-            "Core Offering": "Bell Brothers Heating and Air Conditioning provides comprehensive HVAC and plumbing services, including installation, maintenance, and repair of heating and cooling systems, along with plumbing solutions in the Des Moines area.",
-            "Product Catalog": "HVAC installation, HVAC repair, Plumbing repair, Maintenance services, Indoor air quality services",
-            "Employees (Crunchbase)": "101-250",
-            "Employees (LinkedIn)": 36,
-            "Funding Stage": null,
-            "Total Funding": null,
-            "Last Funding Date": null,
-            "Key Investors": null,
-            "Revenue": null,
-            "Ticker": null,
-            "EBITDA": null,
-            "Net Income": null,
-            "EBITDA Margin (%)": null,
-            "Net Income Margin (%)": null,
-            "EPS Diluted": null,
-            "ROA (%)": null,
-            "Unlevered FCF": null,
-            "D/E": null,
-            "Market Cap": null,
-            "Enterprise Value": null,
-            "EV/Revenue (LTM)": null,
-            "EV/EBITDA (LTM)": null,
-            "P/E (LTM)": null,
-            "Acquisitions": null,
-            "Investments": null,
-            "Overall Score": 8.0,
-            "Commentary": "Bell Brothers Heating and Air Conditioning provides HVAC installation, repair, and maintenance plus plumbing repair, directly aligning with Del-Air’s residential home-services focus on heating and cooling. The firm also adds geothermal and indoor air quality services, indicating broader residential comfort offerings, though the description is less geographically and electrical-service specific than Del-Air."
-        },
-        {
-            "Permalink": "mike-diamond-f13d",
-            "Name": "Mike Diamond",
-            "Website": "mikediamondservices.com",
-            "HQ City": "Los Angeles",
-            "HQ Country": "United States",
-            "HQ Continent": "North America",
-            "Founded": "1976",
-            "Type": "Private",
-            "Operating Status": "Operating",
-            "Product Category": "Plumbing HVAC Services",
-            "Core Offering": "Mike Diamond provides a full range of plumbing services including 24/7 emergency plumbing, drain cleaning, HVAC repair, and installation services. They focus on fast, reliable plumbing and home repair solutions.",
-            "Product Catalog": "Plumbing Services, Drain Cleaning, Water Heater Repair, HVAC Services, Toilet Installation",
-            "Employees (Crunchbase)": "11-50",
-            "Employees (LinkedIn)": 26,
-            "Funding Stage": null,
-            "Total Funding": null,
-            "Last Funding Date": null,
-            "Key Investors": null,
-            "Revenue": null,
-            "Ticker": null,
-            "EBITDA": null,
-            "Net Income": null,
-            "EBITDA Margin (%)": null,
-            "Net Income Margin (%)": null,
-            "EPS Diluted": null,
-            "ROA (%)": null,
-            "Unlevered FCF": null,
-            "D/E": null,
-            "Market Cap": null,
-            "Enterprise Value": null,
-            "EV/Revenue (LTM)": null,
-            "EV/EBITDA (LTM)": null,
-            "P/E (LTM)": null,
-            "Acquisitions": null,
-            "Investments": null,
-            "Overall Score": 8.0,
-            "Commentary": "Mike Diamond operates as a residential plumbing and HVAC contractor, explicitly providing 24/7 emergency plumbing, drain cleaning, HVAC repair, and installation, along with water heater and toilet services. This aligns closely with Del-Air’s residential home-services focus, though Mike Diamond is narrower geographically and has fewer explicit HVAC-plus-electrical maintenance details."
-        },
-        {
-            "Permalink": "1-800-plumber",
-            "Name": "1-800-Plumber",
-            "Website": "1800plumber.com",
-            "HQ City": "Amarillo",
-            "HQ Country": "United States",
-            "HQ Continent": "North America",
-            "Founded": "1999",
-            "Type": "Private",
-            "Operating Status": "Operating",
-            "Product Category": "Plumbing HVAC Repair Services",
-            "Core Offering": "1-800-Plumber provides comprehensive plumbing, heating, cooling, and emergency repair services for residential and commercial clients, ensuring their home systems are functional and efficient.",
-            "Product Catalog": "Plumbing services, Cooling services, Heating services, Emergency services, Membership services",
-            "Employees (Crunchbase)": "11-50",
-            "Employees (LinkedIn)": null,
-            "Funding Stage": null,
-            "Total Funding": null,
-            "Last Funding Date": null,
-            "Key Investors": null,
-            "Revenue": null,
-            "Ticker": null,
-            "EBITDA": null,
-            "Net Income": null,
-            "EBITDA Margin (%)": null,
-            "Net Income Margin (%)": null,
-            "EPS Diluted": null,
-            "ROA (%)": null,
-            "Unlevered FCF": null,
-            "D/E": null,
-            "Market Cap": null,
-            "Enterprise Value": null,
-            "EV/Revenue (LTM)": null,
-            "EV/EBITDA (LTM)": null,
-            "P/E (LTM)": null,
-            "Acquisitions": null,
-            "Investments": null,
-            "Overall Score": 7.0,
-            "Commentary": "1-800-Plumber provides plumbing, heating, cooling, and 24/7 emergency repair services with installation, maintenance, and repair across residential and commercial clients, aligning closely with Del-Air’s residential home comfort services in Florida."
-        },
-        {
-            "Permalink": "peterman-heating-cooling-inc",
-            "Name": "Peterman Heating & Cooling Inc",
-            "Website": "petermanhvac.com",
-            "HQ City": "Greenwood",
-            "HQ Country": "United States",
-            "HQ Continent": "North America",
-            "Founded": "1986",
-            "Type": "Private",
-            "Operating Status": "Operating",
-            "Product Category": "Residential HVAC Plumbing Electrical",
-            "Core Offering": "Peterman Heating & Cooling Inc provides comprehensive home services including heating, cooling, plumbing and electrical solutions, catering to both installation and repair needs for residential customers.",
-            "Product Catalog": "Heating Installation and Repair, Air Conditioning Installation and Repair, Plumbing Services, Indoor Air Quality Services, Electrical Services",
-            "Employees (Crunchbase)": "251-500",
-            "Employees (LinkedIn)": 186,
-            "Funding Stage": null,
-            "Total Funding": null,
-            "Last Funding Date": null,
-            "Key Investors": null,
-            "Revenue": null,
-            "Ticker": null,
-            "EBITDA": null,
-            "Net Income": null,
-            "EBITDA Margin (%)": null,
-            "Net Income Margin (%)": null,
-            "EPS Diluted": null,
-            "ROA (%)": null,
-            "Unlevered FCF": null,
-            "D/E": null,
-            "Market Cap": null,
-            "Enterprise Value": null,
-            "EV/Revenue (LTM)": null,
-            "EV/EBITDA (LTM)": null,
-            "P/E (LTM)": null,
-            "Acquisitions": null,
-            "Investments": null,
-            "Overall Score": 9.0,
-            "Commentary": "Peterman Heating & Cooling Inc provides comprehensive residential heating and cooling repair/installation plus plumbing and electrical services, delivered directly to homeowners via service appointments and online booking. This aligns closely with Del-Air’s core residential home services focus across HVAC, plumbing, and electrical, with strong parallel capabilities despite shorter stated geographic detail."
-        },
-        {
-            "Permalink": "goettl-air-conditioning-2",
-            "Name": "Goettl Air Conditioning",
-            "Website": "goettl.com",
-            "HQ City": "Tempe",
-            "HQ Country": "United States",
-            "HQ Continent": "North America",
-            "Founded": "1939",
-            "Type": "Private",
-            "Operating Status": "Operating",
-            "Product Category": "HVAC Plumbing Services",
-            "Core Offering": "Goettl Air Conditioning provides HVAC and plumbing services, including repair, installation, and maintenance of air conditioning, heating systems, and plumbing services for residential customers.",
-            "Product Catalog": "Air Conditioning Repair, Heating System Repair, Plumbing Repair, Water Heater Repair, Drain Cleaning Services",
-            "Employees (Crunchbase)": "11-50",
-            "Employees (LinkedIn)": 307,
-            "Funding Stage": "Private equity round",
-            "Total Funding": 0.0,
-            "Last Funding Date": "2021-12-10",
-            "Key Investors": [
-                "The Cortec Group"
-            ],
-            "Revenue": null,
-            "Ticker": null,
-            "EBITDA": null,
-            "Net Income": null,
-            "EBITDA Margin (%)": null,
-            "Net Income Margin (%)": null,
-            "EPS Diluted": null,
-            "ROA (%)": null,
-            "Unlevered FCF": null,
-            "D/E": null,
-            "Market Cap": null,
-            "Enterprise Value": null,
-            "EV/Revenue (LTM)": null,
-            "EV/EBITDA (LTM)": null,
-            "P/E (LTM)": null,
-            "Acquisitions": "Dutton Plumbing (2019)",
-            "Investments": null,
-            "Overall Score": 8.0,
-            "Commentary": "Goettl Air Conditioning primarily delivers residential HVAC and plumbing repair, installation, and maintenance through trained technicians in Phoenix and Las Vegas. This aligns strongly with Del-Air’s residential home services focus on HVAC and complementary plumbing, with broader presence and similar service lines."
-        },
-        {
-            "Permalink": "sears-home-services",
-            "Name": "Sears Home Services",
-            "Website": "searshomeservices.com",
-            "HQ City": "Longwood",
-            "HQ Country": "United States",
-            "HQ Continent": "North America",
-            "Founded": "1886",
-            "Type": "Private",
-            "Operating Status": "Operating",
-            "Product Category": "Home Repair and Maintenance Services",
-            "Core Offering": "Sears Home Services provides repair and maintenance services for a wide range of home appliances, including washing machines, dryers, refrigerators, and heating/cooling systems, ensuring that appliances function efficiently and reliably.",
-            "Product Catalog": "Appliance Repair Services, HVAC Maintenance Services, Lawn Care Services, Home Warranty Services, Laundry Services",
-            "Employees (Crunchbase)": "10000+",
-            "Employees (LinkedIn)": 1864,
-            "Funding Stage": null,
-            "Total Funding": null,
-            "Last Funding Date": null,
-            "Key Investors": null,
-            "Revenue": null,
-            "Ticker": null,
-            "EBITDA": null,
-            "Net Income": null,
-            "EBITDA Margin (%)": null,
-            "Net Income Margin (%)": null,
-            "EPS Diluted": null,
-            "ROA (%)": null,
-            "Unlevered FCF": null,
-            "D/E": null,
-            "Market Cap": null,
-            "Enterprise Value": null,
-            "EV/Revenue (LTM)": null,
-            "EV/EBITDA (LTM)": null,
-            "P/E (LTM)": null,
-            "Acquisitions": null,
-            "Investments": null,
-            "Overall Score": 6.0,
-            "Commentary": "Sears Home Services provides repair and maintenance for heating/cooling systems and specifically HVAC maintenance, aligning closely with Del-Air’s residential comfort services. It also adds appliance repair and home warranty offerings, but details on 24/7 emergency HVAC repair and broader trade services are less specific."
-        },
-        {
-            "Permalink": "horizon-services",
-            "Name": "Horizon Services",
-            "Website": "horizonservices.com",
-            "HQ City": "Wilmington",
-            "HQ Country": "United States",
-            "HQ Continent": "North America",
-            "Founded": "1987",
-            "Type": "Private",
-            "Operating Status": "Acquired",
-            "Product Category": "Residential Plumbing HVAC Services",
-            "Core Offering": "Horizon Services provides plumbing, heating, and air conditioning services, including installation, maintenance, and repair, primarily for residential customers.",
-            "Product Catalog": "Heating Services, Air Conditioning Installation, Plumbing Services, Drain Cleaning, Sewer Repair",
-            "Employees (Crunchbase)": "501-1000",
-            "Employees (LinkedIn)": 446,
-            "Funding Stage": null,
-            "Total Funding": null,
-            "Last Funding Date": null,
-            "Key Investors": null,
-            "Revenue": null,
-            "Ticker": null,
-            "EBITDA": null,
-            "Net Income": null,
-            "EBITDA Margin (%)": null,
-            "Net Income Margin (%)": null,
-            "EPS Diluted": null,
-            "ROA (%)": null,
-            "Unlevered FCF": null,
-            "D/E": null,
-            "Market Cap": null,
-            "Enterprise Value": null,
-            "EV/Revenue (LTM)": null,
-            "EV/EBITDA (LTM)": null,
-            "P/E (LTM)": null,
-            "Acquisitions": "Hutchinson Plumbing Heating Cooling (2020), Casteel (2017), Gold Medal Service (2017)",
-            "Investments": null,
-            "Overall Score": 9.0,
-            "Commentary": "Horizon Services primarily delivers residential plumbing, heating, and air conditioning services, including installation, maintenance, and repair, plus drain cleaning and sewer repair. This maps closely to Del-Air’s HVAC and home services model with strong evidence of direct residential service operations and regional leadership in that category."
-        },
-        {
-            "Permalink": "american-residential-services-llc",
-            "Name": "American Residential Services",
-            "Website": "ars.com",
-            "HQ City": "Memphis",
-            "HQ Country": "United States",
-            "HQ Continent": "North America",
-            "Founded": "2006",
-            "Type": "Private",
-            "Operating Status": "Acquired",
-            "Product Category": "HVAC Plumbing Air Quality Services",
-            "Core Offering": "American Residential Services provides heating, ventilation, air conditioning (HVAC), plumbing, and indoor air quality solutions, including installation, maintenance, and repair services for residential and light commercial establishments.",
-            "Product Catalog": "HVAC maintenance and repair, Plumbing installation and repair, Indoor air quality systems, Smart home installation services, Emergency repair services",
-            "Employees (Crunchbase)": "1001-5000",
-            "Employees (LinkedIn)": 1916,
-            "Funding Stage": "Private equity round",
-            "Total Funding": 0.0,
-            "Last Funding Date": "2020-09-15",
-            "Key Investors": [
-                "GI Partners",
-                "Charlesbank Capital Partners"
-            ],
-            "Revenue": null,
-            "Ticker": null,
-            "EBITDA": null,
-            "Net Income": null,
-            "EBITDA Margin (%)": null,
-            "Net Income Margin (%)": null,
-            "EPS Diluted": null,
-            "ROA (%)": null,
-            "Unlevered FCF": null,
-            "D/E": null,
-            "Market Cap": null,
-            "Enterprise Value": null,
-            "EV/Revenue (LTM)": null,
-            "EV/EBITDA (LTM)": null,
-            "P/E (LTM)": null,
-            "Acquisitions": "Tarpy Heating and Air (2023), Captain Electric (2022), OyBoy Heating and Cooling (2022), Absolute Air (2022), ESCO Heating, AC, Plumbing & Electric (2022), My Electric Works (2021), The Rooter Works Plumbing & Drains (2021), Total Comfort (2021)",
-            "Investments": null,
-            "Overall Score": 7.0,
-            "Commentary": "American Residential Services provides residential HVAC and plumbing services, including repair, installation, maintenance, emergency repairs, and indoor air quality solutions. This closely overlaps Del-Air’s residential comfort-focused HVAC and plumbing work across repair and maintenance, with slightly broader air quality and smart-home offerings."
-        },
-        {
-            "Permalink": "service-champions",
-            "Name": "Service Champions",
-            "Website": "servicechampions.net",
-            "HQ City": "Pleasanton",
-            "HQ Country": "United States",
-            "HQ Continent": "North America",
-            "Founded": "2003",
-            "Type": "Private",
-            "Operating Status": "Operating",
-            "Product Category": "Home HVAC Plumbing Electrical Services",
-            "Core Offering": "Service Champions specializes in providing essential residential services, including heating, ventilation, and air conditioning (HVAC) repair and installation, plumbing, and electrical services. They focus on maintaining and improving home systems to ensure comfort and safety.",
-            "Product Catalog": "Heating services, Cooling services, Plumbing services, Electrical services, Water filtration services",
-            "Employees (Crunchbase)": "251-500",
-            "Employees (LinkedIn)": null,
-            "Funding Stage": null,
-            "Total Funding": null,
-            "Last Funding Date": null,
-            "Key Investors": null,
-            "Revenue": null,
-            "Ticker": null,
-            "EBITDA": null,
-            "Net Income": null,
-            "EBITDA Margin (%)": null,
-            "Net Income Margin (%)": null,
-            "EPS Diluted": null,
-            "ROA (%)": null,
-            "Unlevered FCF": null,
-            "D/E": null,
-            "Market Cap": null,
-            "Enterprise Value": null,
-            "EV/Revenue (LTM)": null,
-            "EV/EBITDA (LTM)": null,
-            "P/E (LTM)": null,
-            "Acquisitions": null,
-            "Investments": null,
-            "Overall Score": 8.0,
-            "Commentary": "Service Champions provides residential heating and cooling repair/installation plus plumbing and electrical services, directly matching Del-Air’s residential home services model. Coverage in California and guarantees and maintenance programs are complementary, with additional water filtration and indoor air quality offerings adding breadth."
-        },
-        {
-            "Permalink": "one-hour-heating-air-conditioning",
-            "Name": "One Hour Heating & Air Conditioning",
-            "Website": "website3.me",
-            "HQ City": "Sarasota",
-            "HQ Country": "United States",
-            "HQ Continent": "North America",
-            "Founded": "1999",
-            "Type": "Private",
-            "Operating Status": "Acquired",
-            "Product Category": "Residential HVAC services",
-            "Core Offering": "One Hour Heating & Air Conditioning provides comprehensive heating, cooling, and air quality services, including installation, repair, and maintenance for HVAC systems.",
-            "Product Catalog": "Emergency HVAC Services, Air Conditioning Repair, Heating Installation, Duct Cleaning Services, Indoor Air Quality Services",
-            "Employees (Crunchbase)": "11-50",
-            "Employees (LinkedIn)": null,
-            "Funding Stage": null,
-            "Total Funding": null,
-            "Last Funding Date": null,
-            "Key Investors": null,
-            "Revenue": null,
-            "Ticker": null,
-            "EBITDA": null,
-            "Net Income": null,
-            "EBITDA Margin (%)": null,
-            "Net Income Margin (%)": null,
-            "EPS Diluted": null,
-            "ROA (%)": null,
-            "Unlevered FCF": null,
-            "D/E": null,
-            "Market Cap": null,
-            "Enterprise Value": null,
-            "EV/Revenue (LTM)": null,
-            "EV/EBITDA (LTM)": null,
-            "P/E (LTM)": null,
-            "Acquisitions": null,
-            "Investments": null,
-            "Overall Score": 8.0,
-            "Commentary": "One Hour Heating & Air Conditioning primarily provides residential HVAC installation, repair, maintenance, emergency services, duct cleaning, and indoor air quality solutions. This closely matches Del-Air’s residential home services focus on heating and air conditioning repair, installation, and maintenance, though Del-Air also explicitly lists plumbing and electrical."
-        },
-        {
-            "Permalink": "the-wrench-group",
-            "Name": "Wrench Group",
-            "Website": "wrenchgroup.com",
-            "HQ City": "Marietta",
-            "HQ Country": "United States",
-            "HQ Continent": "North America",
-            "Founded": "2015",
-            "Type": "Private",
-            "Operating Status": "Acquired",
-            "Product Category": "Home Repair Maintenance Services",
-            "Core Offering": "Wrench Group provides comprehensive home repair, replacement, and maintenance services specializing in HVAC, plumbing, and electrical systems. They operate across multiple regions with strong local brand presence and commitment to customer service.",
-            "Product Catalog": "Plumbing Services, Heating Services, Cooling Services, Electrical Services, Maintenance Plans",
-            "Employees (Crunchbase)": "1-10",
-            "Employees (LinkedIn)": 91,
-            "Funding Stage": "Debt-Funded",
-            "Total Funding": 1300000000.0,
-            "Last Funding Date": "2025-09-12",
-            "Key Investors": [
-                "Oak Hill Capital Partners",
-                "Crescent Capital Group",
-                "TSG Consumer Partners",
-                "Blue Owl",
-                "Oak Hill Advisors"
-            ],
-            "Revenue": null,
-            "Ticker": null,
-            "EBITDA": null,
-            "Net Income": null,
-            "EBITDA Margin (%)": null,
-            "Net Income Margin (%)": null,
-            "EPS Diluted": null,
-            "ROA (%)": null,
-            "Unlevered FCF": null,
-            "D/E": null,
-            "Market Cap": null,
-            "Enterprise Value": null,
-            "EV/Revenue (LTM)": null,
-            "EV/EBITDA (LTM)": null,
-            "P/E (LTM)": null,
-            "Acquisitions": "Lindstrom Air Conditioning & Plumbing (2024), Superior Service (2022), EcoWater of Atlanta (2022), Nexgen (2022), Maine Home Services (2022), Buckeye Heating & Cooling (2021), Morris-Jenkins Heating & Air Conditioning (2021), Boothe's Heating, Air & Plumbing (2021), Williams Comfort Air (2021), All About Water (2020)",
-            "Investments": null,
-            "Overall Score": 9.0,
-            "Commentary": "Wrench Group primarily provides residential home repair, replacement, and maintenance services specializing in HVAC, plumbing, and electrical, including heating and air conditioning installation, repair, and maintenance. Its multi-brand, direct-to-consumer model and emergency/service-center approach align closely with Del-Air’s core residential HVAC and related home services across major U.S. metros."
-        },
-        {
-            "Permalink": "done-plumbing-heating",
-            "Name": "Done Plumbing & Heating",
-            "Website": "itsdone.com",
-            "HQ City": "Aurora",
-            "HQ Country": "United States",
-            "HQ Continent": "North America",
-            "Founded": null,
-            "Type": "Private",
-            "Operating Status": "Operating",
-            "Product Category": null,
-            "Core Offering": "Done Plumbing & Heating provides comprehensive plumbing, heating, cooling, and electrical services including installation, maintenance, and repairs for homeowners in the Aurora and Greater Denver area.",
-            "Product Catalog": "Plumbing Services, Heating Services, Cooling Services, Electrical Services, Drain Cleaning Services",
-            "Employees (Crunchbase)": "11-50",
-            "Employees (LinkedIn)": 21,
-            "Funding Stage": null,
-            "Total Funding": null,
-            "Last Funding Date": null,
-            "Key Investors": null,
-            "Revenue": null,
-            "Ticker": null,
-            "EBITDA": null,
-            "Net Income": null,
-            "EBITDA Margin (%)": null,
-            "Net Income Margin (%)": null,
-            "EPS Diluted": null,
-            "ROA (%)": null,
-            "Unlevered FCF": null,
-            "D/E": null,
-            "Market Cap": null,
-            "Enterprise Value": null,
-            "EV/Revenue (LTM)": null,
-            "EV/EBITDA (LTM)": null,
-            "P/E (LTM)": null,
-            "Acquisitions": null,
-            "Investments": null,
-            "Overall Score": 8.0,
-            "Commentary": "Done Plumbing & Heating provides residential plumbing, heating, and cooling services with installation, maintenance, and repairs, plus emergency availability. This aligns closely with Del-Air’s home comfort services, though details are less expansive and operations are smaller in scale and geography."
-        },
-        {
-            "Permalink": "bge-home",
-            "Name": "BGE HOME",
-            "Website": "bgehome.com",
-            "HQ City": "Baltimore",
-            "HQ Country": "United States",
-            "HQ Continent": "North America",
-            "Founded": "2022",
-            "Type": "Private",
-            "Operating Status": "Operating",
-            "Product Category": "Home repair and maintenance",
-            "Core Offering": "BGE HOME provides comprehensive home services including heating, cooling, plumbing, and electrical repairs and installations, focused on enhancing home comfort and efficiency.",
-            "Product Catalog": "Heating and Cooling Services, Plumbing Services, Electrical Services, Home Improvement Services, Home Repair Services",
-            "Employees (Crunchbase)": "101-250",
-            "Employees (LinkedIn)": null,
-            "Funding Stage": null,
-            "Total Funding": null,
-            "Last Funding Date": null,
-            "Key Investors": null,
-            "Revenue": null,
-            "Ticker": null,
-            "EBITDA": null,
-            "Net Income": null,
-            "EBITDA Margin (%)": null,
-            "Net Income Margin (%)": null,
-            "EPS Diluted": null,
-            "ROA (%)": null,
-            "Unlevered FCF": null,
-            "D/E": null,
-            "Market Cap": null,
-            "Enterprise Value": null,
-            "EV/Revenue (LTM)": null,
-            "EV/EBITDA (LTM)": null,
-            "P/E (LTM)": null,
-            "Acquisitions": null,
-            "Investments": null,
-            "Overall Score": 9.0,
-            "Commentary": "BGE HOME is a home services provider offering heating and cooling installation, repair, and maintenance, plus plumbing and electrical services, delivered directly to homeowners. Its residential comfort and repair portfolio closely matches Del-Air’s HVAC-focused repair, installation, and maintenance model."
-        },
-        {
-            "Permalink": "home360",
-            "Name": "Home360",
-            "Website": "home360.us",
-            "HQ City": "Baton Rouge",
-            "HQ Country": "United States",
-            "HQ Continent": "North America",
-            "Founded": "1980",
-            "Type": "Private",
-            "Operating Status": "Operating",
-            "Product Category": "Home repair services",
-            "Core Offering": "Home360 specializes in providing a wide range of home remodeling, repair, and maintenance services, including plumbing, electrical work, carpentry, HVAC, and more. All services are performed by trained franchise owners to ensure quality and customer satisfaction.",
-            "Product Catalog": "Home remodeling services, Plumbing repair services, Electrical services, HVAC services, Roofing services",
-            "Employees (Crunchbase)": "11-50",
-            "Employees (LinkedIn)": 9,
-            "Funding Stage": null,
-            "Total Funding": null,
-            "Last Funding Date": null,
-            "Key Investors": null,
-            "Revenue": null,
-            "Ticker": null,
-            "EBITDA": null,
-            "Net Income": null,
-            "EBITDA Margin (%)": null,
-            "Net Income Margin (%)": null,
-            "EPS Diluted": null,
-            "ROA (%)": null,
-            "Unlevered FCF": null,
-            "D/E": null,
-            "Market Cap": null,
-            "Enterprise Value": null,
-            "EV/Revenue (LTM)": null,
-            "EV/EBITDA (LTM)": null,
-            "P/E (LTM)": null,
-            "Acquisitions": null,
-            "Investments": null,
-            "Overall Score": 7.0,
-            "Commentary": "Home360 primarily provides residential home repair and maintenance, explicitly including HVAC, plumbing repair, and electrical services via franchise owners. This aligns closely with Del-Air’s HVAC/plumbing/electrical repair and maintenance focus, though Home360 emphasizes broader remodeling and operates in a smaller footprint."
-        },
-        {
-            "Permalink": "homeserve-france",
-            "Name": "HomeServe France",
-            "Website": "homeserve.fr",
-            "HQ City": "Lyon",
-            "HQ Country": "France",
-            "HQ Continent": "Europe",
-            "Founded": "2001",
-            "Type": "Private",
-            "Operating Status": "Operating",
-            "Product Category": "Home Repair Services",
-            "Core Offering": "HomeServe France provides a comprehensive range of home services, including emergency repairs and maintenance for plumbing, electricity, heating, and household appliances, to enhance the performance and sustainability of residential properties.",
-            "Product Catalog": "Emergency repairs, Installation services, Maintenance contracts",
-            "Employees (Crunchbase)": "251-500",
-            "Employees (LinkedIn)": 351,
-            "Funding Stage": null,
-            "Total Funding": null,
-            "Last Funding Date": null,
-            "Key Investors": null,
-            "Revenue": null,
-            "Ticker": null,
-            "EBITDA": null,
-            "Net Income": null,
-            "EBITDA Margin (%)": null,
-            "Net Income Margin (%)": null,
-            "EPS Diluted": null,
-            "ROA (%)": null,
-            "Unlevered FCF": null,
-            "D/E": null,
-            "Market Cap": null,
-            "Enterprise Value": null,
-            "EV/Revenue (LTM)": null,
-            "EV/EBITDA (LTM)": null,
-            "P/E (LTM)": null,
-            "Acquisitions": null,
-            "Investments": null,
-            "Overall Score": 8.0,
-            "Commentary": "HomeServe France primarily provides residential home repair and emergency assistance covering plumbing, heating, and electricity. This directly overlaps with Del-Air’s HVAC/plumbing/electrical repair-and-maintenance focus, though HomeServe extends further into appliances, connected objects, and service contracts."
-        },
-        {
-            "Permalink": "user-friendly-home-services",
-            "Name": "User Friendly Home Services",
-            "Website": "userfriendlyhomeservices.com",
-            "HQ City": "The Woodlands",
-            "HQ Country": "United States",
-            "HQ Continent": "North America",
-            "Founded": "2021",
-            "Type": "Private",
-            "Operating Status": "Operating",
-            "Product Category": "Home HVAC plumbing services",
-            "Core Offering": "User Friendly Home Services provides a range of home services including heating, air conditioning, and plumbing services to both residential and commercial customers. Their offerings encompass installation, maintenance, and repair of HVAC systems and plumbing solutions.",
-            "Product Catalog": "HVAC services, Plumbing services, Home renovation services",
-            "Employees (Crunchbase)": "51-100",
-            "Employees (LinkedIn)": 10,
-            "Funding Stage": null,
-            "Total Funding": null,
-            "Last Funding Date": null,
-            "Key Investors": null,
-            "Revenue": null,
-            "Ticker": null,
-            "EBITDA": null,
-            "Net Income": null,
-            "EBITDA Margin (%)": null,
-            "Net Income Margin (%)": null,
-            "EPS Diluted": null,
-            "ROA (%)": null,
-            "Unlevered FCF": null,
-            "D/E": null,
-            "Market Cap": null,
-            "Enterprise Value": null,
-            "EV/Revenue (LTM)": null,
-            "EV/EBITDA (LTM)": null,
-            "P/E (LTM)": null,
-            "Acquisitions": "Conner Electrical Services (2025), Len’s Refrigeration, Heating & Air Conditioning (2024), Falls Heating and Cooling (2023), Medina Heating and Air Conditioning (2023), Crestwood Plumbing (2023), SAL'S Heating & Cooling (2023), Efficient Air Heating and Cooling (2022), Accutemp Heating and Air Conditioning (2022)",
-            "Investments": null,
-            "Overall Score": 7.0,
-            "Commentary": "User Friendly Home Services is a home service and HVAC provider delivering heating, air conditioning, and plumbing for installation, maintenance, and repair across residential and commercial customers. Its offerings closely overlap with Del-Air’s residential HVAC and plumbing work, though detail on electrical and emergency/home-comfort breadth is less specific."
-        },
-        {
-            "Permalink": "homesquare-71f0",
-            "Name": "HomeSquare",
-            "Website": "homsqr.com",
-            "HQ City": "Scarsdale",
-            "HQ Country": "United States",
-            "HQ Continent": "North America",
-            "Founded": "2014",
-            "Type": "Private",
-            "Operating Status": "Operating",
-            "Product Category": "Home Maintenance Services",
-            "Core Offering": "HomeSquare provides a full range of home maintenance and repair services to residential and commercial clients, including handyman, plumbing, electrical, HVAC, and landscaping services.",
-            "Product Catalog": "Home Maintenance Services, Handyman Services, Electrical Services, Plumbing Services, Landscaping Services, HVAC Services",
-            "Employees (Crunchbase)": "11-50",
-            "Employees (LinkedIn)": 14,
-            "Funding Stage": null,
-            "Total Funding": null,
-            "Last Funding Date": null,
-            "Key Investors": null,
-            "Revenue": null,
-            "Ticker": null,
-            "EBITDA": null,
-            "Net Income": null,
-            "EBITDA Margin (%)": null,
-            "Net Income Margin (%)": null,
-            "EPS Diluted": null,
-            "ROA (%)": null,
-            "Unlevered FCF": null,
-            "D/E": null,
-            "Market Cap": null,
-            "Enterprise Value": null,
-            "EV/Revenue (LTM)": null,
-            "EV/EBITDA (LTM)": null,
-            "P/E (LTM)": null,
-            "Acquisitions": "Palace Guards (2024), Lucci Electric (2024), Hinged (2019)",
-            "Investments": null,
-            "Overall Score": 8.0,
-            "Commentary": "HomeSquare primarily provides full-service home maintenance and repair, including HVAC, plumbing, and electrical services, to residential clients through website and service requests. This maps closely to Del-Air’s residential home services model with overlapping HVAC, repair, and maintenance activities, though HomeSquare details less on emergency 24/7 and geography/scale."
-        },
-        {
-            "Permalink": "rentmeister-total-home-service",
-            "Name": "Rentmeister Total Home Service",
-            "Website": "rentmeister.com",
-            "HQ City": "Syracuse",
-            "HQ Country": "United States",
-            "HQ Continent": "North America",
-            "Founded": "1978",
-            "Type": "Private",
-            "Operating Status": "Operating",
-            "Product Category": "Home HVAC Plumbing Electrical Services",
-            "Core Offering": "Rentmeister Total Home Service provides comprehensive home service solutions including heating, air conditioning, plumbing, and electrical services, focusing on both residential and commercial properties.",
-            "Product Catalog": "HVAC repair and maintenance, Plumbing installation and repair, Electrical installation and repair, Indoor air quality services, Outdoor kitchen installation",
-            "Employees (Crunchbase)": "1-10",
-            "Employees (LinkedIn)": 9,
-            "Funding Stage": null,
-            "Total Funding": null,
-            "Last Funding Date": null,
-            "Key Investors": null,
-            "Revenue": null,
-            "Ticker": null,
-            "EBITDA": null,
-            "Net Income": null,
-            "EBITDA Margin (%)": null,
-            "Net Income Margin (%)": null,
-            "EPS Diluted": null,
-            "ROA (%)": null,
-            "Unlevered FCF": null,
-            "D/E": null,
-            "Market Cap": null,
-            "Enterprise Value": null,
-            "EV/Revenue (LTM)": null,
-            "EV/EBITDA (LTM)": null,
-            "P/E (LTM)": null,
-            "Acquisitions": null,
-            "Investments": null,
-            "Overall Score": 7.0,
-            "Commentary": "Rentmeister Total Home Service directly delivers residential HVAC repair and maintenance alongside plumbing and electrical installation and repair, paralleling Del-Air’s multi-trade home services. It operates in Syracuse, UT with residential and commercial coverage and offers 24/7-style emergency detail is absent, limiting depth versus Del-Air’s broader Florida operations."
-        },
-        {
-            "Permalink": "perfect-home-services",
-            "Name": "Perfect Home Services",
-            "Website": "perfecthomeservices.com",
-            "HQ City": "Aurora",
-            "HQ Country": "United States",
-            "HQ Continent": "North America",
-            "Founded": "1992",
-            "Type": "Private",
-            "Operating Status": "Operating",
-            "Product Category": "HVAC Plumbing Services",
-            "Core Offering": "Perfect Home Services specializes in providing heating, cooling, and plumbing installation and repair services to residential and commercial customers in the Chicagoland area.",
-            "Product Catalog": "Heating Services (Installation, Maintenance, Repair), Cooling Services (Installation, Maintenance, Repair), Plumbing Services (Installation, Maintenance, Repair), Sewer Services (Inspection, Maintenance)",
-            "Employees (Crunchbase)": "251-500",
-            "Employees (LinkedIn)": null,
-            "Funding Stage": null,
-            "Total Funding": null,
-            "Last Funding Date": null,
-            "Key Investors": null,
-            "Revenue": null,
-            "Ticker": null,
-            "EBITDA": null,
-            "Net Income": null,
-            "EBITDA Margin (%)": null,
-            "Net Income Margin (%)": null,
-            "EPS Diluted": null,
-            "ROA (%)": null,
-            "Unlevered FCF": null,
-            "D/E": null,
-            "Market Cap": null,
-            "Enterprise Value": null,
-            "EV/Revenue (LTM)": null,
-            "EV/EBITDA (LTM)": null,
-            "P/E (LTM)": null,
-            "Acquisitions": null,
-            "Investments": null,
-            "Overall Score": 8.0,
-            "Commentary": "Perfect Home Services primarily provides heating, cooling, and plumbing installation and repair services, including HVAC and sewer services, to customers in the Chicagoland area with direct scheduling support."
-        },
-        {
-            "Permalink": "prefix",
-            "Name": "Prefix",
-            "Website": "prefixinc.com",
-            "HQ City": "Austin",
-            "HQ Country": "United States",
-            "HQ Continent": "North America",
-            "Founded": "2014",
-            "Type": "Private",
-            "Operating Status": "Operating",
-            "Product Category": "Home Maintenance and Repair Services",
-            "Core Offering": "PreFix is a home care service that provides preventive maintenance, repairs, and management of contractors for homeowners and property managers, primarily through a membership model. They handle various home repairs and maintenance tasks, ensuring convenience and cost savings for their customers.",
-            "Product Catalog": "Home Maintenance Services, Preventive Maintenance, Appliance Repair, HVAC Services, Contractor Management",
-            "Employees (Crunchbase)": "51-100",
-            "Employees (LinkedIn)": 41,
-            "Funding Stage": "Debt-Funded",
-            "Total Funding": 5100000.0,
-            "Last Funding Date": "2025-08-05",
-            "Key Investors": [
-                "Generation Partners",
-                "Matchstick Ventures",
-                "Decathlon Capital Partners",
-                "Newlin",
-                "Right Side Capital Management",
-                "Capital Factory",
-                "Techstars",
-                "Brand Foundry Ventures",
-                "Chicago Ventures",
-                "Moonshots Capital",
-                "Firebrand Ventures",
-                "Central Texas Angel Network"
-            ],
-            "Revenue": null,
-            "Ticker": null,
-            "EBITDA": null,
-            "Net Income": null,
-            "EBITDA Margin (%)": null,
-            "Net Income Margin (%)": null,
-            "EPS Diluted": null,
-            "ROA (%)": null,
-            "Unlevered FCF": null,
-            "D/E": null,
-            "Market Cap": null,
-            "Enterprise Value": null,
-            "EV/Revenue (LTM)": null,
-            "EV/EBITDA (LTM)": null,
-            "P/E (LTM)": null,
-            "Acquisitions": null,
-            "Investments": null,
-            "Overall Score": 6.0,
-            "Commentary": "Prefix provides home maintenance and repair services via preventive maintenance, HVAC services, appliance repair, and contractor management through a membership model. While Del-Air directly performs residential heating and AC installation/repair/maintenance across Florida, Prefix overlaps in HVAC maintenance and repairs but leans more toward coordinating repairs through managed contractors rather than operating as a full-service HVAC provider."
-        },
-        {
-            "Permalink": "best-home-services",
-            "Name": "Best Home Services",
-            "Website": "getbest.com",
-            "HQ City": "Fort Myers",
-            "HQ Country": "United States",
-            "HQ Continent": "North America",
-            "Founded": "1980",
-            "Type": "Private",
-            "Operating Status": "Operating",
-            "Product Category": "Home Maintenance Services",
-            "Core Offering": "Best Home Services provides comprehensive home maintenance solutions including HVAC, plumbing, and electrical services to ensure home functionality and comfort.",
-            "Product Catalog": "HVAC Services: Air Conditioning Install/Repair/Maintenance, Plumbing Services: Water Heater Repair/Installation, Electrical Services: Lighting Repair/Installation, Drain Services: Drain Cleaning/Hydro Jetting",
-            "Employees (Crunchbase)": "101-250",
-            "Employees (LinkedIn)": 113,
-            "Funding Stage": null,
-            "Total Funding": null,
-            "Last Funding Date": null,
-            "Key Investors": null,
-            "Revenue": null,
-            "Ticker": null,
-            "EBITDA": null,
-            "Net Income": null,
-            "EBITDA Margin (%)": null,
-            "Net Income Margin (%)": null,
-            "EPS Diluted": null,
-            "ROA (%)": null,
-            "Unlevered FCF": null,
-            "D/E": null,
-            "Market Cap": null,
-            "Enterprise Value": null,
-            "EV/Revenue (LTM)": null,
-            "EV/EBITDA (LTM)": null,
-            "P/E (LTM)": null,
-            "Acquisitions": null,
-            "Investments": null,
-            "Overall Score": 8.0,
-            "Commentary": "Best Home Services provides residential HVAC air conditioning install/repair/maintenance, plumbing (water heaters and drain clearing), and electrical repair/installation, with direct in-home consultation and online scheduling across Southwest Florida. This closely parallels Del-Air’s comprehensive home comfort repair, installation, and maintenance services, though scale and geographic coverage are smaller and specific offerings like “24/7 emergency” are not stated."
-        },
-        {
-            "Permalink": "southern-home-services",
-            "Name": "Southern Home Services",
-            "Website": "southernhomeservices.com",
-            "HQ City": "Maitland",
-            "HQ Country": "United States",
-            "HQ Continent": "North America",
-            "Founded": "2016",
-            "Type": "Private",
-            "Operating Status": "Operating",
-            "Product Category": "Home Repair and Maintenance Services",
-            "Core Offering": "Southern Home Services specializes in residential heating, air conditioning, plumbing, and electrical services, providing repair, maintenance, and installation solutions to homeowners.",
-            "Product Catalog": "HVAC services, Plumbing services, Electrical repair services, Generator installation, Home comfort financing programs",
-            "Employees (Crunchbase)": "501-1000",
-            "Employees (LinkedIn)": null,
-            "Funding Stage": null,
-            "Total Funding": null,
-            "Last Funding Date": null,
-            "Key Investors": null,
-            "Revenue": null,
-            "Ticker": null,
-            "EBITDA": null,
-            "Net Income": null,
-            "EBITDA Margin (%)": null,
-            "Net Income Margin (%)": null,
-            "EPS Diluted": null,
-            "ROA (%)": null,
-            "Unlevered FCF": null,
-            "D/E": null,
-            "Market Cap": null,
-            "Enterprise Value": null,
-            "EV/Revenue (LTM)": null,
-            "EV/EBITDA (LTM)": null,
-            "P/E (LTM)": null,
-            "Acquisitions": "Dunn's HVAC Plumbing, & Electrical (2026), Nick's Plumbing & Air Conditioning (2025), Elite Electric, Plumbing & Air (2024), David Gray (2024), Ace Solves It All (2024), Pro-Tech (2023), McCutcheon Heating & Air (2023), Valley Heating & Cooling (2023), M.E. Flow (2022)",
-            "Investments": null,
-            "Overall Score": 10.0,
-            "Commentary": "Southern Home Services specializes in residential heating, air conditioning, plumbing, and electrical services, offering repair, maintenance, and installation to homeowners. This aligns very closely with Del-Air’s core residential HVAC and home-comfort service model, including similar repair and maintenance focus and B2C delivery."
-        },
-        {
-            "Permalink": "united-home-services-3794",
-            "Name": "United Home Services",
-            "Website": "unitedhomeservices.com",
-            "HQ City": "Walnutport",
-            "HQ Country": "United States",
-            "HQ Continent": "North America",
-            "Founded": "1996",
-            "Type": "Private",
-            "Operating Status": "Operating",
-            "Product Category": null,
-            "Core Offering": null,
-            "Product Catalog": null,
-            "Employees (Crunchbase)": "11-50",
-            "Employees (LinkedIn)": null,
-            "Funding Stage": null,
-            "Total Funding": null,
-            "Last Funding Date": null,
-            "Key Investors": null,
-            "Revenue": null,
-            "Ticker": null,
-            "EBITDA": null,
-            "Net Income": null,
-            "EBITDA Margin (%)": null,
-            "Net Income Margin (%)": null,
-            "EPS Diluted": null,
-            "ROA (%)": null,
-            "Unlevered FCF": null,
-            "D/E": null,
-            "Market Cap": null,
-            "Enterprise Value": null,
-            "EV/Revenue (LTM)": null,
-            "EV/EBITDA (LTM)": null,
-            "P/E (LTM)": null,
-            "Acquisitions": null,
-            "Investments": null,
-            "Overall Score": 5.0,
-            "Commentary": "United Home Services primarily installs and repairs air ducts, dryer vents, and chimneys, with additional home services including AC installation, maintenance, and repair. Compared with Del-Air’s direct residential HVAC repair, installation, and maintenance, it overlaps on HVAC services but is less explicitly focused and described more broadly around air quality infrastructure."
-        },
-        {
-            "Permalink": "acs-home-services",
-            "Name": "ACS Home Services",
-            "Website": "acshomeservices.com",
-            "HQ City": "Sarasota",
-            "HQ Country": "United States",
-            "HQ Continent": "North America",
-            "Founded": null,
-            "Type": "Private",
-            "Operating Status": "Operating",
-            "Product Category": "Home Repair and Maintenance",
-            "Core Offering": "ACS Home Services specializes in providing comprehensive HVAC, plumbing, and electrical services for residential and commercial properties, including installations, repairs, and routine maintenance.",
-            "Product Catalog": "HVAC services, Plumbing repairs, Electrical services, Drain cleaning, Water heater services",
-            "Employees (Crunchbase)": "11-50",
-            "Employees (LinkedIn)": null,
-            "Funding Stage": null,
-            "Total Funding": null,
-            "Last Funding Date": null,
-            "Key Investors": null,
-            "Revenue": null,
-            "Ticker": null,
-            "EBITDA": null,
-            "Net Income": null,
-            "EBITDA Margin (%)": null,
-            "Net Income Margin (%)": null,
-            "EPS Diluted": null,
-            "ROA (%)": null,
-            "Unlevered FCF": null,
-            "D/E": null,
-            "Market Cap": null,
-            "Enterprise Value": null,
-            "EV/Revenue (LTM)": null,
-            "EV/EBITDA (LTM)": null,
-            "P/E (LTM)": null,
-            "Acquisitions": null,
-            "Investments": null,
-            "Overall Score": 9.0,
-            "Commentary": "ACS Home Services primarily provides HVAC, plumbing, and electrical repair, installation, and maintenance for residential and commercial properties, including 24/7 emergency support. This aligns closely with Del-Air’s core residential home services in HVAC, repair, and maintenance, though ACS includes broader home-safety and additional site-specific services and operates with fewer employees."
-        },
-        {
-            "Permalink": "brothers",
-            "Name": "Brothers",
-            "Website": "brothersplumbing.com",
-            "HQ City": "Denver",
-            "HQ Country": "United States",
-            "HQ Continent": "North America",
-            "Founded": "1980",
-            "Type": "Private",
-            "Operating Status": "Operating",
-            "Product Category": "Plumbing HVAC Electrical Services",
-            "Core Offering": "Brothers provides comprehensive home services including plumbing, heating, electrical, and air conditioning repairs and installations, focusing on customer satisfaction and efficiency.",
-            "Product Catalog": "Plumbing services, Heating and cooling solutions, Electrical repairs, Sewer and drain services, Water filtration systems",
-            "Employees (Crunchbase)": "101-250",
-            "Employees (LinkedIn)": 44,
-            "Funding Stage": null,
-            "Total Funding": null,
-            "Last Funding Date": null,
-            "Key Investors": null,
-            "Revenue": null,
-            "Ticker": null,
-            "EBITDA": null,
-            "Net Income": null,
-            "EBITDA Margin (%)": null,
-            "Net Income Margin (%)": null,
-            "EPS Diluted": null,
-            "ROA (%)": null,
-            "Unlevered FCF": null,
-            "D/E": null,
-            "Market Cap": null,
-            "Enterprise Value": null,
-            "EV/Revenue (LTM)": null,
-            "EV/EBITDA (LTM)": null,
-            "P/E (LTM)": null,
-            "Acquisitions": null,
-            "Investments": null,
-            "Overall Score": 10.0,
-            "Commentary": "Brothers primarily provides residential plumbing, heating, cooling (HVAC), drain services, waterproofing, and electrical repairs and installations. This operationally matches Del-Air’s home-services focus across HVAC, plumbing, and electrical with comparable repair and installation offerings."
-        },
-        {
-            "Permalink": "home-alliance-a990",
-            "Name": "Home Alliance",
-            "Website": "homealliance.com",
-            "HQ City": "Los Angeles",
-            "HQ Country": "United States",
-            "HQ Continent": "North America",
-            "Founded": "2019",
-            "Type": "Private",
-            "Operating Status": "Operating",
-            "Product Category": "Home Repair And Maintenance Services",
-            "Core Offering": "Home Alliance offers appliance repair, plumbing, HVAC, electrical services, and solar panel installations for residential customers, ensuring reliable home maintenance and emergency repairs.",
-            "Product Catalog": "Appliance Repair, Plumbing Services, Heating & Air Conditioning Services, Electrical Services, Solar Installation",
-            "Employees (Crunchbase)": "101-250",
-            "Employees (LinkedIn)": 9,
-            "Funding Stage": "Seed",
-            "Total Funding": 5000000.0,
-            "Last Funding Date": "2024-06-01",
-            "Key Investors": [
-                "Lago Innovation Fund"
-            ],
-            "Revenue": null,
-            "Ticker": null,
-            "EBITDA": null,
-            "Net Income": null,
-            "EBITDA Margin (%)": null,
-            "Net Income Margin (%)": null,
-            "EPS Diluted": null,
-            "ROA (%)": null,
-            "Unlevered FCF": null,
-            "D/E": null,
-            "Market Cap": null,
-            "Enterprise Value": null,
-            "EV/Revenue (LTM)": null,
-            "EV/EBITDA (LTM)": null,
-            "P/E (LTM)": null,
-            "Acquisitions": null,
-            "Investments": null,
-            "Overall Score": 8.0,
-            "Commentary": "Home Alliance primarily delivers residential home repair and maintenance through technician-dispatched services for HVAC, plumbing, and electrical, with online booking and $99 membership benefits. This is a close operational match to Del-Air’s repair, installation, and maintenance focus, though Home Alliance adds broader appliance repair and solar."
+response = requests.post(
+    "https://api.wokelo.ai/api/enterprise/company-peers/enrich/",
+    headers={
+        "Authorization": "Bearer <YOUR_API_TOKEN>",
+        "Content-Type": "application/json"
+    },
+    json={
+        "company": "del-air",
+        "parameters": {
+            "detailed_query": "Residential home services companies",
+            "sample_companies": ["service-titan", "angi"],
+            "geography": ["USA"],
+            "company_type": "private"
         }
-    ]
+    }
+)
+request_id = response.json()["request_id"]
+print("Job submitted:", request_id)
+```
+
+</CodeGroup>
+
+**Step 2 — Poll for completion**
+
+```python
+import time
+
+while True:
+    status_resp = requests.get(
+        f"https://api.wokelo.ai/api/enterprise/request/{request_id}/status/",
+        headers={"Authorization": "Bearer <YOUR_API_TOKEN>"}
+    )
+    status = status_resp.json()["status"]
+    if status == "COMPLETED":
+        break
+    elif status == "FAILED":
+        raise Exception("Job failed")
+    print(f"Status: {status} — waiting...")
+    time.sleep(5)
+```
+
+**Step 3 — Read results**
+
+```python
+result_resp = requests.get(
+    f"https://api.wokelo.ai/api/enterprise/request/{request_id}/result/",
+    headers={"Authorization": "Bearer <YOUR_API_TOKEN>"}
+)
+peers = result_resp.json()["result"]
+for p in peers:
+    print(p["Name"], "—", p.get("Product Category"), "— Score:", p.get("Overall Score"))
+```
+
+---
+
+## 3. Authentication
+
+All requests must include a **Bearer token** in the `Authorization` HTTP header. No other authentication method is supported.
+
+```text
+Authorization: Bearer <YOUR_API_TOKEN>
+```
+
+API tokens are issued from your Wokelo account. Navigate to **Settings → API Keys** in the Wokelo dashboard to generate or rotate a key. Contact [support@wokelo.ai](mailto:support@wokelo.ai) if you do not yet have API access.
+
+<Warning>
+  Never expose your token in client-side code, browser requests, or public repositories. A missing or invalid token returns `401 Unauthorized`. A valid token without sufficient plan permissions returns `403 Forbidden`.
+</Warning>
+
+---
+
+## 4. Request Reference
+
+**Endpoint**
+
+```text
+POST https://api.wokelo.ai/api/enterprise/company-peers/enrich/
+```
+
+The request body is JSON. Only `company` is required; all `parameters` fields are optional refinements. The `parameters` object itself **must always be included in the request body** — pass empty values (`""`, `[]`, `{}`) for any fields you do not want to filter on.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `company` | string | **Required** | Permalink (e.g. `"del-air"`) or full URL of the **seed company** whose peers you want to find. Use the [Company Search API](/supporting-apis-doc) to resolve a permalink if needed. |
+| `parameters.detailed_query` | string | Optional | A natural-language description that refines what "similar" should mean for this run (e.g. focusing on a specific product line, customer segment, or business model). Highly recommended when the seed company is multi-product or operates across multiple segments. |
+| `parameters.sample_companies` | string\[\] | Optional | Permalinks (e.g. `"service-titan"`) or full URLs of additional representative companies to anchor the peer set. Use when you want to bias results toward a particular flavour of competitor. |
+| `parameters.geography` | string\[\] | Optional | Geographic scope as [ISO country codes](/iso-country-codes) (e.g. `["USA", "GBR"]`). Defaults to global if omitted. |
+| `parameters.company_type` | string | Optional | Ownership type filter. Accepted values: `"private"`, `"public"`, `"all"`. Defaults to `"all"`. |
+| `parameters.employee_count` | string\[\] | Optional | Headcount band filter. Accepted values: `"1-10"`, `"11-50"`, `"51-100"`, `"101-250"`, `"251-500"`, `"501-1000"`, `"1001-5000"`, `"5001-10000"`, `"10000+"`. Empty array = all. |
+| `parameters.founded_year` | object | Optional | Filter by founding year. Accepts `{ "from": 2010 }`, `{ "to": 2020 }`, or both. |
+| `parameters.funding_stage` | string\[\] | Optional | Filter by most-recent funding stage. Accepted values: `"Non-Equity Assistance"`, `"Angel round"`, `"Pre-seed"`, `"Seed"`, `"Series A"` through `"Series J"`, `"Corporate-Funded"`, `"Debt-Funded"`, `"Private equity round"`, `"Others"`. Empty array = all. |
+| `parameters.total_funding` | object | Optional | Filter by total funding raised in USD. Accepts `{ "from": 1000000 }`, `{ "to": 50000000 }`, or both. |
+| `parameters.last_funding_round` | object | Optional | Filter by last funding round size in USD. Accepts `from` and/or `to` values. |
+| `parameters.revenue` | object | Optional | Filter by annual revenue in USD. Accepts `from` and/or `to` values. Most useful when combined with `company_type: "public"`. |
+| `parameters.ebitda` | object | Optional | Filter by EBITDA (USD). Accepts `from` and/or `to` values. |
+| `parameters.net_income` | object | Optional | Filter by net income (USD). Accepts `from` and/or `to` values. |
+| `parameters.ev_ebitda` | object | Optional | Filter by EV/EBITDA multiple. Accepts `from` and/or `to` values. |
+
+**Full request example:**
+
+<CodeGroup>
+
+```bash cURL
+curl --location 'https://api.wokelo.ai/api/enterprise/company-peers/enrich/' \
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "company": "del-air",
+    "parameters": {
+      "detailed_query": "Residential HVAC, plumbing, and electrical service contractors",
+      "sample_companies": ["wrench-group", "horizon-services"],
+      "geography": ["USA"],
+      "company_type": "private",
+      "employee_count": ["101-250", "251-500", "501-1000"],
+      "founded_year": { "from": 1980 }
+    }
+  }'
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    "https://api.wokelo.ai/api/enterprise/company-peers/enrich/",
+    headers={
+        "Authorization": "Bearer <YOUR_API_TOKEN>",
+        "Content-Type": "application/json"
+    },
+    json={
+        "company": "del-air",
+        "parameters": {
+            "detailed_query": "Residential HVAC, plumbing, and electrical service contractors",
+            "sample_companies": ["wrench-group", "horizon-services"],
+            "geography": ["USA"],
+            "company_type": "private",
+            "employee_count": ["101-250", "251-500", "501-1000"],
+            "founded_year": {"from": 1980}
+        }
+    }
+)
+print(response.json())
+```
+
+</CodeGroup>
+
+---
+
+## 5. Response
+
+### Job submission response
+
+When you submit the job, you receive a response immediately with a `request_id` and an initial `status`.
+
+```json
+{
+  "request_id": "450c0d25-c83b-4fc7-8713-f96b63db7843",
+  "status": "PENDING"
 }
 ```
 
-## Best Pratices
+| Field | Type | Description |
+| --- | --- | --- |
+| `request_id` | string | Unique identifier for this job. Use it to poll status and retrieve results. |
+| `status` | string | Initial job state. One of `"PENDING"`, `"PROCESSING"`, `"COMPLETED"`, `"FAILED"`. |
 
-- Use sample\_companies to anchor the search around known players and guide the algorithm toward the right sub-market.
-- Combine multiple filters (funding\_stage \+ geography \+ employee\_count) for better results.
+### Completed result response
+
+Once `status` is `"COMPLETED"`, the result contains a `result` array of peer company objects.
+
+```json
+{
+  "request_id": "450c0d25-c83b-4fc7-8713-f96b63db7843",
+  "status": "COMPLETED",
+  "result": [ ...peer objects... ]
+}
+```
+
+### Peer object fields
+
+Each object in the `result` array contains the following fields:
+
+**Identity & firmographics**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `Permalink` | string | Wokelo company identifier (e.g. `"horizon-services"`). Use this with other Wokelo APIs. |
+| `Name` | string | Display name of the peer company. |
+| `Website` | string | Primary domain (e.g. `"horizonservices.com"`). |
+| `HQ City` | string | Headquarters city. |
+| `HQ Country` | string | Headquarters country. |
+| `HQ Continent` | string | Headquarters continent. |
+| `Founded` | string or null | Year the company was founded. |
+| `Type` | string | Ownership type: `"Public"` or `"Private"`. |
+| `Operating Status` | string | Current operational status (e.g. `"Operating"`, `"Acquired"`, `"IPO"`). |
+
+**Product & business**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `Product Category` | string or null | High-level category describing the peer's primary product (e.g. `"Residential Plumbing HVAC Services"`). |
+| `Core Offering` | string or null | AI-generated paragraph describing the peer's core business and product. |
+| `Product Catalog` | string or null | Comma-separated list of key products and services offered. |
+
+**People & funding**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `Employees (Crunchbase)` | string | Employee count band from Crunchbase (e.g. `"251-500"`). |
+| `Employees (LinkedIn)` | integer or null | Employee count from LinkedIn. May be null. |
+| `Funding Stage` | string or null | Most recent funding stage (e.g. `"Private equity round"`). May be null for non-funded companies. |
+| `Total Funding` | float or null | Total disclosed funding raised in USD. |
+| `Last Funding Date` | string or null | Date of the most recent funding round (`YYYY-MM-DD`). |
+| `Key Investors` | string\[\] or null | Array of notable investors. |
+
+**Financials (primarily for public companies)**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `Revenue` | float or null | Annual revenue in USD. |
+| `Ticker` | string or null | Exchange and ticker symbol (e.g. `"NYSE:ABC"`). |
+| `EBITDA` | float or null | Earnings before interest, taxes, depreciation, and amortisation. |
+| `Net Income` | float or null | Net income in USD. |
+| `EBITDA Margin (%)` | float or null | EBITDA as a percentage of revenue. |
+| `Net Income Margin (%)` | float or null | Net income as a percentage of revenue. |
+| `EPS Diluted` | float or null | Diluted earnings per share. |
+| `ROA (%)` | float or null | Return on assets. |
+| `Unlevered FCF` | float or null | Unlevered free cash flow in USD. |
+| `D/E` | float or null | Debt-to-equity ratio. |
+| `Market Cap` | float or null | Market capitalisation in USD. |
+| `Enterprise Value` | float or null | Enterprise value in USD. |
+| `EV/Revenue (LTM)` | float or null | Enterprise value to last-twelve-months revenue multiple. |
+| `EV/EBITDA (LTM)` | float or null | Enterprise value to LTM EBITDA multiple. |
+| `P/E (LTM)` | float or null | Price-to-earnings ratio on LTM basis. |
+
+**M&A history**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `Acquisitions` | string or null | Comma-separated list of past acquisitions with year (e.g. `"Hutchinson Plumbing (2020), Casteel (2017)"`). |
+| `Investments` | string or null | Notable investments made by the peer. May be null. |
+
+**AI similarity scoring**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `Overall Score` | float | Similarity score (1–10) measuring how closely the peer matches the seed company on product, customer segment, business model, and geography. Higher = closer match. |
+| `Commentary` | string | AI-written paragraph explaining the similarity to the seed company — calling out specific product overlaps, geographic differences, scale differences, and any unique offerings of the peer. |
+
+<Info>
+  The Competitor List API focuses on **similarity to a seed company**, so its AI scoring is a single composite `Overall Score` plus a `Commentary` paragraph. This is intentionally simpler than Buyer or Target Screening, which return multiple sub-scores (feasibility, precedent, synergy) because they evaluate a _deal_, not just similarity. Read the `Commentary` carefully — it's where the AI explains _why_ a peer was scored as such.
+</Info>
+
+---
+
+## 6. Examples
+
+### Building a peer set for a private company
+
+Find U.S.-based private companies similar to Del-Air, focused on residential home services. Filter to peers of comparable scale and rank by similarity.
+
+<CodeGroup>
+
+```bash cURL
+curl --location 'https://api.wokelo.ai/api/enterprise/company-peers/enrich/' \
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "company": "del-air",
+    "parameters": {
+      "detailed_query": "Residential home services companies",
+      "geography": ["USA"],
+      "company_type": "private"
+    }
+  }'
+```
+
+```python Python
+import requests, time
+
+HEADERS = {
+    "Authorization": "Bearer <YOUR_API_TOKEN>",
+    "Content-Type": "application/json"
+}
+
+# Submit
+job = requests.post(
+    "https://api.wokelo.ai/api/enterprise/company-peers/enrich/",
+    headers=HEADERS,
+    json={
+        "company": "del-air",
+        "parameters": {
+            "detailed_query": "Residential home services companies",
+            "geography": ["USA"],
+            "company_type": "private"
+        }
+    }
+).json()
+
+request_id = job["request_id"]
+
+# Poll
+while True:
+    s = requests.get(
+        f"https://api.wokelo.ai/api/enterprise/request/{request_id}/status/",
+        headers=HEADERS
+    ).json()["status"]
+    if s == "COMPLETED": break
+    time.sleep(5)
+
+# Retrieve and rank by similarity
+peers = requests.get(
+    f"https://api.wokelo.ai/api/enterprise/request/{request_id}/result/",
+    headers=HEADERS
+).json()["result"]
+
+close_peers = sorted(
+    [p for p in peers if p.get("Overall Score", 0) >= 8],
+    key=lambda x: x["Overall Score"],
+    reverse=True
+)
+
+for p in close_peers:
+    print(f"{p['Name']} ({p['HQ City']}) — Score: {p['Overall Score']}")
+    print(f"  {p.get('Product Category', 'n/a')}")
+```
+
+</CodeGroup>
+
+**Sample response (excerpt):**
+
+```json
+{
+  "request_id": "450c0d25-c83b-4fc7-8713-f96b63db7843",
+  "status": "COMPLETED",
+  "result": [
+    {
+      "Permalink": "horizon-services",
+      "Name": "Horizon Services",
+      "Website": "horizonservices.com",
+      "HQ City": "Wilmington",
+      "HQ Country": "United States",
+      "Founded": "1987",
+      "Type": "Private",
+      "Operating Status": "Acquired",
+      "Product Category": "Residential Plumbing HVAC Services",
+      "Core Offering": "Horizon Services provides plumbing, heating, and air conditioning services, including installation, maintenance, and repair, primarily for residential customers.",
+      "Employees (Crunchbase)": "501-1000",
+      "Employees (LinkedIn)": 446,
+      "Acquisitions": "Hutchinson Plumbing Heating Cooling (2020), Casteel (2017), Gold Medal Service (2017)",
+      "Overall Score": 9.0,
+      "Commentary": "Horizon Services primarily delivers residential plumbing, heating, and air conditioning services, including installation, maintenance, and repair, plus drain cleaning and sewer repair. This maps closely to Del-Air's HVAC and home services model with strong evidence of direct residential service operations and regional leadership in that category."
+    },
+    {
+      "Permalink": "the-wrench-group",
+      "Name": "Wrench Group",
+      "Website": "wrenchgroup.com",
+      "HQ City": "Marietta",
+      "HQ Country": "United States",
+      "Founded": "2015",
+      "Type": "Private",
+      "Operating Status": "Acquired",
+      "Product Category": "Home Repair Maintenance Services",
+      "Funding Stage": "Debt-Funded",
+      "Total Funding": 1300000000.0,
+      "Key Investors": ["Oak Hill Capital Partners", "Crescent Capital Group", "TSG Consumer Partners", "Blue Owl"],
+      "Acquisitions": "Lindstrom Air Conditioning & Plumbing (2024), Superior Service (2022), Nexgen (2022), Buckeye Heating & Cooling (2021), Williams Comfort Air (2021)",
+      "Overall Score": 9.0,
+      "Commentary": "Wrench Group primarily provides residential home repair, replacement, and maintenance services specializing in HVAC, plumbing, and electrical, including heating and air conditioning installation, repair, and maintenance. Its multi-brand, direct-to-consumer model and emergency/service-center approach align closely with Del-Air's core residential HVAC and related home services across major U.S. metros."
+    }
+  ]
+}
+```
+
+### Competitive landscape for a public software company
+
+Build a peer set for a public SaaS company to support valuation work or competitive positioning. Restrict to public peers and use revenue filters to find comparables of similar scale.
+
+```python
+import requests
+
+response = requests.post(
+    "https://api.wokelo.ai/api/enterprise/company-peers/enrich/",
+    headers={
+        "Authorization": "Bearer <YOUR_API_TOKEN>",
+        "Content-Type": "application/json"
+    },
+    json={
+        "company": "crowdstrike",
+        "parameters": {
+            "detailed_query": "Public cybersecurity platforms covering endpoint protection, XDR, and cloud security",
+            "company_type": "public",
+            "revenue": {"from": 200000000}
+        }
+    }
+)
+print(response.json()["request_id"])
+```
+
+### Roll-up sourcing for a PE platform
+
+Find regional competitors and add-on targets similar to a platform company. Narrow the `detailed_query` to the platform's core service lines and use `geography`, `employee_count`, and `total_funding` filters to find absorbable players.
+
+```python
+import requests
+
+response = requests.post(
+    "https://api.wokelo.ai/api/enterprise/company-peers/enrich/",
+    headers={
+        "Authorization": "Bearer <YOUR_API_TOKEN>",
+        "Content-Type": "application/json"
+    },
+    json={
+        "company": "del-air",
+        "parameters": {
+            "detailed_query": "Regional residential HVAC and plumbing contractors suitable for roll-up consolidation",
+            "geography": ["USA"],
+            "company_type": "private",
+            "employee_count": ["51-100", "101-250", "251-500"],
+            "total_funding": {"to": 50000000}
+        }
+    }
+)
+print(response.json()["request_id"])
+```
+
+### Disambiguating a multi-product seed with `detailed_query`
+
+When the seed company operates across multiple product lines, use `detailed_query` to focus the peer set on a specific segment. Without this, the API returns peers matching the broadest interpretation of the seed.
+
+```python
+# Without detailed_query: returns broad set of "Amazon-like" companies
+# With detailed_query: returns peers specifically in cloud infrastructure
+import requests
+
+response = requests.post(
+    "https://api.wokelo.ai/api/enterprise/company-peers/enrich/",
+    headers={
+        "Authorization": "Bearer <YOUR_API_TOKEN>",
+        "Content-Type": "application/json"
+    },
+    json={
+        "company": "amazon",
+        "parameters": {
+            "detailed_query": "Public cloud infrastructure and platform providers (IaaS/PaaS), not retail or marketplaces",
+            "sample_companies": ["microsoft-azure", "google-cloud"],
+            "company_type": "public"
+        }
+    }
+)
+print(response.json()["request_id"])
+```
+
+### Exporting the peer set to CSV
+
+Retrieve results and export the ranked peer set to CSV for valuation work, board decks, or CRM upload.
+
+```python
+import requests, csv, time
+
+HEADERS = {"Authorization": "Bearer <YOUR_API_TOKEN>"}
+
+# ... (submit job and poll as shown above) ...
+
+peers = requests.get(
+    f"https://api.wokelo.ai/api/enterprise/request/{request_id}/result/",
+    headers=HEADERS
+).json()["result"]
+
+with open("peer_set.csv", "w", newline="") as f:
+    fields = [
+        "Name", "Permalink", "Website", "HQ City", "HQ Country",
+        "Founded", "Type", "Operating Status", "Product Category",
+        "Employees (Crunchbase)", "Funding Stage", "Total Funding",
+        "Revenue", "EBITDA", "Market Cap", "EV/Revenue (LTM)", "EV/EBITDA (LTM)",
+        "Acquisitions", "Overall Score", "Commentary"
+    ]
+    writer = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
+    writer.writeheader()
+    writer.writerows(peers)
+
+print(f"Exported {len(peers)} peers to peer_set.csv")
+```
+
+---
+
+## 7. Error Handling
+
+The API uses standard HTTP status codes. All error responses include a JSON body with a `detail` or `message` field.
+
+| Status | Meaning | Cause & Resolution |
+| --- | --- | --- |
+| `200 OK` / `202 Accepted` | Success | Job submitted (`202`) or result retrieved (`200`) successfully. |
+| `400 Bad Request` | Invalid parameters | A required field is missing or a parameter value is invalid — e.g. missing `parameters` object, unrecognised `funding_stage`, or malformed `founded_year` object. Check the `detail` field. |
+| `401 Unauthorized` | Auth failed | The `Authorization` header is missing, malformed, or contains an invalid token. Verify your key in **Settings → API Keys**. |
+| `403 Forbidden` | Insufficient access | Your plan does not include access to this endpoint. Contact [support@wokelo.ai](mailto:support@wokelo.ai) to review your plan. |
+| `404 Not Found` | Resource not found | The seed `company` permalink could not be resolved, a `sample_companies` permalink is invalid, or the `request_id` does not exist. Use the [Company Search API](/supporting-apis-doc) to verify permalinks. |
+| `429 Too Many Requests` | Rate limit exceeded | Implement exponential back-off. The response includes a `Retry-After` header. |
+| `500 Internal Server Error` | Server error | Retry after a brief delay. If the issue persists, contact [support@wokelo.ai](mailto:support@wokelo.ai) with your `request_id`. |
+
+**Error response example:**
+
+```json
+{
+  "status": "error",
+  "detail": "Company permalink 'unknown-co' could not be resolved."
+}
+```
+
+**Job failure handling:**
+
+```python
+import requests, time
+
+def poll_until_done(request_id, headers, interval=5, timeout=600):
+    elapsed = 0
+    while elapsed < timeout:
+        resp = requests.get(
+            f"https://api.wokelo.ai/api/enterprise/request/{request_id}/status/",
+            headers=headers
+        ).json()
+        status = resp["status"]
+        if status == "COMPLETED":
+            return True
+        elif status == "FAILED":
+            raise Exception(f"Job {request_id} failed: {resp.get('detail', 'unknown error')}")
+        time.sleep(interval)
+        elapsed += interval
+    raise TimeoutError(f"Job {request_id} did not complete within {timeout}s")
+```
+
+---
+
+## 8. Best Practices
+
+**Use `detailed_query` to focus multi-product seed companies**
+
+If the seed company spans multiple product lines or segments (e.g. Amazon, Microsoft, Salesforce), the peer set can drift toward whichever segment the AI infers as dominant. Use `detailed_query` to lock the run to a specific segment — for example, _"Public cloud infrastructure and platform providers, not retail"_ for Amazon, or _"CRM and customer data platforms, excluding analytics tools"_ for Salesforce. For single-product seed companies, `detailed_query` is often unnecessary.
+
+**Anchor the peer set with `sample_companies` when the seed is niche or ambiguous**
+
+For niche businesses, regional players, or companies whose public profile is thin, supply 2–4 representative permalinks in `sample_companies` to bias the search toward the right flavour of competitor. Use the [Company Search API](/supporting-apis-doc) to resolve company names to permalinks.
+
+**Always include the full `parameters` object**
+
+Even when you don't want to filter on a field, the API expects the `parameters` object to be present. Pass empty values (`""`, `[]`, `{}`) for unused filters. Omitting `parameters` entirely returns a `400 Bad Request`.
+
+**Tier peers by `Overall Score` before review**
+
+Sort results descending by `Overall Score` and segment into tiers (e.g. 9–10: Direct competitors, 7–8: Close peers, 5–6: Adjacent, below 5: Tangential) for efficient triage. The `Commentary` paragraph then explains _why_ each peer was scored — calling out specific product overlaps, geographic differences, or scale differences worth knowing before downstream work.
+
+**Read the `Commentary` to validate the peer set**
+
+The `Commentary` is the most diagnostic signal in the response. A peer with a high `Overall Score` but a commentary noting "narrower geographic focus" or "broader product scope" is still useful context for benchmarking or competitive positioning. Use the commentary to decide which peers to include in a final comparable set.
+
+**Combine filters thoughtfully for valuation comparables**
+
+When building a comparable set for valuation, layer `company_type`, `revenue`, `ebitda`, and `ev_ebitda` filters to find peers at similar financial scale. For public-company comparables, set `company_type: "public"` so financial fields are reliably populated. For private-company peers, use `funding_stage`, `total_funding`, and `employee_count` instead since financial fields will mostly be null.
+
+**Compare against Market Map when defining a market**
+
+If your seed company is a clear category-defining player and you want to map the full category, run Competitor List first to get the strongest direct peers, then run [Market Map](/market-map-doc) with the category as the topic to capture earlier-stage and tangential players Competitor List may miss. The two endpoints are complementary.
+
+**Iterate the query — treat the first run as a diagnostic**
+
+Review the top 20 peers and their commentaries from the first run, then refine `detailed_query`, swap or add `sample_companies`, or tighten filters and re-run. Two or three iterations typically produce a substantially cleaner peer set than a single pass.
+
+**Store the `request_id` for reproducibility**
+
+Each peer set is a snapshot at a point in time. Store the `request_id` alongside the seed company, parameters, and run date so you can re-retrieve the same result set later, compare runs over time as the market evolves, or audit which peer set was used for a given valuation or competitive memo.
+
+---
+
+## 9. Related APIs
+
+<CardGroup cols={3}>
+  <Card title="Market Map" icon="map" href="/market-map-doc">
+    Discover and map all companies competing in a specific market or product category — start from a topic instead of a single seed company.
+  </Card>
+
+  <Card title="Target Screening" icon="crosshairs" href="/target-screening-doc">
+    Identify and score acquisition targets for a defined acquirer with deal-fit scoring.
+  </Card>
+
+  <Card title="Buyer Screening" icon="users" href="/buyer-screening-doc">
+    Identify and score potential acquirers for a target company.
+  </Card>
+
+  <Card title="Peer Comparison" icon="scale-balanced" href="/peer-comparison-doc">
+    Run side-by-side financial and operational comparisons across a defined peer set.
+  </Card>
+
+  <Card title="Company Deep Intelligence" icon="brain" href="/company-deep-intelligence-doc">
+    Generate deep AI intelligence on any peer — business model, financials, strategy, and M&A history.
+  </Card>
+
+  <Card title="Company Instant Enrichment" icon="bolt" href="/company-instant-enrichment-doc">
+    Synchronously enrich firmographic and financial data for any peer in the result set.
+  </Card>
+</CardGroup>
