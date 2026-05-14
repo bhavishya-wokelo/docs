@@ -3,10 +3,6 @@ title: "Buyer Screening"
 description: "Identify and score potential acquirers for a target company using AI — returns a ranked list of strategic and financial buyers with deal feasibility scores, synergy analysis, and full firmographic and financial data."
 ---
 
-<Note>
-  Fetch the complete documentation index at: [https://docs.wokelo.ai/llms.txt](https://docs.wokelo.ai/llms.txt)
-</Note>
-
 ## 1. Overview
 
 The Buyer Screening API identifies and scores potential acquirers for a defined target company. Given a target and a set of strategic criteria, Wokelo's AI pipeline searches its coverage universe, evaluates each candidate buyer against the target, and returns a ranked list with AI-generated deal scores, synergy commentary, and full financial profiles.
@@ -409,39 +405,6 @@ response = requests.post(
     }
 )
 print(response.json()["request_id"])
-```
-
-### Exporting scored buyers to CSV
-
-Retrieve results and export the AI-scored subset to a CSV for further analysis or client delivery.
-
-```python
-import requests, csv, time
-
-HEADERS = {"Authorization": "Bearer <YOUR_API_TOKEN>"}
-
-# ... (submit job and poll as shown above) ...
-
-buyers = requests.get(
-    f"https://api.wokelo.ai/api/enterprise/request/{request_id}/result/",
-    headers=HEADERS
-).json()["result"]
-
-scored = [b for b in buyers if b.get("Overall Score")]
-
-with open("buyer_universe.csv", "w", newline="") as f:
-    fields = [
-        "Name", "Ticker", "HQ Country", "Buyer Type",
-        "Revenue", "Market Cap",
-        "Overall Score", "Deal Feasibility Score",
-        "Product Synergy Score", "Deal Precedent Score", "Synergy Potential Score",
-        "Commentary"
-    ]
-    writer = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
-    writer.writeheader()
-    writer.writerows(scored)
-
-print(f"Exported {len(scored)} scored buyers to buyer_universe.csv")
 ```
 
 ---

@@ -4,10 +4,6 @@ hidden: true
 description: "Retrieve structured fundraising and investment activity data for a defined market or report — returns a complete funding round record set with amounts, stages, investor profiles, company firmographics, and news context."
 ---
 
-<Note>
-  Fetch the complete documentation index at: [https://docs.wokelo.ai/llms.txt](https://docs.wokelo.ai/llms.txt)
-</Note>
-
 ## 1. Overview
 
 The Fundraise Activity API gives you programmatic access to Wokelo's curated database of funding rounds and investment events for a given report. Each record surfaces the full round context: which company raised, at what stage, from which investors, on what date, what the company does, and relevant news coverage — all structured and ready to query.
@@ -524,86 +520,6 @@ for r in non_dilutive:
 print("\nTop grant providers:")
 for funder, count in grant_funders.most_common(10):
     print(f"  {count}x  {funder}")
-```
-
-### Exporting the funding dataset to CSV
-
-Export the full records to CSV for CRM upload, investor outreach lists, or pipeline analysis.
-
-```python
-import requests, csv
-
-HEADERS = {"Authorization": "Bearer <YOUR_API_TOKEN>"}
-
-records = list(
-    requests.post(
-        "https://api.wokelo.ai/api/enterprise/fundraise-activity/",
-        headers={**HEADERS, "Content-Type": "application/json"},
-        json={"report_id": 1009641}
-    ).json()["Grid"].values()
-)[0]
-
-fields = [
-    "Permalink", "Name", "Website",
-    "HQ City", "HQ Country", "HQ Continent",
-    "Founded", "Product Category", "Core Offering",
-    "Employees (Crunchbase)", "Employees (LinkedIn)",
-    "Funding Stage", "Funding Date", "Funding Amount ($M)"
-]
-
-# Flatten list fields for CSV
-def flatten(record):
-    flat = {k: record.get(k) for k in fields}
-    flat["Lead Investor(s)"] = "; ".join(record.get("Lead Investor(s)") or [])
-    flat["Other Investor(s)"] = "; ".join(record.get("Other Investor(s)") or [])
-    return flat
-
-csv_fields = fields + ["Lead Investor(s)", "Other Investor(s)"]
-
-with open("fundraise_activity.csv", "w", newline="") as f:
-    writer = csv.DictWriter(f, fieldnames=csv_fields, extrasaction="ignore")
-    writer.writeheader()
-    writer.writerows(flatten(r) for r in records)
-
-print(f"Exported {len(records)} funding records to fundraise_activity.csv")
-```
-
-### Loading into a pandas DataFrame for analysis
-
-For analytics workflows, load the full response into a DataFrame and filter in memory rather than making repeated API calls.
-
-```python
-import pandas as pd, requests
-
-HEADERS = {"Authorization": "Bearer <YOUR_API_TOKEN>"}
-
-data = requests.post(
-    "https://api.wokelo.ai/api/enterprise/fundraise-activity/",
-    headers={**HEADERS, "Content-Type": "application/json"},
-    json={"report_id": 1009641}
-).json()
-
-df = pd.DataFrame(list(data["Grid"].values())[0])
-
-# Convert raw dollar amount to millions
-df["Amount ($M)"] = df["Funding Amount ($M)"] / 1e6
-
-# Funding activity by year
-df["Year"] = pd.to_datetime(df["Funding Date"], errors="coerce").dt.year
-print(df.groupby("Year")["Amount ($M)"].agg(["count", "sum"]).rename(
-    columns={"count": "Rounds", "sum": "Total ($M)"}
-))
-
-# Top product categories by round count
-print(df["Product Category"].value_counts().head(10))
-
-# Stage breakdown
-print(df["Funding Stage"].value_counts())
-
-# Deduplicated company count (one row per company)
-unique_companies = df.drop_duplicates(subset="Permalink")
-print(f"\nUnique companies: {len(unique_companies)}")
-print(f"Total funding records: {len(df)}")
 ```
 
 ---
