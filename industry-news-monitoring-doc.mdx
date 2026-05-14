@@ -1,1526 +1,704 @@
 ---
 title: "Industry News Monitoring"
+description: "Fetch the latest news articles for any industry topic or sector, enriched with AI-generated summaries and geographic tags — returned synchronously with flexible date, geography, and publisher filtering."
 ---
 
-## Quick start
+## 1. Overview
 
-The Industry News Monitoring API fetches the latest news articles for a given topic, enriched with AI-generated summaries, event categories, publisher metadata, and article text.
+The Industry News Monitoring API fetches the latest news articles for a given industry topic or sector, enriched with AI-generated summaries, geographic signals, and source metadata. Results are returned synchronously in the HTTP response — no job polling required.
 
-Results are returned synchronously in the response
+This is a **synchronous GET API** — you pass a free-text topic and optional filters as URL parameters, and receive a paginated array of enriched news articles immediately.
 
-`GET: /api/enterprise/industry/news/`
+Unlike the [Company News Monitoring API](/company-news-monitoring-doc), which fetches news anchored to a specific company, this API accepts any natural-language topic — a sector, a technology, a theme, a geopolitical event, or a cross-company trend. The breadth of coverage is defined by the `topic` string and optionally narrowed by `geo` and date range.
 
-NOTE: This is a synchronous API, which means the results will be returned in the HTTP response itself.
+Each article in the response includes:
 
-Lets start with a simple one.
+- **AI summary** — a concise, machine-generated synopsis of the article's key facts and implications
+- **Geographic tags** — ISO 3166-1 alpha-3 country codes identifying which geographies are relevant to the article
+- **Publisher and source metadata** — article URL, title, publication datetime, and source attribution
+- **Article identifier** — a stable numeric `id` for deduplication across paginated requests
+
+**Common use cases:**
+
+- **Sector monitoring for investment research** — Track news on themes like "warehouse automation", "GLP-1 drugs", or "offshore wind" across a rolling 30-day window without being tied to a specific company
+- **Geopolitical and macro intelligence** — Monitor topics like "US-China trade war", "European energy security", or "emerging market debt" filtered to specific regions using the `geo` parameter
+- **LP and fund reporting** — Aggregate industry-level developments across portfolio sectors for quarterly reporting or LP briefings
+- **Market entry and expansion research** — Filter a topic to a specific country or region (e.g., "electric vehicle charging" in `IND`) to surface market-specific activity
+- **Thematic investment screening** — Use the `ai_summary` field to efficiently triage large volumes of sector news before reading full articles
+- **Regulatory and policy tracking** — Monitor topics like "data privacy regulation", "carbon border adjustment", or "AI legislation" with geographic narrowing to track jurisdiction-specific developments
+
+<Info>
+  This API is synchronous. Results are returned directly in the HTTP response — no job submission or polling required. See [How Sync APIs work](/how-sync-apis-work).
+</Info>
+
+---
+
+## 2. Quick Start
+
+**Step 1 — Make a simple request**
 
 <CodeGroup>
 
-```json cURL expandable wrap
-curl --location 'https://api.wokelo.ai/api/enterprise/industry/news/?limit=100&topic=Trade%20war' \
---header 'Authorization: Bearer Token' \
---header 'Content-Type: application/json'
+```bash cURL
+curl --location 'https://api.wokelo.ai/api/enterprise/industry/news/?topic=Trade%20war&limit=100' \
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json'
 ```
 
-```json Python expandable wrap
+```python Python
 import requests
-import json
 
-url = "https://api.wokelo.ai/api/enterprise/industry/news/?limit=100&topic=Trade war"
-
-payload = {}
-headers = {
-  'Authorization': 'Bearer Token',
-  'Content-Type': 'application/json'
-}
-
-response = requests.request("GET", url, headers=headers, data=payload)
-
-print(response.text)
+response = requests.get(
+    "https://api.wokelo.ai/api/enterprise/industry/news/",
+    headers={
+        "Authorization": "Bearer <YOUR_API_TOKEN>",
+        "Content-Type": "application/json"
+    },
+    params={
+        "topic": "Trade war",
+        "limit": 100
+    }
+)
+data = response.json()
+print(f"Retrieved {data['count']} of {data['total']} articles")
 ```
 
 </CodeGroup>
 
-The response will return a set of news articles:
+**Step 2 — Narrow by geography and date range**
 
-```json expandable
+```python
+response = requests.get(
+    "https://api.wokelo.ai/api/enterprise/industry/news/",
+    headers={"Authorization": "Bearer <YOUR_API_TOKEN>"},
+    params={
+        "topic": "Real Estate Development",
+        "geo": "ARE",
+        "start_date": "2026-04-01",
+        "end_date": "2026-04-30",
+        "limit": 100
+    }
+)
+articles = response.json()["data"]
+```
+
+**Step 3 — Work with the articles**
+
+```python
+for article in articles:
+    geo_str = ", ".join(article.get("geo", []))
+    print(f"[{geo_str}] {article['title']}")
+    print(f"  {article['published_date'][:10]}")
+    print(f"  {article['ai_summary'][:150]}...")
+    print()
+```
+
+---
+
+## 3. Authentication
+
+All requests must include a **Bearer token** in the `Authorization` HTTP header. No other authentication method is supported.
+
+```text
+Authorization: Bearer <YOUR_API_TOKEN>
+```
+
+API tokens are issued from your Wokelo account. Navigate to **Settings → API Keys** in the Wokelo dashboard to generate or rotate a key. Contact [support@wokelo.ai](mailto:support@wokelo.ai) if you do not yet have API access.
+
+<Warning>
+  Never expose your token in client-side code, browser requests, or public repositories. A missing or invalid token returns `401 Unauthorized`. A valid token without sufficient plan permissions returns `403 Forbidden`.
+</Warning>
+
+---
+
+## 4. Request Reference
+
+**Endpoint**
+
+```text
+GET https://api.wokelo.ai/api/enterprise/industry/news/
+```
+
+All parameters are passed as URL query parameters.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `topic` | string | **Required** | Free-text description of the industry, sector, or theme to monitor. The query engine matches articles by relevance to this string. Specific, descriptive topics yield tighter results than broad single-word queries. Examples: `"Warehouse Automation"`, `"GLP-1 obesity drugs"`, `"Real Estate Development"`, `"US-China trade tariffs"`. |
+| `start_date` | string | Optional | Start of the date window for articles (`YYYY-MM-DD`). Inclusive. |
+| `end_date` | string | Optional | End of the date window for articles (`YYYY-MM-DD`). Inclusive. |
+| `limit` | integer | Optional | Maximum number of articles to return. Default `100`, max `1000`. |
+| `offset` | integer | Optional | Number of articles to skip before returning results. Default `0`. Use with `limit` for pagination. |
+| `blacklisted` | string | Optional | Comma-separated list of publisher domains to exclude. Include the full domain starting with `https://` (e.g. `"https://www.prnewswire.com/"`). |
+| `geo` | string | Optional | Comma-separated list of ISO 3166-1 alpha-3 country codes to filter articles by geography (e.g. `"USA"`, `"GBR,DEU,FRA"`, `"ARE"`). Returns only articles tagged with at least one of the specified countries. |
+
+**Full request example:**
+
+<CodeGroup>
+
+```bash cURL
+curl --location 'https://api.wokelo.ai/api/enterprise/industry/news/?topic=Warehouse%20automation&start_date=2026-04-01&end_date=2026-04-30&geo=IND&limit=100&offset=0&blacklisted=https%3A%2F%2Fwww.prnewswire.com%2F' \
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json'
+```
+
+```python Python
+import requests
+
+response = requests.get(
+    "https://api.wokelo.ai/api/enterprise/industry/news/",
+    headers={
+        "Authorization": "Bearer <YOUR_API_TOKEN>",
+        "Content-Type": "application/json"
+    },
+    params={
+        "topic": "Warehouse automation",
+        "start_date": "2026-04-01",
+        "end_date": "2026-04-30",
+        "geo": "IND",
+        "limit": 100,
+        "offset": 0,
+        "blacklisted": "https://www.prnewswire.com/"
+    }
+)
+print(response.json())
+```
+
+</CodeGroup>
+
+---
+
+## 5. Response
+
+### Response structure
+
+```json
 {
-    "status": "success",
-    "data": [
-        {
-            "id": 10675990,
-            "ai_summary": "India and Canada have begun the second round of negotiations for a Comprehensive Economic Partnership Agreement (CEPA) to enhance bilateral trade and investment. The talks aim to reach a target of USD 50 billion in bilateral trade by 2030, with negotiations resuming after a pause in 2023. ",
-            "url": "https://www.business-standard.com/economy/news/india-canada-begin-second-round-of-cepa-trade-talks-to-boost-ties-126050401050_1.html",
-            "title": "India, Canada begin second round of CEPA trade talks to boost ties",
-            "published_date": "2026-05-04 11:32:28",
-            "source": "Wokelo",
-            "geo": [
-                "IND",
-                "CAN"
-            ]
-        },
-        {
-            "id": 10675563,
-            "ai_summary": "Secretary of State Marco Rubio will meet with Pope Leo XIV and Italian officials during a trip to Rome amid diplomatic tensions involving the Vatican, Italy, and the United States. The visit follows conflicts between President Trump and the Vatican, with Trump criticizing the Pope and Italy's Prime Minister. The trip is expected to occur in a context of ongoing diplomatic disagreements and public exchanges between US and Vatican leaders.",
-            "url": "https://www.nytimes.com/2026/05/04/world/europe/rubio-rome-trump-pope-italy.html",
-            "title": "Rubio to Visit Rome, Vatican Says, After Trump’s Feud With Pope and Meloni",
-            "published_date": "2026-05-04 11:32:15",
-            "source": "Wokelo",
-            "geo": [
-                "ITA"
-            ]
-        },
-        {
-            "id": 10674078,
-            "ai_summary": "Pakistan's Foreign Minister Ishaq Dar discussed regional peace efforts with Iran's Abbas Araghchi, focusing on diplomatic initiatives for stability in West Asia. The talks included Iran's 14-point proposal and ongoing US-Iran negotiations mediated by Pakistan. ",
-            "url": "https://www.deccanherald.com/world/pakistan/pakistan-foreign-minister-discusses-regional-situation-with-iranian-counterpart-3990226",
-            "title": "Pakistan-Iran Talks: FM Discusses Regional Peace Effortse",
-            "published_date": "2026-05-04 10:16:44",
-            "source": "Wokelo",
-            "geo": [
-                "PAK",
-                "IRN",
-                "USA"
-            ]
-        },
-        {
-            "id": 10672978,
-            "ai_summary": "The BJP announced that the INDI alliance has no future after election results showed internal fractures and leadership issues, criticizing Rahul Gandhi for his absence during vote counting. The party credited Prime Minister Narendra Modi's leadership for the BJP's expanding influence across states. The political commentary emphasized the perceived disintegration of the opposition bloc and the BJP's regional gains. ",
-            "url": "https://www.deccanherald.com/india/assembly-election-results-2026-indi-alliance-has-no-future-says-bjp-3990183",
-            "title": "Election results: BJP says INDI alliance has no future after trends in polls",
-            "published_date": "2026-05-04 09:24:41",
-            "source": "Wokelo",
-            "geo": [
-                "IND"
-            ]
-        },
-        {
-            "id": 10672490,
-            "ai_summary": "Nigeria’s foreign ministry summoned South Africa’s envoy to protest xenophobic attacks against Nigerian citizens. The meeting aimed to address concerns over recent events that threaten diplomatic relations. ",
-            "url": "https://www.bloomberg.com/news/articles/2026-05-04/nigeria-rebukes-south-africa-over-attacks-against-its-citizens",
-            "title": "Nigeria Rebukes South Africa Over Attacks Against Its Citizens",
-            "published_date": "2026-05-04 07:53:36",
-            "source": "Wokelo",
-            "geo": [
-                "NGA",
-                "ZAF"
-            ]
-        },
-        {
-            "id": 10672303,
-            "ai_summary": "Europe is prepared to respond if the United States proceeds with plans to increase tariffs on cars and trucks from the European Union to 25%, according to Eurogroup President Kyriakos Pierrakakis. The dispute over trade tariffs has contributed to ongoing tensions between the US and EU, amid delays in ratifying a trade agreement and recent US tariffs on steel and aluminum affecting European exports. European officials emphasize that they have met their commitments and seek predictability in trade relations. ",
-            "url": "https://financialpost.com/pmn/business-pmn/eu-seeks-us-trade-talk-but-ready-to-respond-top-official-says",
-            "title": "EU Seeks US Trade Talk, But Ready to Respond, Top Official Says",
-            "published_date": "2026-05-04 07:49:02",
-            "source": "Wokelo",
-            "geo": [
-                "NGA"
-            ]
-        },
-        {
-            "id": 10670332,
-            "ai_summary": "China has issued Announcement No. 21, declaring U.S. sanctions unenforceable on Chinese soil, in a move that effectively counters U.S. sanctions on Chinese refiners involved in Iranian oil trade. The announcement activates a long-dormant statute allowing Chinese entities to sue for damages if U.S. companies cut off Chinese refiners to comply with sanctions. This action signals a strategic shift in China's approach to U.S. sanctions and is meant as a message to the upcoming China-U.S. summit. ",
-            "url": "https://fortune.com/2026/05/04/china-announcement-21-us-sanctions-trump-xi-beijing-summit/",
-            "title": "China has a welcome mat for Trump: it just rewrote the rules on U.S. sanctions",
-            "published_date": "2026-05-04 07:00:00",
-            "source": "Wokelo",
-            "geo": [
-                "CHN"
-            ]
-        },
-        {
-            "id": 10670388,
-            "ai_summary": "The Prime Ministers of Japan and Australia agreed to deepen cooperation in energy security, defence, and critical minerals during a meeting at Australia's Parliament House on May 4, 2026. ",
-            "url": "https://www.thehindu.com/news/international/japan-australia-cooperation-on-energy-defence-and-critical-minerals/article70937615.ece",
-            "title": "Japan, Australia agree to deepen cooperation on energy, defence and critical minerals",
-            "published_date": "2026-05-04 06:42:07",
-            "source": "Wokelo",
-            "geo": [
-                "JPN",
-                "AUS"
-            ]
-        },
-        {
-            "id": 10669653,
-            "ai_summary": "Pakistan's Foreign Minister Mohammad Ishaq Dar spoke with Iran's Foreign Minister Abbas Araghchi to discuss the regional situation in the Middle East. The discussion focused on diplomatic efforts and regional tensions, with ongoing negotiations involving the United States and Iran. ",
-            "url": "https://www.tribuneindia.com/news/ceasefire-plan-discussion/pakistani-iranian-fms-discuss-regional-situation-islamabads-diplomatic-manoeuvres",
-            "title": "Pakistani, Iranian FMs discuss regional situation, Islamabad's diplomatic manoeuvres",
-            "published_date": "2026-05-04 06:25:17",
-            "source": "Wokelo",
-            "geo": [
-                "PAK",
-                "IRN",
-                "USA"
-            ]
-        },
-        {
-            "id": 10669687,
-            "ai_summary": "Singapore and New Zealand signed an agreement to keep their supply chains open during crises, aiming to serve as a model for other countries. The deal covers trade in essential goods like fuel, medical, and construction products, with potential regional expansion. ",
-            "url": "https://www.usnews.com/news/world/articles/2026-05-04/singapore-and-nz-sign-deal-to-keep-supply-chains-open-say-they-are-open-to-interest-from-other-countries",
-            "title": "Singapore and NZ Sign Deal to Keep Supply Chains Open, Say They Are Open to Interest From Other Countries",
-            "published_date": "2026-05-04 05:48:49",
-            "source": "Wokelo",
-            "geo": [
-                "SGP",
-                "NZL"
-            ]
-        },
-        {
-            "id": 10672166,
-            "ai_summary": "Singapore and New Zealand signed an agreement to keep their supply chains open during crises, aiming to serve as a model for other countries. The agreement, concluded in October last year, covers the trade of essential goods such as fuel, medical, and construction products. The leaders expressed openness to regional and global interest in the framework to promote multilateralism amid geopolitical shifts. ",
-            "url": "https://www.reuters.com/world/asia-pacific/singapore-nz-sign-deal-keep-supply-chains-open-say-they-are-open-interest-other-2026-05-04/",
-            "title": "Singapore and NZ sign deal to keep supply chains open, say they are open to interest from other countries",
-            "published_date": "2026-05-04 05:48:00",
-            "source": "Wokelo",
-            "geo": [
-                "SGP",
-                "NZL"
-            ]
-        },
-        {
-            "id": 10669400,
-            "ai_summary": "India is hosting its fourth Africa summit this month after a decade to strengthen cooperation and strategic partnership with resource-rich African nations. The summit will focus on innovation, inclusive transformation, and economic support, including over $10 billion in credit lines extended to 41 African countries. ",
-            "url": "https://energy.economictimes.indiatimes.com/news/power/india-to-host-4th-india-africa-forum-summit-after-a-decade-focus-on-strategic-partnership-investment-and-innovation-across-africa/130754965",
-            "title": "India to host 4th India-Africa Forum Summit after a decade, focus on strategic partnership, investment and innovation across Africa, ETEnergyworld",
-            "published_date": "2026-05-04 05:26:03",
-            "source": "Wokelo",
-            "geo": [
-                "IND",
-                "NGA",
-                "ZAF",
-                "EGY"
-            ]
-        },
-        {
-            "id": 10669289,
-            "ai_summary": "The European Union is working to resolve the issue of Montenegro’s unilateral use of the euro, which is an obstacle to the country’s EU accession. The European Commission has shown willingness to address this issue in a pragmatic manner, with a proposed solution expected by the end of May. ",
-            "url": "https://www.bloomberg.com/news/articles/2026-05-04/montenegro-says-eu-working-to-fix-euro-issue-hindering-accession",
-            "title": "Montenegro Says EU Working to Fix Euro Issue Hindering Accession",
-            "published_date": "2026-05-04 05:00:01",
-            "source": "Wokelo",
-            "geo": [
-                "MNE"
-            ]
-        },
-        {
-            "id": 10668868,
-            "ai_summary": "The EU and Asean held a summit in Brunei to strengthen their strategic partnership amid global geopolitical tensions, focusing on enhancing trade, energy security, and regional stability. They discussed expanding economic ties, including a regional free trade agreement, and addressed issues like Russian energy supplies and Middle East conflicts. The summit aimed to boost cooperation in security, infrastructure, and sustainable development to maintain regional influence. ",
-            "url": "https://www.businesstimes.com.sg/opinion-features/asean-eu-summit-forging-strategic-front-amid-middle-east-turmoil",
-            "title": "Asean-EU summit: Forging a strategic front amid Middle East turmoil",
-            "published_date": "2026-05-04 04:53:04",
-            "source": "Wokelo",
-            "geo": [
-                "BRN"
-            ]
-        },
-        {
-            "id": 10669272,
-            "ai_summary": "Singapore and New Zealand signed a trade pact to enhance supply chain resilience and ensure the flow of critical goods such as food and energy. The agreement aims to mitigate disruptions caused by the war in Iran and includes cooperation in healthcare and food supply areas. ",
-            "url": "https://www.bloomberg.com/news/articles/2026-05-04/singapore-and-new-zealand-sign-essential-supply-trade-pact",
-            "title": "Singapore and New Zealand Sign Essential Supply Trade Pact",
-            "published_date": "2026-05-04 04:35:36",
-            "source": "Wokelo",
-            "geo": [
-                "SGP",
-                "NZL"
-            ]
-        },
-        {
-            "id": 10667464,
-            "ai_summary": "Iran is engaging diplomatically with Korea to break its international isolation amid the US-Iran conflict, including discussions about the safe passage of ships and humanitarian aid. South Korea has sent humanitarian aid and maintained pragmatic diplomatic ties, which Iran views as a counter to its isolation from Western countries. Iran is also engaging with Japan similarly and seeking to mitigate the impact of military pressure from the U.S. and its allies. ",
-            "url": "https://www.koreatimes.co.kr/world/20260504/iran-courts-korea-to-break-diplomatic-isolation-amid-us-conflict?utm_source=rss",
-            "title": "Iran courts Korea to break diplomatic isolation amid US conflict",
-            "published_date": "2026-05-04 04:32:03",
-            "source": "Wokelo",
-            "geo": [
-                "IRN",
-                "KOR",
-                "JPN"
-            ]
-        },
-        {
-            "id": 10667451,
-            "ai_summary": "Chinese Premier Wen Jiabao used the metaphor of 'dragon and elephant' to describe China-India relations during a visit in December 2010, a phrase that has since been used repeatedly by Chinese leaders in diplomatic discourse. India has largely resisted adopting this analogy, viewing it as a symbol of power imbalance rooted in historical military conflicts and mistrust. The metaphor remains a point of contention, reflecting broader tensions and differing perceptions in the bilateral relationship. ",
-            "url": "https://www.koreatimes.co.kr/world/20260504/why-does-china-portray-india-as-an-elephant-decoding-politics-of-animal-analogy?utm_source=rss",
-            "title": "Why does China portray India as an elephant? Decoding politics of animal analogy",
-            "published_date": "2026-05-04 04:32:03",
-            "source": "Wokelo",
-            "geo": [
-                "CHN",
-                "IND"
-            ]
-        },
-        {
-            "id": 10667370,
-            "ai_summary": "Trump has announced the 'Freedom Plan' aimed at supporting navigation in the Strait of Hormuz, while Iran has proposed a three-stage peace plan. An analyst from the Saban Center highlighted that Iran's distrust of the U.S. is the main obstacle to negotiations. ",
-            "url": "https://www.peoplenews.tw/articles/hot-news/30005",
-            "title": "Trump announces the 'Freedom Plan' to support freedom of navigation in the Strait of Hormuz; Iran proposes a three-stage peace plan - Minbao",
-            "published_date": "2026-05-04 03:56:53",
-            "source": "Wokelo",
-            "geo": [
-                "IRN",
-                "USA"
-            ]
-        },
-        {
-            "id": 10667238,
-            "ai_summary": "China has implemented a zero-tariff policy for 20 African countries, including South Africa, from May 2026 to April 2028, expanding export opportunities for these nations. South Africa’s trade with China increased by 33% from 2019 to 2023, with a focus on raw materials and commodities, but infrastructure limitations hinder more value-added exports. Experts believe the policy could benefit Chinese companies setting up factories in Africa but may not significantly boost African manufacturing. ",
-            "url": "https://www.businessday.co.za/news/2026-05-04-china-opens-tariff-free-trade-door-to-south-africa/",
-            "title": "China opens tariff-free trade door to South Africa",
-            "published_date": "2026-05-04 03:00:00",
-            "source": "Wokelo",
-            "geo": [
-                "CHN",
-                "ZAF"
-            ]
-        },
-        {
-            "id": 10666216,
-            "ai_summary": "The Supreme Court of India is scheduled to hear a PIL filed by advocate Ashwini Upadhyay, seeking to impose stricter norms on issuing Aadhaar cards, including limitations to children under six years and enhanced guidelines for adolescents and adults. The petition argues that the existing system has vulnerabilities that allow illegal infiltrators to obtain Aadhaar, posing risks to national security, electoral integrity, and welfare distribution. The case highlights concerns about misuse and the need for improved verification processes.",
-            "url": "https://www.tribuneindia.com/news/india/sc-to-hear-pil-seeking-stricter-norms-for-issuing-aadhaar-to-adults-today",
-            "title": "SC to hear PIL seeking stricter norms for issuing Aadhaar to adults today",
-            "published_date": "2026-05-04 02:28:49",
-            "source": "Wokelo",
-            "geo": [
-                "IND"
-            ]
-        },
-        {
-            "id": 10666545,
-            "ai_summary": "US Secretary of State Marco Rubio will meet Pope Leo in Rome this week to attempt to improve relations after recent tensions between the pontiff and US President Donald Trump. The meeting follows Trump’s critical remarks about Pope Leo's anti-war stance and his broader diplomatic disputes with Italy and Europe. The visit occurs amid ongoing transatlantic tensions over Middle East conflicts and U.S. military commitments in Europe. ",
-            "url": "https://www.koreaherald.com/article/10730699",
-            "title": "Rubio to visit Rome, meet Pope Leo after Trump row",
-            "published_date": "2026-05-04 01:56:19",
-            "source": "Wokelo",
-            "geo": [
-                "ITA"
-            ]
-        },
-        {
-            "id": 10675562,
-            "ai_summary": "Singapore and New Zealand signed the world's first legally binding bilateral supply chain resilience deal to ensure the continued flow of essential supplies during crises. The agreement includes commitments to avoid unnecessary export restrictions and facilitate the movement of goods, information sharing, and consultations during disruptions, as part of their broader Comprehensive Strategic Partnership. ",
-            "url": "https://www.businesstimes.com.sg/singapore/singapore-and-new-zealand-sign-essential-supplies-trade-deal-will-cooperate-ai-and-green-economy",
-            "title": "Singapore and New Zealand sign essential supplies trade deal, will cooperate in AI and green economy",
-            "published_date": "2026-05-04 01:00:22",
-            "source": "Wokelo",
-            "geo": [
-                "SGP",
-                "NZL"
-            ]
-        },
-        {
-            "id": 10674349,
-            "ai_summary": "China is acting to benefit from the ongoing Iran-U.S. conflict by encouraging negotiations and secretly supporting Iran's military with exports and shipments, despite its public stance of caution. The US and China are discussing Iran as the conflict impacts global markets and military resources, with China also playing a mediatory role behind the scenes. The situation influences China’s diplomatic relations with Iran, Saudi Arabia, and Pakistan, and impacts US-China strategic considerations. ",
-            "url": "https://www.nytimes.com/2026/05/03/us/politics/trump-china-iran-war.html",
-            "title": "China Seeks an Advantage With Both Trump and Iran as War Evolves",
-            "published_date": "2026-05-04 00:40:22",
-            "source": "Wokelo",
-            "geo": [
-                "CHN",
-                "IRN",
-                "USA",
-                "SAU",
-                "PAK"
-            ]
-        },
-        {
-            "id": 10665683,
-            "ai_summary": "The U.S. State Department praised Taiwan as a 'trusted and capable' partner and highlighted its relationships with countries like Eswatini during President Lai Ching-te's visit. Lai's trip was seen as significant amid China's opposition to Taiwan's diplomatic engagements, which includes Eswatini, the only African country with formal ties to Taiwan. ",
-            "url": "https://www.usnews.com/news/world/articles/2026-05-03/us-calls-taiwan-trusted-and-capable-partner-praises-its-ties-with-eswatini",
-            "title": "US Calls Taiwan 'Trusted and Capable' Partner, Praises Its Ties With Eswatini",
-            "published_date": "2026-05-04 00:37:23",
-            "source": "Wokelo",
-            "geo": [
-                "TWN",
-                "SWZ"
-            ]
-        },
-        {
-            "id": 10666198,
-            "ai_summary": "Taiwanese President Lai Ching-te visited Eswatini, a country with diplomatic ties to Taiwan, amidst Chinese opposition. The trip highlights Taiwan's international relationships, especially with the United States, despite Chinese disapproval. ",
-            "url": "https://www.reuters.com/world/china/us-calls-taiwan-trusted-capable-partner-praises-its-ties-with-eswatini-2026-05-04/",
-            "title": "US calls Taiwan 'trusted and capable' partner, praises its ties with Eswatini",
-            "published_date": "2026-05-04 00:37:00",
-            "source": "Wokelo",
-            "geo": [
-                "TWN",
-                "SWZ",
-                "CHN",
-                "USA"
-            ]
-        },
-        {
-            "id": 10664917,
-            "ai_summary": "Korea and Pakistan are initiating their first round of negotiations on a bilateral Comprehensive Economic Partnership Agreement (CEPA) to enhance trade and investment. The four-day virtual talks will focus on expanding economic cooperation in sectors such as investment, intellectual property, and trade remedies. The negotiations aim to create a platform to increase bilateral trade, which was about $1.57 billion last year. ",
-            "url": "https://www.koreatimes.co.kr/foreignaffairs/20260504/korea-pakistan-begin-1st-round-of-cepa-negotiations?utm_source=rss",
-            "title": "Korea, Pakistan begin 1st round of CEPA negotiations",
-            "published_date": "2026-05-04 00:32:03",
-            "source": "Wokelo",
-            "geo": [
-                "KOR",
-                "PAK"
-            ]
-        },
-        {
-            "id": 10665736,
-            "ai_summary": "Nepal's outgoing ambassador to India, Shankar Prasad Sharma, discussed political unrest, economic challenges, and bilateral relations between Nepal and India. He highlighted economic issues such as high youth unemployment and slow growth, as well as recent improvements in energy cooperation and connectivity projects with India. ",
-            "url": "https://indianexpress.com/article/idea-exchange/shankar-prasad-sharma-at-idea-exchange-nepal-would-like-to-balance-its-foreign-policy-relationship-because-we-need-all-our-friends-10671159/",
-            "title": "Shankar Prasad Sharma at Idea Exchange: ‘Nepal would like to balance its foreign policy relationship because we need all our friends’",
-            "published_date": "2026-05-04 00:24:44",
-            "source": "Wokelo",
-            "geo": [
-                "NPL",
-                "IND"
-            ]
-        },
-        {
-            "id": 10665267,
-            "ai_summary": "The US is starting to guide ships through the Strait of Hormuz with unclear involvement of U.S. Navy escorts, as part of a move described by President Trump as a humanitarian gesture. The move occurs amid ongoing negotiations and tensions with Iran, particularly related to Iran's nuclear program. ",
-            "url": "https://www.bloomberg.com/news/videos/2026-05-04/trump-us-to-start-guiding-trapped-ships-through-hormuz-video",
-            "title": "Watch Trump: US to Start Guiding Trapped Ships Through Hormuz",
-            "published_date": "2026-05-04 00:07:46",
-            "source": "Wokelo",
-            "geo": [
-                "USA",
-                "IRN"
-            ]
-        },
-        {
-            "id": 10664270,
-            "ai_summary": "US President Donald Trump stated that his representatives are engaging in 'very positive' discussions with Iran, indicating ongoing diplomatic efforts. Trump and other US officials suggested these talks could lead to a beneficial outcome, despite previous disagreements over Iran's proposals. Iran's Foreign Ministry mentioned receiving the US response via Pakistan, focusing on ending regional conflicts.",
-            "url": "https://www.tribuneindia.com/news/diplomacy/trump-says-us-in-very-positive-discussions-with-iran-as-negotiations-continue",
-            "title": "Trump says US in \"very positive discussions\" with Iran as negotiations continue",
-            "published_date": "2026-05-03 23:20:12",
-            "source": "Wokelo",
-            "geo": [
-                "USA",
-                "IRN"
-            ]
-        },
-        {
-            "id": 10662588,
-            "ai_summary": "The new headquarters of ECOWAS was handed over in Abuja, symbolizing regional ambition and China's aid project for West Africa. The building aims to serve as an institutional hub to enhance regional governance amid ongoing challenges in West Africa. ",
-            "url": "https://www.thisdaylive.com/2026/05/03/eye-of-west-africa-inside-ecowas-new-headquarters-and-the-china-west-africa-partnership/",
-            "title": "Eye of West Africa: Inside ECOWAS’ New Headquarters and the China–West Africa Partnership – THISDAYLIVE",
-            "published_date": "2026-05-03 20:21:01",
-            "source": "Wokelo",
-            "geo": [
-                "NGA"
-            ]
-        },
-        {
-            "id": 10662295,
-            "ai_summary": "India is engaged in a series of diplomatic events during May, including Prime Minister Narendra Modi's four-nation Europe tour and regional summits. Key focus areas include regional security, energy, and international relations with countries such as the UAE, Vietnam, and countries in Europe and Africa. ",
-            "url": "https://www.business-standard.com/external-affairs-defence-security/news/a-high-wire-diplomacy-month-for-india-amid-packed-global-engagements-126050400006_1.html",
-            "title": "A high-wire diplomacy month for India amid packed global engagements",
-            "published_date": "2026-05-03 18:47:17",
-            "source": "Wokelo",
-            "geo": [
-                "IND",
-                "ARE",
-                "VNM"
-            ]
-        },
-        {
-            "id": 10655955,
-            "ai_summary": "Iran has proposed a 30-day resolution to the conflict with the United States, calling for an end to hostilities and sanctions, amid ongoing diplomatic efforts including negotiations mediated by Pakistan. U.S. President Donald Trump is reviewing the proposal but doubts a deal can be reached. Tensions remain high over the Strait of Hormuz, Iran's economy is struggling with a weakened rial, and Iran’s political and military stance is firm, especially regarding the Strait and regional hostilities. ",
-            "url": "https://www.koreatimes.co.kr/world/20260503/iran-presses-for-end-to-war-within-30-days-as-trump-expresses-doubts?utm_source=rss",
-            "title": "Iran presses for end to war within 30 days as Trump expresses doubts",
-            "published_date": "2026-05-03 13:32:04",
-            "source": "Wokelo",
-            "geo": [
-                "IRN"
-            ]
-        },
-        {
-            "id": 10659831,
-            "ai_summary": "The government has urged Indian exporters to continue trade with West Asia, supported by various schemes and initiatives aimed at easing logistics, insurance, and credit risks. Despite a 57.9% decline in exports to the region due to geopolitical conflicts, support measures such as RELIEF and relaunching of schemes are in place to facilitate exports. ",
-            "url": "https://www.financialexpress.com/policy/economy/govt-asks-exporters-to-continue-west-asia-exports-assures-support/4226246/",
-            "title": "Govt asks exporters to continue West Asia exports, assures support",
-            "published_date": "2026-05-03 13:29:48",
-            "source": "Wokelo",
-            "geo": [
-                "IND"
-            ]
-        },
-        {
-            "id": 10624728,
-            "ai_summary": "India signed a free trade agreement with New Zealand that serves as a model for Canada as it seeks to complete a similar deal with India by 2026. The agreement between India and New Zealand was finalized quickly and is viewed positively by Canada for its potential to expedite negotiations. ",
-            "url": "https://www.hindustantimes.com/world-news/indianew-zealand-fta-seen-as-blueprint-for-canada-india-trade-deal-101777803481698.html",
-            "title": "India–New Zealand FTA seen as blueprint for Canada–India trade deal",
-            "published_date": "2026-05-03 10:18:01",
-            "source": "Wokelo",
-            "geo": [
-                "IND",
-                "NZL",
-                "CAN"
-            ]
-        },
-        {
-            "id": 10623738,
-            "ai_summary": "Taiwanese President Lai Ching-te visited Eswatini, the only African country recognizing Taiwan, amid China's diplomatic pressure that disrupted previous travel plans. The visit was aimed at strengthening bilateral relations and was met with harsh criticism from China, which claims Taiwan is part of China, while Eswatini maintains its diplomatic ties. The trip underscores ongoing tensions over Taiwan's international recognition amid China's opposition.",
-            "url": "https://www.tribuneindia.com/news/africa-diplomatic-partner/taiwan-president-lai-visits-eswatini-amidst-chinas-diplomatic-pressure",
-            "title": "Taiwan President Lai visits Eswatini amidst China's diplomatic pressure",
-            "published_date": "2026-05-03 09:55:17",
-            "source": "Wokelo",
-            "geo": [
-                "SWZ"
-            ]
-        },
-        {
-            "id": 10622713,
-            "ai_summary": "President Trump is reviewing Iran's latest proposal for a cease-fire, but he expressed doubts about its acceptability and clarified he has only been briefed on the concept rather than the details. Iran's deputy foreign minister indicated the U.S. has the choice between diplomacy and conflict, and Iran is willing to reopen the Strait of Hormuz under the new terms. ",
-            "url": "https://www.nytimes.com/2026/05/02/us/politics/trump-us-iran-plan.html",
-            "title": "Trump Says He Is Reviewing Iran’s Latest Offer but Doubts It Is Acceptable",
-            "published_date": "2026-05-03 09:12:32",
-            "source": "Wokelo",
-            "geo": [
-                "USA",
-                "IRN"
-            ]
-        },
-        {
-            "id": 10622246,
-            "ai_summary": "New Zealand Prime Minister Christopher Luxon is visiting Singapore for three days to sign a landmark trade agreement and attend the inaugural Annual Leaders’ Meeting. The agreement, Agreement on Trade in Essential Supplies, formalizes cooperation on supply chain resilience, a concept developed during the COVID-19 pandemic. ",
-            "url": "https://www.businesstimes.com.sg/singapore/economy-policy/new-zealand-pm-luxon-singapore-first-annual-leaders-meeting-supply-chain-pact-signing",
-            "title": "New Zealand PM Luxon in Singapore for first Annual Leaders’ Meeting, supply chain pact signing",
-            "published_date": "2026-05-03 08:19:06",
-            "source": "Wokelo",
-            "geo": [
-                "SGP",
-                "NZL"
-            ]
-        },
-        {
-            "id": 10622341,
-            "ai_summary": "U.S. Secretary of State Marco Rubio plans to visit the Vatican and Italy for diplomatic meetings, including discussions with Cardinal Pietro Parolin, amid recent tensions involving the U.S. and Europe.",
-            "url": "https://www.investing.com/news/world-news/us-secretary-of-state-to-travel-to-vatican-and-italy-newspapers-report-4654817",
-            "title": "US Secretary of State to travel to Vatican and Italy, newspapers report By Reuters",
-            "published_date": "2026-05-03 08:00:53",
-            "source": "Wokelo",
-            "geo": [
-                "USA",
-                "VAT"
-            ]
-        },
-        {
-            "id": 10622240,
-            "ai_summary": "US Secretary of State Marco Rubio is set to visit the Vatican and Rome from May 7 to 8 to meet with Vatican Secretary of State Pietro Parolin and Italian Foreign Minister Antonio Tajani. This visit follows a recent conflict between US President Donald Trump and Pope Leo XIV regarding immigration and anti-war rhetoric. The meetings are viewed as an effort to improve relations after Trump's criticism of the Pope's stance. ",
-            "url": "https://www.straitstimes.com/world/europe/rubio-to-visit-vatican-rome-after-trump-row-with-pope-leo",
-            "title": "Rubio to visit Vatican, Rome after Trump row with Pope Leo",
-            "published_date": "2026-05-03 08:00:00",
-            "source": "Wokelo",
-            "geo": [
-                "ITA",
-                "VAT",
-                "USA"
-            ]
-        },
-        {
-            "id": 10621946,
-            "ai_summary": "India's services exports have grown significantly in FY26, reaching $418.3 billion and accounting for 48.6% of total exports, according to the Finance Ministry's report. The sector has contributed to a net services surplus of $213.9 billion, offsetting 64.2% of the merchandise trade deficit amidst global uncertainties. ",
-            "url": "https://www.thehindubusinessline.com/economy/services-sector-drives-exports-growth-offsets-64-of-trade-deficit-in-fy26-finmin-review/article70934644.ece",
-            "title": "Services sector drives exports growth, offsets 64% of trade deficit in FY26: Finmin Review",
-            "published_date": "2026-05-03 07:31:31",
-            "source": "Wokelo",
-            "geo": [
-                "IND"
-            ]
-        },
-        {
-            "id": 10621838,
-            "ai_summary": "New Zealand Prime Minister Christopher Luxon visited Singapore from May 3 to 5 to strengthen bilateral ties and witness the signing of a trade agreement on essential supplies. The agreement aims to ensure the uninterrupted flow of critical goods like food, fuel, and medicine during crises, solidifying cooperation that has already demonstrated success during the COVID-19 pandemic. ",
-            "url": "https://www.straitstimes.com/singapore/politics/nz-pm-luxon-on-official-visit-to-spore-from-may-3-to-5-to-witness-trade-pact-on-essential-supplies",
-            "title": "NZ PM Luxon in Singapore for trade pact",
-            "published_date": "2026-05-03 07:00:00",
-            "source": "Wokelo",
-            "geo": [
-                "SGP",
-                "NZL"
-            ]
-        },
-        {
-            "id": 10622029,
-            "ai_summary": "Iran has proposed a 14-point peace plan to the United States via Pakistan, aiming to end the ongoing conflict triggered by US and Israeli actions against the Islamic State. The proposal includes demands such as lifting sanctions, releasing Iranian assets, and guarantees against future military strikes, with a timeline of 30 days for resolution. The US is considering the Iranian proposal but has expressed dissatisfaction with Iran's stated conditions and intentions. ",
-            "url": "https://www.hindustantimes.com/world-news/iran-sends-fresh-14-point-plan-trump-to-review-key-demands-from-both-sides-explained-101777789815022.html",
-            "title": "Iran sends fresh 14-point plan, Trump to review: Key demands from both sides explained",
-            "published_date": "2026-05-03 06:47:20",
-            "source": "Wokelo",
-            "geo": [
-                "IRN",
-                "USA"
-            ]
-        },
-        {
-            "id": 10621539,
-            "ai_summary": "Taiwan President Lai Ching-te conducted a surprise diplomatic visit to Eswatini, defying Chinese pressure and alleged blockade efforts. The visit, which was discreetly arranged to avoid interference, heightened tensions between Taiwan and China. ",
-            "url": "https://in.investing.com/news/economy-news/taiwans-surprise-africa-visit-defies-beijing-amid-rising-diplomatic-friction-5374850",
-            "title": "Taiwan’s “surprise” Africa visit defies Beijing amid rising diplomatic friction By Investing.com",
-            "published_date": "2026-05-03 05:32:10",
-            "source": "Wokelo",
-            "geo": [
-                "TWN",
-                "SWZ",
-                "CHN",
-                "IND",
-                "USA",
-                "EU"
-            ]
-        },
-        {
-            "id": 10621199,
-            "ai_summary": "Twin European summits in Armenia highlight increasing influence competition in the Caucasus between the US, EU, Russia, and Turkey. The US and Armenia have agreed on a 99-year partnership to develop economic infrastructure, while Russia has expressed displeasure over Armenia's move toward Western alliances. ",
-            "url": "https://financialpost.com/pmn/business-pmn/armenia-summits-show-europes-caucasus-rivalry-with-trump-putin",
-            "title": "Armenia Summits Show Europe's Caucasus Rivalry With Trump, Putin",
-            "published_date": "2026-05-03 05:19:59",
-            "source": "Wokelo",
-            "geo": [
-                "ARM",
-                "RUS",
-                "TUR"
-            ]
-        },
-        {
-            "id": 10621168,
-            "ai_summary": "The article discusses the evolving Chinese perception of the United States as China develops its own global influence, contrasting it with the past when China looked to America as a model. It highlights how President Trump's actions have contributed to China's shift in confidence and independence in setting its own course. ",
-            "url": "https://www.nytimes.com/2026/05/03/opinion/china-us-trump-summit.html",
-            "title": "Opinion | Trump Shouldn’t Expect Much From His China Trip",
-            "published_date": "2026-05-03 05:00:05",
-            "source": "Wokelo",
-            "geo": [
-                "CHN",
-                "USA"
-            ]
-        },
-        {
-            "id": 10620777,
-            "ai_summary": "Donald Trump indicated he would review a new peace proposal from Tehran but expressed doubts about its acceptance, stating Iran has not yet paid a sufficient price for its actions. The proposal, sent via Pakistan, includes conditions such as troop withdrawal, sanctions lift, and asset releases, amidst ongoing tensions and military threats. ",
-            "url": "https://www.theguardian.com/world/2026/may/03/trump-says-iran-has-not-yet-paid-a-big-enough-price-as-he-reviews-new-peace-proposal",
-            "title": "Trump says Iran has not yet ‘paid a big enough price’ as he reviews new peace proposal",
-            "published_date": "2026-05-03 03:48:09",
-            "source": "Wokelo",
-            "geo": [
-                "IRN",
-                "USA"
-            ]
-        },
-        {
-            "id": 10620262,
-            "ai_summary": "Iran stated that it is up to the United States to choose between negotiating a settlement or going to war, following US President Donald Trump's rejection of Iran's new proposal. Iran indicated it is prepared for either outcome, with peace talks currently frozen. The Iranian proposal aimed to reopen shipping in the Strait of Hormuz and lift the US blockade of Iran. ",
-            "url": "https://www.hindustantimes.com/world-news/after-trump-dismissed-another-proposal-iran-says-ball-is-in-us-court-ready-for-negotiated-settlement-or-war-101777772489265.html",
-            "title": "After Trump dismissed another proposal, Iran says ‘ball is in US’ court', ready for ‘negotiated settlement or war’",
-            "published_date": "2026-05-03 01:51:03",
-            "source": "Wokelo",
-            "geo": [
-                "IRN"
-            ]
-        },
-        {
-            "id": 10620118,
-            "ai_summary": "External Affairs Minister S Jaishankar arrived in Jamaica for his first official visit, engaging with the Jamaican leadership, business community, and Indian diaspora. The visit, part of a three-nation Caribbean tour, aims to strengthen diplomatic ties and promote South-South cooperation. ",
-            "url": "https://www.tribuneindia.com/news/bilateral-relations/pleased-to-arrive-in-kingston-eam-jaishankar-begins-his-first-visit-to-jamaica",
-            "title": "\"Pleased to arrive in Kingston\": EAM Jaishankar begins his first visit to Jamaica",
-            "published_date": "2026-05-03 01:45:16",
-            "source": "Wokelo",
-            "geo": [
-                "JAM"
-            ]
-        },
-        {
-            "id": 10619882,
-            "ai_summary": "The article discusses the impact of the US-Israel war against Iran, which began on February 28, 2026, and its repercussions on India and the global economy. It highlights India's political stance, economic challenges, and potential government measures to mitigate the war's effects. ",
-            "url": "https://indianexpress.com/article/opinion/columns/p-chidambaram-writes-mitigating-costs-of-start-stop-war-10668104/",
-            "title": "P Chidambaram writes: Mitigating costs of start-stop war",
-            "published_date": "2026-05-03 01:15:00",
-            "source": "Wokelo",
-            "geo": [
-                "IND",
-                "IRN",
-                "ISR",
-                "USA"
-            ]
-        },
-        {
-            "id": 10619885,
-            "ai_summary": "Taiwan's President Lai Ching-te made an unannounced trip to Eswatini, defying China's opposition and assertions that Taiwan is part of China. China condemned Lai's visit, calling him a 'rat' and criticizing Taiwan's right to engage internationally. ",
-            "url": "https://www.investing.com/news/world-news/taiwan-president-defiant-as-begins-eswatini-trip-china-calls-him-a-rat-4654801",
-            "title": "Taiwan president defiant as begins Eswatini trip; China calls him a ’rat’ By Reuters",
-            "published_date": "2026-05-03 01:12:26",
-            "source": "Wokelo",
-            "geo": [
-                "TWN",
-                "SWZ"
-            ]
-        },
-        {
-            "id": 10621144,
-            "ai_summary": "Taiwanese President Lai Ching-te arrived in Eswatini on a surprise visit, defying Chinese opposition to Taiwan's international engagement. The trip occurred amid China's condemnation of Lai and Taiwanese claims of sovereignty and right to engage with the world. Taiwan asserts its right to participate in global affairs despite Chinese pressure and diplomatic challenges. ",
-            "url": "https://www.reuters.com/world/china/taiwan-president-defiant-begins-eswatini-trip-china-calls-him-rat-2026-05-03/",
-            "title": "Taiwan president defiant as begins Eswatini trip; China calls him a 'rat'",
-            "published_date": "2026-05-03 01:08:00",
-            "source": "Wokelo",
-            "geo": [
-                "TWN",
-                "SWZ"
-            ]
-        },
-        {
-            "id": 10619869,
-            "ai_summary": "President Trump announced he is reviewing Iran’s latest proposal but expressed doubt about its acceptability. He emphasized he had only been briefed on the concept and has not seen full details of the deal. ",
-            "url": "https://www.nytimes.com/2026/05/02/us/politics/trump-says-he-is-reviewing-irans-latest-offer-but-doubts-it-is-acceptable.html",
-            "title": "Trump Says He Is Reviewing Iran’s Latest Offer but Doubts It Is Acceptable",
-            "published_date": "2026-05-03 00:37:00",
-            "source": "Wokelo",
-            "geo": [
-                "USA",
-                "IRN"
-            ]
-        },
-        {
-            "id": 10619081,
-            "ai_summary": "U.S. President Donald Trump indicated he had been informed about a potential deal with Iran but was awaiting the precise details, while warning of possible strikes if Iran misbehaves. An Iranian official proposed a plan to open shipping in the Strait of Hormuz and end the U.S. blockade, with talks on Iran's nuclear program to follow. The status of the negotiations and military threats highlight ongoing tensions between the U.S. and Iran.",
-            "url": "https://www.thehindu.com/news/international/israel-usa-iran-war-donald-trump-strait-of-hormuz/article70933317.ece",
-            "title": "Trump says U.S. could restart Iran strikes ‘if they misbehave’",
-            "published_date": "2026-05-03 00:17:01",
-            "source": "Wokelo",
-            "geo": [
-                "USA",
-                "IRN"
-            ]
-        },
-        {
-            "id": 10618716,
-            "ai_summary": "Iran has submitted a 14-point proposal to the United States aimed at ending the war on all fronts, including Lebanon. The proposal involves lifting naval restrictions, unfreezing assets, and removing sanctions, while demanding US troop withdrawal and security guarantees. ",
-            "url": "https://www.tribuneindia.com/news/14-point-plan/lift-naval-blockade-end-war-on-all-fronts-including-lebanon-iran-sends-14-point-counter-proposal-to-us",
-            "title": "Lift naval blockade, end war on all fronts including Lebanon: Iran sends 14-point counter-proposal to US",
-            "published_date": "2026-05-02 22:35:19",
-            "source": "Wokelo",
-            "geo": [
-                "IRN",
-                "USA"
-            ]
-        },
-        {
-            "id": 10616863,
-            "ai_summary": "A representative of Iran's Supreme Leader stated that Iran allows Indian ships through the Strait of Hormuz to demonstrate the strength of India-Iran relations. The diplomat highlighted ongoing diplomatic engagements and cultural ties, as well as recent successful conversations between Indian and Iranian leaders. An Indian cargo ship successfully crossed the Strait of Hormuz, further emphasizing the close bilateral relations.",
-            "url": "https://www.tribuneindia.com/news/bilateral-ties/representative-of-irans-supreme-leader-says-strong-india-ties-evident-by-tehran-allowing-indian-ships-through-hormuz",
-            "title": "Representative of Iran's Supreme Leader says strong India ties evident by Tehran allowing Indian ships through Hormuz",
-            "published_date": "2026-05-02 18:05:17",
-            "source": "Wokelo",
-            "geo": [
-                "IND",
-                "IRN"
-            ]
-        },
-        {
-            "id": 10617207,
-            "ai_summary": "Experts discussed the need for WTO reform and the risks of fragmentation due to plurilateral negotiations at a recent event in New Delhi. The discussion highlighted the importance of balancing flexibility with safeguards within the WTO system, with India's role being a key focus. ",
-            "url": "https://economictimes.indiatimes.com/news/economy/foreign-trade/plurilaterals-without-guardrails-can-fragment-trading-system-experts/articleshow/130722151.cms",
-            "title": "Plurilaterals without guardrails can fragment trading system: Experts - The Economic Times",
-            "published_date": "2026-05-02 18:03:14",
-            "source": "Wokelo",
-            "geo": [
-                "IND"
-            ]
-        },
-        {
-            "id": 10616864,
-            "ai_summary": "Iran's Deputy Foreign Minister, Kazem Gharibabadi, announced that Tehran's recent diplomatic proposal to the United States, mediated through Pakistan, aims to permanently end the ongoing conflict and tensions between the two countries. The proposal has been presented amidst ongoing negotiations, with Iran expressing readiness for diplomacy while maintaining distrust toward the US. ",
-            "url": "https://www.tribuneindia.com/news/diplomatic-proposal/irans-deputy-fm-says-tehrans-proposal-to-us-aimed-at-permanently-ending-imposed-war",
-            "title": "Iran's Deputy FM says Tehran's proposal to US aimed at \"permanently ending imposed war\"",
-            "published_date": "2026-05-02 17:55:26",
-            "source": "Wokelo",
-            "geo": [
-                "IRN"
-            ]
-        },
-        {
-            "id": 10617039,
-            "ai_summary": "External Affairs Minister Jaishankar made a brief stopover in Zurich while en route to Caribbean nations including Jamaica, Suriname, and Trinidad and Tobago. The visit aims to strengthen India's diplomatic relations and South-South cooperation with these countries. He is scheduled to meet with leadership, engage with business leaders, and interact with the Indian diaspora. ",
-            "url": "https://www.business-standard.com/external-affairs-defence-security/news/jaishankar-makes-stopover-in-zurich-en-route-to-3-nation-caribbean-visit-126050201049_1.html",
-            "title": "Jaishankar makes stopover in Zurich en route to 3-nation Caribbean visit",
-            "published_date": "2026-05-02 17:34:41",
-            "source": "Wokelo",
-            "geo": [
-                "CHE",
-                "JAM",
-                "SUR",
-                "TTO"
-            ]
-        },
-        {
-            "id": 10621800,
-            "ai_summary": "Iran states that the US has the decision to pursue diplomacy or confrontation following a warning of 'renewed war likely'. A senior Iranian official has indicated that a renewed conflict between Iran and the US is likely. ",
-            "url": "https://www.moneycontrol.com/world/iran-says-ball-in-us-court-on-diplomacy-or-confrontation-after-renewed-war-likely-warning-article-13906197.html",
-            "title": "Iran says ball in US court on diplomacy or confrontation after 'renewed war likely' warning",
-            "published_date": "2026-05-02 17:11:23",
-            "source": "Wokelo",
-            "geo": [
-                "IRN"
-            ]
-        },
-        {
-            "id": 10616362,
-            "ai_summary": "Indian External Affairs Minister Jaishankar made a stopover in Zurich while en route to Caribbean nations including Jamaica, Suriname, and Trinidad and Tobago. The visit aims to strengthen bilateral relations, regional cooperation, and engagement with the Indian diaspora in these countries from May 2 to May 10. ",
-            "url": "https://www.tribuneindia.com/news/caribbean-visit/eam-jaishankar-makes-stopover-in-zurich-en-route-to-3-nation-caribbean-visit",
-            "title": "EAM Jaishankar makes stopover in Zurich en route to 3-nation Caribbean visit",
-            "published_date": "2026-05-02 17:05:17",
-            "source": "Wokelo",
-            "geo": [
-                "CHE",
-                "JAM",
-                "SUR",
-                "TTO"
-            ]
-        },
-        {
-            "id": 10646779,
-            "ai_summary": "The trade agreement between Mercosur and the European Union, taking provisional effect in 2026, creates the world's largest free trade zone involving 31 countries and US$22 trillion in GDP. The agreement reduces tariffs on a range of products, benefitting sectors like agribusiness while raising concerns about increased European competition for the Brazilian industry. ",
-            "url": "https://en.clickpetroleoegas.com.br/the-planets-largest-trade-agreement-has-just-come-into-effect-uniting-31-countries-and-720-million-people-in-a-us22-trillion-free-trade-zone-mhbb01/",
-            "title": "The planet’s largest trade agreement has just come into effect, uniting 31 countries and 720 million people in a US$22 trillion free trade zone. Brazilian agribusiness celebrates billions in opportuni",
-            "published_date": "2026-05-02 16:46:34",
-            "source": "Wokelo",
-            "geo": [
-                "BRA",
-                "ARG",
-                "URY",
-                "PRY",
-                "ESP"
-            ]
-        },
-        {
-            "id": 10615819,
-            "ai_summary": "South Korea is evaluating the impact of the U.S. tariff hike on EU vehicles and its implications for the Korea-U.S. trade deal. The U.S. plans to increase tariffs on EU autos and trucks from 15% to 25%, affecting related trade dynamics. ",
-            "url": "https://www.koreatimes.co.kr/southkorea/20260503/s-korea-takes-cautious-stance-after-us-tariff-hike-on-eu?utm_source=rss",
-            "title": "S. Korea takes cautious stance after US tariff hike on EU",
-            "published_date": "2026-05-02 16:32:03",
-            "source": "Wokelo",
-            "geo": [
-                "KOR",
-                "USA",
-                "EU"
-            ]
-        },
-        {
-            "id": 10615410,
-            "ai_summary": "India's Chief Economic Advisor V Anantha Nageswaran emphasized the need for India to develop its own supply chain security framework similar to China's and the US's mechanisms, due to increasing external restrictions. He highlighted China's decrees on supply chains and extraterritorial jurisdictions, and suggested India should adopt measures akin to the US's CFIUS to protect its economic interests. The advisory comes amid China's efforts to prevent diversification away from China by foreign companies. ",
-            "url": "https://indianexpress.com/article/business/india-supply-chain-security-framework-cea-anantha-nageswaran-china-decree-834-10667982/",
-            "title": "India needs supply chain security framework like China, US: Chief Economic Advisor V Anantha Nageswaran",
-            "published_date": "2026-05-02 15:23:24",
-            "source": "Wokelo",
-            "geo": [
-                "IND",
-                "CHN"
-            ]
-        },
-        {
-            "id": 10615633,
-            "ai_summary": "France is pushing for enforceable and concrete measures in the India–EU free trade talks to address non-tariff barriers that hinder market access. The negotiations, concluded on January 27, 2026, aim to facilitate duty-free Indian exports to the EU and access for EU products to the Indian market, with steps to implement these agreements in the coming years. ",
-            "url": "https://economictimes.indiatimes.com/news/economy/foreign-trade/france-seeks-enforceable-rules-in-india-eu-fta-talks/articleshow/130719113.cms",
-            "title": "France seeks enforceable rules in India-EU FTA talks - The Economic Times",
-            "published_date": "2026-05-02 15:18:45",
-            "source": "Wokelo",
-            "geo": [
-                "FRA",
-                "IND"
-            ]
-        },
-        {
-            "id": 10615385,
-            "ai_summary": "India has appointed Vikram Doraiswami as the new Indian Ambassador to China, arriving in Shanghai to assume his post as part of ongoing efforts to normalize Sino-India relations. His arrival is seen as a move to strengthen diplomatic ties amid efforts to resume visas and direct flights between the two countries. The diplomatic appointment follows strained relations since the 2020 military standoff in Ladakh. ",
-            "url": "https://www.ndtvprofit.com/world/indias-new-envoy-to-china-arrives-in-shanghai-11440195#publisher=newsstand",
-            "title": "India's New Envoy To China Arrives In Shanghai",
-            "published_date": "2026-05-02 15:06:35",
-            "source": "Wokelo",
-            "geo": [
-                "IND",
-                "CHN"
-            ]
-        },
-        {
-            "id": 10619842,
-            "ai_summary": "India's new Ambassador to China, Vikram Doraiswami, arrived in Shanghai to begin his posting amid ongoing efforts to normalize Sino-India relations, including resumption of visas and direct flights. His appointment and diplomatic engagements are seen as efforts to enhance bilateral ties after a severe strain following the military standoff in Ladakh in 2020. China and India are actively working to rebuild their relationship through diplomatic and strategic cooperation. ",
-            "url": "https://www.ndtvprofit.com/world/indias-new-envoy-to-china-arrives-in-shanghai-11440195/amp/1",
-            "title": "India's New Envoy To China Arrives In Shanghai",
-            "published_date": "2026-05-02 15:06:28",
-            "source": "Wokelo",
-            "geo": [
-                "IND",
-                "CHN"
-            ]
-        },
-        {
-            "id": 10665120,
-            "ai_summary": "India's utilization of free trade agreements (FTAs) is significantly below that of other countries, according to Chief Economic Adviser V. Anantha Nageswaran, and this underutilization is contributing to a widening trade deficit with FTA partner nations. He emphasized the need for deeper integration and strategic policy responses to improve trade outcomes amid global disruptions. ",
-            "url": "https://www.businessworld.in/article/india-s-fta-utilisation-remains-very-poor-compared-to-peers-cea-nageswaran-605171",
-            "title": "India’s FTA Utilisation Remains “Very Poor” Compared To Peers: CEA Nageswaran",
-            "published_date": "2026-05-02 14:42:25",
-            "source": "Wokelo",
-            "geo": [
-                "IND"
-            ]
-        },
-        {
-            "id": 10615179,
-            "ai_summary": "China has announced that it will not comply with US sanctions targeting five Chinese firms related to Iranian oil purchases, asserting these sanctions violate international law. The targeted companies, including three in Shandong and two others, are involved in trading Iranian crude oil. The US also imposed sanctions on Qingdao Haiye Oil Terminal Co., Ltd., which was not included in China's countermeasures. ",
-            "url": "https://www.newindianexpress.com/world/2026/May/02/china-rejects-us-sanctions-on-refineries-over-iran-oil-links",
-            "title": "China rejects US sanctions on refineries over Iran oil links",
-            "published_date": "2026-05-02 14:29:33",
-            "source": "Wokelo",
-            "geo": [
-                "CHN"
-            ]
-        },
-        {
-            "id": 10614668,
-            "ai_summary": "India's External Affairs Minister S Jaishankar will undertake an official visit to Jamaica, Suriname, and Trinidad and Tobago from May 2 to May 10, aiming to strengthen diplomatic, regional, and economic ties. The visit includes meetings with leadership and engagement with diaspora communities, continuing India's diplomatic outreach in the Caribbean and African regions. ",
-            "url": "https://www.tribuneindia.com/news/bilateral-relations/eam-jaishankar-to-embark-on-3-nation-official-visit-to-jamaica-suriname-trinidad-tobago-from-may-2",
-            "title": "EAM Jaishankar to embark on 3-nation official visit to Jamaica, Suriname, Trinidad & Tobago from May 2",
-            "published_date": "2026-05-02 14:20:19",
-            "source": "Wokelo",
-            "geo": [
-                "JAM",
-                "SUR",
-                "TTO"
-            ]
-        },
-        {
-            "id": 10614999,
-            "ai_summary": "India's new Ambassador to China Vikram Doraiswami arrived in Shanghai to assume his diplomatic role amid efforts to normalise India-China relations after a period of tension. His appointment is seen as potentially advancing the ongoing process of bilateral relationship improvement. Chinese officials and scholars have expressed hope he will contribute positively to China-India ties. ",
-            "url": "https://www.business-standard.com/world-news/india-new-envoy-to-china-arrives-in-shanghai-126050200850_1.html",
-            "title": "Vikram Doraiswami reaches China to take charge as India's new envoy",
-            "published_date": "2026-05-02 14:09:28",
-            "source": "Wokelo",
-            "geo": [
-                "IND",
-                "CHN"
-            ]
-        },
-        {
-            "id": 10614580,
-            "ai_summary": "Iran appointed Abdul Majid Hakim Elahi as its representative in India in April 2025 amid ongoing diplomatic tensions. The appointment comes despite recent friction, reflecting the deep historical and cultural ties between the two nations. ",
-            "url": "https://www.thehindu.com/news/cities/bangalore/ties-with-neighbours-will-improve-india-and-iran-share-deep-historical-bonds/article70931751.ece",
-            "title": "‘Ties with neighbours will improve; India and Iran share deep historical bonds’",
-            "published_date": "2026-05-02 14:08:15",
-            "source": "Wokelo",
-            "geo": [
-                "IRN",
-                "IND"
-            ]
-        },
-        {
-            "id": 10614836,
-            "ai_summary": "The Indian Navy Chief Admiral Dinesh K Tripathi visited Myanmar from May 2 to May 5 to strengthen bilateral maritime cooperation and defense ties. The visit included discussions with Myanmar military leadership, engagements at naval establishments, and participation in joint maritime activities. ",
-            "url": "https://defence.in/threads/indian-navy-chief-admiral-dinesh-k-tripathi-embarks-on-four-day-myanmar-visit-to-enhance-bilateral-maritime-defence-ties.17633/",
-            "title": "Indian Navy Chief Admiral Dinesh K Tripathi Embarks On Four-Day Myanmar Visit To Enhance Bilateral Maritime Defence Ties",
-            "published_date": "2026-05-02 13:51:47",
-            "source": "Wokelo",
-            "geo": [
-                "IND",
-                "MMR"
-            ]
-        },
-        {
-            "id": 10617339,
-            "ai_summary": "Taiwan's President Lai Ching-te visited Eswatini amid diplomatic tensions involving China, which has been reducing the number of countries maintaining formal relations with Taiwan. The article lists Taiwan's remaining diplomatic allies around the world, including Eswatini and others in Latin America, the Pacific, Africa, and Europe. ",
-            "url": "https://www.reuters.com/world/china/taiwans-12-remaining-diplomatic-allies-2026-05-02/",
-            "title": "Taiwan's 12 remaining diplomatic allies",
-            "published_date": "2026-05-02 13:07:43",
-            "source": "Wokelo",
-            "geo": [
-                "TWN",
-                "SWZ",
-                "BLZ",
-                "GTM",
-                "PRY",
-                "HTI",
-                "KNA",
-                "LCA",
-                "MHL",
-                "PLW",
-                "TUV",
-                "VAT"
-            ]
-        },
-        {
-            "id": 10618143,
-            "ai_summary": "Taiwan’s President Lai Ching-te arrived in Eswatini, his first visit after a delay caused by several countries withdrawing permission for overflight due to Chinese pressure. The trip aims to reinforce Taiwan's friendship with Eswatini through economic, agricultural, cultural, and educational ties. ",
-            "url": "https://www.usnews.com/news/world/articles/2026-05-02/taiwans-president-lands-in-eswatini-in-a-trip-delayed-by-lack-of-overflight-clearance",
-            "title": "Taiwan's President Lands in Eswatini in a Trip Delayed by Lack of Overflight Clearance",
-            "published_date": "2026-05-02 12:51:50",
-            "source": "Wokelo",
-            "geo": [
-                "ESH"
-            ]
-        },
-        {
-            "id": 10613526,
-            "ai_summary": "The Bangladesh government has summoned India's Acting High Commissioner Pawan Badhe to protest against remarks made by Assam's Chief Minister Himanta Biswa Sarma. The protest was conveyed by the Bangladesh Ministry of Foreign Affairs due to Sarma’s disparaging statements which could harm bilateral relations. ",
-            "url": "https://indianexpress.com/article/political-pulse/dhaka-summons-indian-envoy-protest-himanta-sarma-remarks-bengal-poll-pitch-10667696/",
-            "title": "As Dhaka summons Indian envoy to protest Himanta Sarma’s remarks, a look at his Bengal poll pitch",
-            "published_date": "2026-05-02 11:51:28",
-            "source": "Wokelo",
-            "geo": [
-                "BGD",
-                "IND"
-            ]
-        },
-        {
-            "id": 10615857,
-            "ai_summary": "President Volodymyr Zelenskiy discussed Ukraine's EU accession with Slovakia's Prime Minister Robert Fico during a conversation on May 2. Slovakia supports Ukraine’s EU membership and is willing to share its experience of accession. ",
-            "url": "https://www.reuters.com/world/europe/zelenskiy-fico-discuss-ukraines-eu-accession-2026-05-02/",
-            "title": "Zelenskiy, Fico discuss Ukraine's EU accession",
-            "published_date": "2026-05-02 11:30:20",
-            "source": "Wokelo",
-            "geo": [
-                "UKR",
-                "SVK"
-            ]
-        },
-        {
-            "id": 10612829,
-            "ai_summary": "Sri Lanka’s opposition leader Sajith Premadasa expressed support for India’s bid for a permanent seat on the United Nations Security Council during an event in Colombo. He highlighted the strategic partnership between Sri Lanka and India, emphasizing regional cooperation and economic development plans. ",
-            "url": "https://zeenews.india.com/india/sri-lanka-opposition-leader-premadasa-backs-india-for-unsc-seat-3042950.html",
-            "title": "Sri Lanka opposition leader Premadasa backs India for UNSC seat",
-            "published_date": "2026-05-02 11:01:00",
-            "source": "Wokelo",
-            "geo": [
-                "LKA",
-                "IND"
-            ]
-        },
-        {
-            "id": 10613723,
-            "ai_summary": "The Ecuador Minister of Foreign Affairs and Human Mobility, Gabriela Sommerfeld Rosero, completed a two-day official visit to India from April 29, focusing on strengthening bilateral Cooperation across sectors such as trade, healthcare, agriculture, and digital infrastructure. The visit resulted in agreements on grant assistance, trade roadmap, health cooperation, and digital initiatives, and included cultural and diplomatic engagements. ",
-            "url": "http://bignewsnetwork.com/news/279025451/ecuador-fm-visit-strengthens-trade-healthcare-sectors-during-visit",
-            "title": "Ecuador FM's visit strengthens trade, healthcare sectors during visit",
-            "published_date": "2026-05-02 10:55:51",
-            "source": "Wokelo",
-            "geo": [
-                "IND",
-                "ECU"
-            ]
-        },
-        {
-            "id": 10613140,
-            "ai_summary": "India signed a free trade agreement with New Zealand, completing a process that began in 2010. This agreement follows recent deals with the European Union and the UK, and negotiations are ongoing with the US. ",
-            "url": "https://www.bloomberg.com/news/newsletters/2026-05-02/how-modi-is-ditching-indian-protectionism-to-become-a-free-trader-new-economy",
-            "title": "How Modi Is Ditching Indian Protectionism in Favor of Free Trade",
-            "published_date": "2026-05-02 10:45:01",
-            "source": "Wokelo",
-            "geo": [
-                "IND"
-            ]
-        },
-        {
-            "id": 10613366,
-            "ai_summary": "Former President Trump made a joke about Cuba while discussing US sanctions and military activities in the region. The discussion took place during an event at the Forum Club of the Palm Beaches. ",
-            "url": "https://www.moneycontrol.com/world/trump-jokes-about-cuba-as-us-expands-sanctions-pressure-on-way-back-from-iran-article-13906051.html",
-            "title": "Trump jokes about Cuba as US expands sanctions pressure: 'On way back from Iran...'",
-            "published_date": "2026-05-02 10:33:33",
-            "source": "Wokelo",
-            "geo": [
-                "CUB"
-            ]
-        },
-        {
-            "id": 10614275,
-            "ai_summary": "China has fully implemented a zero-tariff policy for 53 African countries, aimed at reducing trade barriers and boosting economic development. This policy has already led to increased exports from African nations such as Ethiopia and Kenya to China, supporting industrialization and trade growth. ",
-            "url": "http://bignewsnetwork.com/news/279025420/xinhua-headlines-zero-tariff-policy-boosts-china-africa-modernization-drive",
-            "title": "Xinhua Headlines: Zero-tariff policy boosts China-Africa modernization drive",
-            "published_date": "2026-05-02 10:15:20",
-            "source": "Wokelo",
-            "geo": [
-                "ETH",
-                "KEN"
-            ]
-        },
-        {
-            "id": 10612153,
-            "ai_summary": "India and Ecuador are exploring a preferential trade deal and discussing cooperation in healthcare, agriculture, and digital technology. The talks between their foreign ministers aim to strengthen bilateral relations. ",
-            "url": "https://www.thehindu.com/news/national/india-and-ecuador-exploring-preferential-trade-deal-to-boost-economic-ties/article70931375.ece",
-            "title": "India and Ecuador exploring preferential trade deal to boost economic ties",
-            "published_date": "2026-05-02 09:45:39",
-            "source": "Wokelo",
-            "geo": [
-                "IND",
-                "ECU"
-            ]
-        },
-        {
-            "id": 10611105,
-            "ai_summary": "Japan and Vietnam signed six agreements covering infrastructure, climate action, agriculture, technology, digitalisation, and space cooperation. Japanese Prime Minister Sanae Takaichi pledged to strengthen bilateral ties, focusing on energy cooperation and critical minerals, amid declining Japanese investment in Vietnam. ",
-            "url": "https://www.businesstimes.com.sg/companies-markets/energy-commodities/japan-vietnam-seek-deeper-partnership-energy-and-minerals-push",
-            "title": "Japan, Vietnam seek deeper partnership with energy and minerals push",
-            "published_date": "2026-05-02 08:30:00",
-            "source": "Wokelo",
-            "geo": [
-                "JPN",
-                "VNM"
-            ]
-        },
-        {
-            "id": 10611037,
-            "ai_summary": "US President Donald Trump stated that the US could 'take over' Cuba almost immediately during a speech at The Forum Club of the Palm Beaches Dinner. The White House announced expanded sanctions targeting Cuban government officials, focusing on security forces, corruption, and human rights abuses. Several countries, including Mexico, Spain, and Brazil, expressed concern over Cuba's humanitarian situation and Trump’s policy approach. ",
-            "url": "https://zeenews.india.com/world/donald-trump-says-us-could-take-over-cuba-almost-immediately-3042882.html",
-            "title": "Donald Trump says US could ‘take over’ Cuba ‘almost immediately’",
-            "published_date": "2026-05-02 08:19:00",
-            "source": "Wokelo",
-            "geo": [
-                "USA",
-                "CUB"
-            ]
-        },
-        {
-            "id": 10611779,
-            "ai_summary": "US President Donald Trump expressed frustration with Iranian negotiations but avoided threatening military action. He indicated dissatisfaction with current negotiations and is awaiting further developments. The article suggests ongoing diplomatic tension without further escalation.",
-            "url": "https://www.bloomberg.com/news/articles/2026-05-02/trump-says-prefers-not-to-strike-iran-even-as-frustration-mounts",
-            "title": "Trump Says Prefers Not to Strike Iran Even as Frustration Mounts",
-            "published_date": "2026-05-02 08:10:40",
-            "source": "Wokelo",
-            "geo": [
-                "USA",
-                "IRN"
-            ]
-        },
-        {
-            "id": 10611012,
-            "ai_summary": "A new wooden mast called the Mast of Fraternity and Memory was inaugurated in Nantes as a symbol of France's ongoing reckoning with its history of enslavement, amid pressure on President Macron to act on reparatory justice. The event highlights France's historical role in the transatlantic slave trade, the legacy of colonialism, and current demands for reparations, particularly from overseas territories and Haiti. ",
-            "url": "https://www.theguardian.com/news/2026/may/02/pressure-mounts-france-enslavement-reparatory-justice-framework",
-            "title": "‘Such huge consequences’: pressure mounts on France to act on enslavement reparatory justice",
-            "published_date": "2026-05-02 08:00:19",
-            "source": "Wokelo",
-            "geo": [
-                "FRA"
-            ]
-        },
-        {
-            "id": 10610171,
-            "ai_summary": "The Australian High Commissioner to India, Philip Green, stated that there is visible alignment among the foreign ministers of the Quad countries, including India and Australia. Green highlighted the strategic areas of focus such as maritime security, cyber, and critical minerals, and discussed the benefits of the Australia-India trade agreement which has increased India-Australia trade by 200%. ",
-            "url": "https://www.tribuneindia.com/news/asean/there-is-alignment-between-the-quad-fms-says-australian-envoy-to-india",
-            "title": "\"There is alignment between the Quad FMs,\" says Australian Envoy to India",
-            "published_date": "2026-05-02 06:35:18",
-            "source": "Wokelo",
-            "geo": [
-                "IND",
-                "AUS"
-            ]
-        },
-        {
-            "id": 10610153,
-            "ai_summary": "The South Korean Ministry of Foreign Affairs conducted a major diplomatic reshuffle, appointing experienced diplomats to key U.S. posts amid rising tensions related to trade and security disputes. The appointments aim to ease strained relations between Seoul and Washington, which include issues over Coupang and intelligence sharing. ",
-            "url": "https://www.koreatimes.co.kr/foreignaffairs/20260502/korea-sends-experienced-diplomats-to-us-as-coupang-dispute-strains-alliance?utm_source=rss",
-            "title": "Korea sends experienced diplomats to US as Coupang dispute strains alliance",
-            "published_date": "2026-05-02 06:32:03",
-            "source": "Wokelo",
-            "geo": [
-                "KOR",
-                "USA"
-            ]
-        },
-        {
-            "id": 10609759,
-            "ai_summary": "US President Donald Trump claimed that the US would take over Cuba immediately amid ongoing tensions, criticizing Cuba's policies and actions. The US has recently expanded sanctions targeting Cuban officials involved in security, corruption, and human rights abuses, prompting Cuba to reject these measures. ",
-            "url": "https://www.tribuneindia.com/news/corruption/will-be-taking-over-cuba-almost-immediately-says-trump",
-            "title": "\"Will be taking over Cuba almost immediately,\" says Trump",
-            "published_date": "2026-05-02 05:25:12",
-            "source": "Wokelo",
-            "geo": [
-                "USA",
-                "CUB"
-            ]
-        },
-        {
-            "id": 10609852,
-            "ai_summary": "Russian Foreign Minister Sergei Lavrov and Iranian Foreign Minister Seyed Abbas Araghchi discussed Gulf security, nuclear tensions, freedom of navigation, and regional stability during a phone conversation. The dialogue highlighted ongoing diplomatic efforts to stabilize the Middle East and facilitate peace negotiations. ",
-            "url": "https://gulfnews.com/world/mena/russia-iran-discuss-gulf-security-and-nuclear-tensions-1.500526402",
-            "title": "Russia, Iran discuss Gulf security and nuclear tensions",
-            "published_date": "2026-05-02 05:19:04",
-            "source": "Wokelo",
-            "geo": [
-                "RUS",
-                "IRN"
-            ]
-        },
-        {
-            "id": 10611280,
-            "ai_summary": "China's decision to grant zero-tariff treatment to products from 53 African countries is expected to enhance trade and economic growth, especially benefiting South Africa's citrus sector. This policy aims to boost Africa's export confidence, create jobs, and strengthen global trade stability amid economic uncertainties. ",
-            "url": "http://bignewsnetwork.com/news/279024972/interview-china-zero-tariff-policy-to-boost-african-export-confidence-global-trade-stability-says-industry-leader",
-            "title": "Interview: China's zero-tariff policy to boost African export confidence, global trade stability, says industry leader",
-            "published_date": "2026-05-02 05:15:15",
-            "source": "Wokelo",
-            "geo": [
-                "ZAF",
-                "CHN"
-            ]
-        },
-        {
-            "id": 10609736,
-            "ai_summary": "Cuba condemned U.S. President Donald Trump's new sanctions on the country, calling them 'collective punishment' during May 1 protests outside the U.S. embassy in Havana. The sanctions target various sectors of the Cuban economy and have worsened the island's economic situation amid ongoing tensions. ",
-            "url": "https://www.thehindu.com/news/international/us-sanctions-are-collective-punishment-says-cuba-during-may-1-marches/article70930842.ece",
-            "title": "U.S. sanctions are ‘collective punishment’, says Cuba during May 1 marches",
-            "published_date": "2026-05-02 05:14:39",
-            "source": "Wokelo",
-            "geo": [
-                "CUB"
-            ]
-        },
-        {
-            "id": 10616329,
-            "ai_summary": "Cuba condemned a new wave of US sanctions, signed by President Donald Trump, which target Cuban officials and sectors of the economy. The sanctions are part of the US's ongoing foreign policy pressure, including threats of tariffs and restrictions on oil imports, amid protests and Cuba's negotiations with the US for improved relations. ",
-            "url": "https://www.bbc.com/news/articles/cwy21n1970vo?at_medium=RSS&at_campaign=rss",
-            "title": "Cuba condemns new US sanctions as 'illegal' and 'abusive'",
-            "published_date": "2026-05-02 04:57:02",
-            "source": "Wokelo",
-            "geo": [
-                "CUB"
-            ]
-        },
-        {
-            "id": 10609197,
-            "ai_summary": "Cuba condemned US President Donald Trump's new sanctions, calling them 'collective punishment' against the Cuban people, during a march outside the US embassy in Havana on May 1, 2026. The sanctions aim to target the Cuban economy, which is controlled by the government, and follow a history of US embargoes since 1959. ",
-            "url": "https://www.newindianexpress.com/world/2026/May/02/us-sanctions-are-collective-punishment-says-cuba-during-may-1-marches",
-            "title": "US sanctions are 'collective punishment', says Cuba during May 1 marches",
-            "published_date": "2026-05-02 04:19:27",
-            "source": "Wokelo",
-            "geo": [
-                "CUB"
-            ]
-        },
-        {
-            "id": 10609211,
-            "ai_summary": "The Cuban government has strongly condemned the recent sanctions imposed by US President Donald Trump, calling them 'collective punishment' of the Cuban people. ",
-            "url": "https://www.aljazeera.com/economy/2026/5/2/havana-slams-new-trump-sanctions-as-collective-punishment-of-cuban-people?traffic_source=rss",
-            "title": "Havana slams new Trump sanctions as ‘collective punishment’ of Cuban people",
-            "published_date": "2026-05-02 04:06:01",
-            "source": "Wokelo",
-            "geo": [
-                "CUB"
-            ]
-        },
-        {
-            "id": 10611951,
-            "ai_summary": "India and Ecuador are exploring a preferential trade agreement and strengthening bilateral ties through cooperation in healthcare, agriculture, and digital technology. Discussions included Ecuador joining international alliances and India providing grant assistance for development projects in Ecuador. ",
-            "url": "https://economictimes.indiatimes.com/news/economy/foreign-trade/india-and-ecuador-exploring-preferential-trade-deal-to-boost-economic-ties/articleshow/130713490.cms",
-            "title": "India and Ecuador exploring preferential trade deal to boost economic ties - The Economic Times",
-            "published_date": "2026-05-02 03:53:38",
-            "source": "Wokelo",
-            "geo": [
-                "IND",
-                "ECU"
-            ]
-        },
-        {
-            "id": 10608962,
-            "ai_summary": "US President Donald Trump announced that the US could 'take over' Cuba almost immediately and signaled a naval deployment, as his administration expanded sanctions targeting Cuba's government and sectors including energy, mining, financial services, and defense. The sanctions aim to increase pressure on Havana citing security concerns and links to Iran and Hezbollah, while Cuba called these measures unlawful.",
-            "url": "https://www.business-standard.com/world-news/us-could-take-over-cuba-almost-immediately-says-trump-widens-sanctions-126050200092_1.html",
-            "title": "US could 'take over Cuba almost immediately', says Trump, widens sanctions",
-            "published_date": "2026-05-02 03:11:12",
-            "source": "Wokelo",
-            "geo": [
-                "USA",
-                "CUB"
-            ]
-        },
-        {
-            "id": 10608816,
-            "ai_summary": "US President Donald Trump stated that the United States could 'take over' Cuba almost immediately and signaled a potential naval operation, amid widening sanctions targeting Cuba's government and sectors. The US increased pressure through executive orders enabling sanctions against individuals and entities linked to Cuba, citing national security concerns and links to Iran. Cuba rejected the measures, accusing the US of unilateral coercive actions.",
-            "url": "https://indianexpress.com/article/world/us-news/donald-trump-cuba-takeover-uss-abraham-lincoln-sanctions-havana-10666879/",
-            "title": "Donald Trump says US could ‘take over’ Cuba ‘almost immediately’",
-            "published_date": "2026-05-02 02:31:02",
-            "source": "Wokelo",
-            "geo": [
-                "USA",
-                "CUB"
-            ]
-        },
-        {
-            "id": 10608355,
-            "ai_summary": "President Bola Tinubu will undertake a two-week trip to France, Kenya, and Rwanda to attend high-level summits and hold strategic meetings. The visits include participation in the Africa-France Summit and the Africa CEO Forum, focusing on economic transformation, climate resilience, and regional investment. ",
-            "url": "https://www.thisdaylive.com/2026/05/02/tinubu-begins-two-week-long-three-nation-trip-today/",
-            "title": "Tinubu Begins Two-week Long Three-nation Trip Today – THISDAYLIVE",
-            "published_date": "2026-05-02 02:01:43",
-            "source": "Wokelo",
-            "geo": [
-                "FRA",
-                "KEN",
-                "RWA"
-            ]
-        },
-        {
-            "id": 10608526,
-            "ai_summary": "US President Donald Trump expressed dissatisfaction with the current progress of negotiations with Iran to end the conflict, after Iran sent a revised peace proposal through Pakistan. Despite his displeasure, Trump avoided threatening renewed military action. The ongoing war has prompted protests worldwide calling for better wages amid rising costs linked to the conflict. ",
-            "url": "https://www.hindustantimes.com/world-news/us-iran-war-news-live-updates-ceasefire-donald-trump-mojtaba-khamenei-tehran-pakistan-peace-talks-middle-east-101777685010818.html",
-            "title": "US Iran war news LIVE: Trump not ‘satisfied’ with Iran talks, but refrains from issuing new threats",
-            "published_date": "2026-05-02 01:57:27",
-            "source": "Wokelo",
-            "geo": [
-                "USA",
-                "IRN",
-                "ZAF"
-            ]
-        }
-    ],
-    "count": 100,
-    "total": 3909,
-    "limit": 100,
-    "offset": 0
+  "status": "success",
+  "data": [ ...article objects... ],
+  "count": 14,
+  "total": 14,
+  "limit": 100,
+  "offset": 0
 }
 ```
 
-## Request reference
+| Field | Type | Description |
+| --- | --- | --- |
+| `status` | string | `"success"` when the request was processed successfully. |
+| `data` | array | Array of enriched article objects. |
+| `count` | integer | Number of articles returned in this response batch. |
+| `total` | integer | Total number of matching articles available across all pages (before `limit` and `offset` are applied). |
+| `limit` | integer | The `limit` value applied to this response. |
+| `offset` | integer | The `offset` value applied to this response. |
 
-A sample request containing all the possible parameters
+### Article object fields
+
+Each object in the `data` array contains the following fields:
+
+**Article identity**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | integer | Stable numeric identifier for this article in Wokelo's index. Use for deduplication when paginating or comparing runs across different date windows. |
+| `url` | string | Canonical URL of the original article. |
+| `title` | string | Headline of the article as published. |
+| `published_date` | string | Publication datetime in `YYYY-MM-DD HH:MM:SS` format (UTC). |
+
+**AI enrichment**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `ai_summary` | string | AI-generated 2–4 sentence summary of the article's key facts and implications for the topic. |
+
+**Source and geography**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `source` | string | Wokelo's internal signal source designation. Either `"Wokelo"` (directly indexed) or `"Google"` (sourced via search). |
+| `geo` | string\[\] | Array of ISO 3166-1 alpha-3 country codes identifying the geographies covered or referenced in the article (e.g. `["USA", "CHN"]`). Empty array when no country was detected. |
+
+<Info>
+  The Industry News Monitoring API returns a leaner article object than the Company News Monitoring API. Fields like `sentiment`, `primary_tag`, `secondary_tags`, `newsworthiness_impact`, `company_names`, `publisher`, `author`, and `scraped_text` are not included in industry news responses. Use `ai_summary` for content triage and `url` to fetch the full article when needed.
+</Info>
+
+### Notes on the `geo` field
+
+The `geo` array reflects countries that are mentioned or relevant in the article — not necessarily where the article was published. A single article covering US-China trade policy may have `["USA", "CHN"]`. An article about a regional development project may have only one code.
+
+- **Multi-country articles** — articles covering diplomatic events, bilateral trade deals, or multinational company activity commonly list three or more country codes
+- **Empty geo** — some articles have an empty `geo` array when country detection was inconclusive; these are still returned unless you have filtered by `geo`
+- **`geo` filter behaviour** — when you pass `geo=IND,SGP`, the API returns articles tagged with `IND` **or** `SGP`, not exclusively articles tagged with both
+
+### Pagination notes
+
+Industry topic queries can return very large result sets. For broad topics like "trade war" or "artificial intelligence" the `total` count can exceed several thousand. Always check `total` against `count` and paginate using `offset` until all records have been retrieved. The recommended approach is to stop when `count` returns `0` or `len(all_articles) >= total`.
+
+---
+
+## 6. Examples
+
+### Monitoring a sector in a specific region
+
+Fetch all real estate development news in the UAE for a specific month — useful for generating a sector brief or LP update.
 
 <CodeGroup>
 
-```json cURL expandable wrap
-curl --location 'https://api.wokelo.ai/api/enterprise/industry/news/?limit=100&start_date=2026-04-01&end_date=2026-04-30&offset=10&topic=Warehouse%20automation&geo=IND' \
---header 'Authorization: Bearer Token' \
---header 'Content-Type: application/json'
+```bash cURL
+curl --location 'https://api.wokelo.ai/api/enterprise/industry/news/?topic=Real%20Estate%20Development&geo=ARE&start_date=2026-04-01&end_date=2026-04-30&limit=100' \
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json'
 ```
 
-```json Python expandable wrap
+```python Python
 import requests
-import json
 
-url = "https://api.wokelo.ai/api/enterprise/industry/news/?limit=100&start_date=2026-04-01&end_date=2026-04-30&offset=10&topic=Warehouse automation&geo=IND"
+HEADERS = {"Authorization": "Bearer <YOUR_API_TOKEN>"}
 
-payload = {}
-headers = {
-  'Authorization': 'Bearer Token',
-  'Content-Type': 'application/json'
-}
+response = requests.get(
+    "https://api.wokelo.ai/api/enterprise/industry/news/",
+    headers=HEADERS,
+    params={
+        "topic": "Real Estate Development",
+        "geo": "ARE",
+        "start_date": "2026-04-01",
+        "end_date": "2026-04-30",
+        "limit": 100
+    }
+)
 
-response = requests.request("GET", url, headers=headers, data=payload)
+data = response.json()
+articles = data["data"]
 
-print(response.text)
+print(f"Found {data['total']} articles on Real Estate Development in UAE\n")
+for article in articles:
+    print(f"[{article['published_date'][:10]}] {article['title']}")
+    print(f"  {article['ai_summary'][:200]}...")
+    print()
 ```
 
 </CodeGroup>
 
-The table below lists all the parameters available to filter the results.
+**Sample response (excerpt):**
 
-| URL Parameters | Description |
-| :-- | :-- |
-| `topic` | Industry topic for which articles need to be fetched. (Eg. Warehouse Automation) |
-| `start_date` | Start date for the timeframe to be considered for fetching news details |
-| `end_date` | End date for the timeframe to be considered for fetching news details |
-| `limit` | Maximum number of news to return |
-| `offset` | Number of records to skip before starting to return results |
-| `blacklisted` | Comma-separated list of publisher domains to exclude from results. (include complete domain starting with https://) |
-| `geo` | Comma-separated list as [ISO country codes](https://docs.wokelo.ai/iso-country-codes) (e.g. `["USA", "GBR"]`) |
-
-## Examples
-
-**Monitoring sector news**: Fetch all the latest news related to Real Estate Development in UAE.
-
-### Sample Request
-
-<CodeGroup>
-
-```json cURL
-curl --location 'https://api.wokelo.ai/api/enterprise/industry/news/?limit=100&start_date=2026-04-01&end_date=2026-04-30&topic=Real%20Estate%20Development&geo=ARE' \
---header 'Authorization: Bearer Token' \
---header 'Content-Type: application/json'
-```
-
-```json Python
-import requests
-import json
-
-url = "https://api.wokelo.ai/api/enterprise/industry/news/?limit=100&start_date=2026-04-01&end_date=2026-04-30&topic=Real Estate Development&geo=ARE"
-
-payload = {}
-headers = {
-  'Authorization': 'Bearer Token',
-  'Content-Type': 'application/json'
-}
-
-response = requests.request("GET", url, headers=headers, data=payload)
-
-print(response.text)
-```
-
-</CodeGroup>
-
-### Sample Response
-
-```json expandable
+```json
 {
-    "status": "success",
-    "data": [
-        {
-            "id": 10442144,
-            "ai_summary": "Nakheel has awarded contracts worth over Dh3.5 billion to construct 544 villas on Palm Jebel Ali, part of a major waterfront development in Dubai. Construction is set to start this quarter and aims for completion by late 2028, featuring smart and sustainable homes. ",
-            "url": "https://gulfnews.com/business/property/nakheel-awards-dh35-billion-contracts-for-palm-jebel-ali-villas-1.500520259",
-            "title": "Nakheel Awards Dh3.5 Billion Contracts for 544 Palm Jebel Ali Villas in Major Dubai Waterfront Push",
-            "published_date": "2026-04-27 05:20:10",
-            "source": "Wokelo",
-            "geo": [
-                "ARE"
-            ]
-        },
-        {
-            "id": 9833643,
-            "ai_summary": "Stake announced a strategic partnership with ACE & Company to develop a secondary transfer facility for fractional real estate investments in the UAE. The initiative aims to improve liquidity, transparency, and market stability, leveraging Stake’s digital platform and ACE & Company’s expertise in private markets. ",
-            "url": "https://pulse2.com/stake-partnership-with-ace-company-to-build-secondary-market-for-fractional-real-estate-in-the-uae/",
-            "title": "Stake: Partnership With ACE & Company To Build Secondary Market For Fractional Real Estate In The UAE",
-            "published_date": "2026-04-21 15:43:44",
-            "source": "Wokelo",
-            "geo": [
-                "ARE"
-            ]
-        },
-        {
-            "id": 9542088,
-            "ai_summary": "ORA Developers is expanding its land holdings in the UAE by acquiring an additional 4.8 million sqm of land from Modon Holding in Ghantoot, which raises its total land bank in the UAE to 9.6 million sqm. The firm projects a total project investment of AED 30 billion upon full development, reinforcing its confidence in the UAE real estate market. ",
-            "url": "https://www.prnewswire.com/news-releases/ora-developers-expands-uae-footprint-through-new-land-acquisition-from-modon-holding-total-project-investment-to-reach-aed-30-billion-302744922.html",
-            "title": "ORA Developers Expands UAE Footprint Through New Land Acquisition from Modon Holding, Total Project Investment to Reach AED 30 Billion",
-            "published_date": "2026-04-16 14:28:00",
-            "source": "Wokelo",
-            "geo": [
-                "ARE"
-            ]
-        },
-        {
-            "id": 9395930,
-            "ai_summary": "Gaia Living Real Estate, a Dubai-based brokerage, received the Silver 2024 Accreditation from the AI for Business Institute following a formal audit of its AI practices. The company developed its own AI software to support brokers and scored highly in project management, collaboration, and customer experience. ",
-            "url": "https://techbullion.com/gaia-living-real-estate-earns-silver-ai-accreditation-from-the-ai-for-business-institute/",
-            "title": "Gaia Living Real Estate Earns Silver AI Accreditation From the AI for Business Institute",
-            "published_date": "2026-04-15 17:31:52",
-            "source": "Wokelo",
-            "geo": [
-                "ARE"
-            ]
-        },
-        {
-            "id": 9290927,
-            "ai_summary": "Gaia Living Real Estate received the Silver 2024 AI accreditation from the AI for Business Institute after an audit assessing its AI usage and processes. The Dubai-based brokerage developed its own AI tools to assist brokers and plans to improve its leadership and security practices. ",
-            "url": "https://www.openpr.com/news/4471094/gaia-living-real-estate-earns-silver-ai-accreditation-from-the-ai",
-            "title": "Gaia Living Real Estate Earns Silver AI Accreditation From the AI for Business Institute",
-            "published_date": "2026-04-14 19:00:08",
-            "source": "Wokelo",
-            "geo": [
-                "ARE"
-            ]
-        },
-        {
-            "id": 9251527,
-            "ai_summary": "Sobha Realty has launched Sobha City, a 38 million square foot residential development in Abu Dhabi's Al Bahiya. The project aims to create an integrated community with green spaces, water features, and mixed-use facilities, reflecting the developer’s long-term commitment to Abu Dhabi's real estate market. ",
-            "url": "https://gulfnews.com/business/property/sobha-realty-enters-abu-dhabi-with-38m-sq-ft-waterfront-city-1.500505514",
-            "title": "Sobha Realty Launches 38 Million Sq Ft Waterfront Sobha City in Abu Dhabi’s Al Bahiya",
-            "published_date": "2026-04-13 13:44:05",
-            "source": "Wokelo",
-            "geo": [
-                "ARE"
-            ]
-        },
-        {
-            "id": 8867249,
-            "ai_summary": "Danube Group announced it will not lay off employees despite regional geopolitical uncertainty, citing past crises it has overcome and affirming its commitment to its workforce and clients. The company is focused on growth, timely delivery, and maintaining strong fundamentals amid changing market conditions. ",
-            "url": "https://www.constructionworld.in/latest-construction-news/real-estate-news/danube-group-rules-out-layoffs-amid-regional-uncertainty/89642",
-            "title": "Danube Group Rules Out Layoffs Amid Regional Uncertainty",
-            "published_date": "2026-04-08 00:00:00",
-            "source": "Wokelo",
-            "geo": [
-                "ARE"
-            ]
-        },
-        {
-            "id": 8827850,
-            "ai_summary": "Savills, a global real estate advisory firm, will acquire a majority stake in Hotelivate, a hospitality advisory firm operating across South Asia, to expand its advisory services in the Asia Pacific region. The investment aims to create a unified, institutional-grade hospitality advisory platform and leverage Hotelivate's established regional presence and expertise. ",
-            "url": "https://www.business-standard.com/companies/news/savills-acquires-majority-stake-in-hotelivate-to-expand-apac-advisory-126040700934_1.html",
-            "title": "Savills acquires majority stake in Hotelivate to expand APAC advisory",
-            "published_date": "2026-04-07 12:37:50",
-            "source": "Wokelo",
-            "geo": [
-                "IND",
-                "BGD",
-                "IDN",
-                "SGP",
-                "ARE"
-            ]
-        },
-        {
-            "id": 9128696,
-            "ai_summary": "Provident Estate organized an exclusive private investor event in collaboration with Meraas to focus on investor education in Dubai's real estate market. ",
-            "url": "https://www.zawya.com/en/press-release/events-and-conferences/provident-estate-hosts-exclusive-private-investor-event-with-meraas-to-guide-investors-through-dubais-evolving-market-eugwfu3e",
-            "title": "Provident Estate hosts exclusive private investor event with Meraas to guide investors through Dubai’s evolving market",
-            "published_date": "2026-04-07 00:00:00",
-            "source": "Wokelo",
-            "geo": [
-                "ARE"
-            ]
-        },
-        {
-            "id": 8786881,
-            "ai_summary": "Dubai's real estate market experienced a 23.4% increase in property sales value in Q1 2026, with off-plan projects being the primary driver of growth. The surge included increases in apartment, villa, commercial, and plot sales, as well as mortgage values. ",
-            "url": "https://www.constructionworld.in/latest-construction-news/real-estate-news/dubai-q1-property-sales-rise-23.4--in-value/89514",
-            "title": "Dubai Q1 Property Sales Rise 23.4% in Value",
-            "published_date": "2026-04-06 12:11:07",
-            "source": "Wokelo",
-            "geo": [
-                "ARE"
-            ]
-        },
-        {
-            "id": 8944783,
-            "ai_summary": "Dubai-based DAMAC Properties reported sales of approximately $850 million in March 2026, with a total of 3,663 units sold in the first quarter. Despite regional political tensions, the Dubai real estate market remains strong, with increasing investor confidence and a significant rise in total sales compared to the previous year. Construction and delivery timelines for DAMAC projects continue as scheduled, reinforcing Dubai's attractiveness as an investment destination. ",
-            "url": "https://www.tradingview.com/news/reuters.com,2026-04-06:newsml_Zaw50SNX0:0-zawya-dubai-developer-damac-sales-hit-850mln-in-march-despite-regional-turmoil/",
-            "title": "ZAWYA: Dubai developer DAMAC sales hit $850mln in March despite regional turmoil",
-            "published_date": "2026-04-06 00:00:00",
-            "source": "Wokelo",
-            "geo": [
-                "ARE"
-            ]
-        },
-        {
-            "id": 8931663,
-            "ai_summary": "Property developers in the UAE are offering payment deferment options to buyers facing financial difficulties due to regional tensions, while maintaining that construction activity continues as scheduled. Several developers, including Azizi Developments, Fakhruddin Properties, RRS International Development, and Casagrand, are accommodating deferment requests with various measures, and overall market sentiment remains resilient. ",
-            "url": "https://www.khaleejtimes.com/business/property/stressed-about-property-payments-in-the-uae-developers-offer-deferment",
-            "title": "Stressed about property payments in the UAE? Developers offer deferment",
-            "published_date": "2026-04-06 00:00:00",
-            "source": "Wokelo",
-            "geo": [
-                "ARE"
-            ]
-        },
-        {
-            "id": 8956805,
-            "ai_summary": "Abu Dhabi Islamic Bank (ADIB) strengthened its partnership with Jubail Investment Company to deliver the Jubail Island project in Abu Dhabi, with ADIB financing the development from start to finish. ",
-            "url": "https://www.zawya.com/en/press-release/companies-news/adib-strengthens-partnership-with-jubail-investment-company-to-deliver-landmark-development-in-abu-dhabi-tjwoe5p9",
-            "title": "ADIB strengthens partnership with Jubail Investment company to deliver landmark development in Abu Dhabi",
-            "published_date": "2026-04-02 00:00:00",
-            "source": "Wokelo",
-            "geo": [
-                "ARE"
-            ]
-        },
-        {
-            "id": 8639625,
-            "ai_summary": "Tract Capital, a company formed four years ago, controls over 30,000 acres of land across the US for data center development, with Nvidia as a major tenant and a $3.8 billion borrowing from the junk bond market. The article also covers various other real estate and financial events, including a UK corporate collapse, Blackstone’s strategy shift in India, and developments in Dubai, the UK, and Morocco. ",
-            "url": "https://www.bloomberg.com/news/newsletters/2026-04-01/hidden-giant-bets-big-on-land-for-us-data-centers",
-            "title": "Hidden Giant Bets Big on Land for US Data Centers",
-            "published_date": "2026-04-01 13:16:53",
-            "source": "Wokelo",
-            "geo": [
-                "USA",
-                "GBR",
-                "ARE",
-                "MAR"
-            ]
-        }
-    ],
-    "count": 14,
-    "total": 14,
-    "limit": 100,
-    "offset": 0
+  "status": "success",
+  "data": [
+    {
+      "id": 10442144,
+      "ai_summary": "Nakheel has awarded contracts worth over Dh3.5 billion to construct 544 villas on Palm Jebel Ali, part of a major waterfront development in Dubai. Construction is set to start this quarter and aims for completion by late 2028, featuring smart and sustainable homes.",
+      "url": "https://gulfnews.com/business/property/nakheel-awards-dh35-billion-contracts-for-palm-jebel-ali-villas-1.500520259",
+      "title": "Nakheel Awards Dh3.5 Billion Contracts for 544 Palm Jebel Ali Villas in Major Dubai Waterfront Push",
+      "published_date": "2026-04-27 05:20:10",
+      "source": "Wokelo",
+      "geo": ["ARE"]
+    },
+    {
+      "id": 8786881,
+      "ai_summary": "Dubai's real estate market experienced a 23.4% increase in property sales value in Q1 2026, with off-plan projects being the primary driver of growth.",
+      "url": "https://www.constructionworld.in/latest-construction-news/real-estate-news/dubai-q1-property-sales-rise-23.4--in-value/89514",
+      "title": "Dubai Q1 Property Sales Rise 23.4% in Value",
+      "published_date": "2026-04-06 12:11:07",
+      "source": "Wokelo",
+      "geo": ["ARE"]
+    }
+  ],
+  "count": 14,
+  "total": 14,
+  "limit": 100,
+  "offset": 0
 }
 ```
 
-## Best practices
+### Multi-region sector sweep
 
-- Set a start\_date / end\_date range to avoid processing large backlogs — 30-day windows work well for regular monitoring runs.
-- Blacklist low-quality publishers (press release aggregators, forums) to improve signal quality.
-- Paginate with limit and offset when processing companies with high news volume (\>500 articles in your date range).
+Monitor a technology sector across several markets simultaneously by passing multiple `geo` codes. Useful for tracking a theme across different regulatory or market environments.
+
+```python
+import requests
+
+HEADERS = {"Authorization": "Bearer <YOUR_API_TOKEN>"}
+
+response = requests.get(
+    "https://api.wokelo.ai/api/enterprise/industry/news/",
+    headers=HEADERS,
+    params={
+        "topic": "Electric vehicle charging infrastructure",
+        "geo": "USA,GBR,DEU,FRA,IND",
+        "start_date": "2026-01-01",
+        "end_date": "2026-04-30",
+        "limit": 200
+    }
+)
+
+articles = response.json()["data"]
+
+# Group by primary geography (first country code in the geo array)
+from collections import defaultdict
+by_geo = defaultdict(list)
+for a in articles:
+    primary = a["geo"][0] if a.get("geo") else "Unknown"
+    by_geo[primary].append(a)
+
+for country, items in sorted(by_geo.items(), key=lambda x: -len(x[1])):
+    print(f"\n{country}: {len(items)} articles")
+    for a in items[:2]:
+        print(f"  [{a['published_date'][:10]}] {a['title']}")
+```
+
+### Rolling 30-day monitoring pipeline
+
+Set up a recurring pull that always covers the most recent 30 days, suitable for a weekly digest or automated feed.
+
+```python
+import requests
+from datetime import datetime, timedelta
+
+HEADERS = {"Authorization": "Bearer <YOUR_API_TOKEN>"}
+
+def fetch_industry_news(topic, geo=None, days=30, blacklist=None):
+    end_date   = datetime.today().strftime("%Y-%m-%d")
+    start_date = (datetime.today() - timedelta(days=days)).strftime("%Y-%m-%d")
+
+    params = {
+        "topic":      topic,
+        "start_date": start_date,
+        "end_date":   end_date,
+        "limit":      200
+    }
+    if geo:
+        params["geo"] = geo
+    if blacklist:
+        params["blacklisted"] = blacklist
+
+    response = requests.get(
+        "https://api.wokelo.ai/api/enterprise/industry/news/",
+        headers=HEADERS,
+        params=params
+    )
+    return response.json()
+
+BLACKLIST = "https://www.prnewswire.com/, https://www.businesswire.com/"
+
+topics = [
+    ("Warehouse Automation", "USA,GBR,DEU"),
+    ("GLP-1 obesity drugs", "USA"),
+    ("Carbon border adjustment", "EU,GBR,DEU,FRA")
+]
+
+for topic, geo in topics:
+    result = fetch_industry_news(topic, geo=geo, days=30, blacklist=BLACKLIST)
+    print(f"\n{'='*60}")
+    print(f"Topic: {topic} | Region: {geo}")
+    print(f"Articles: {result['total']}")
+    for a in result["data"][:3]:
+        print(f"  [{a['published_date'][:10]}] {a['title']}")
+        print(f"    {a['ai_summary'][:150]}...")
+```
+
+### Paginating through large topic result sets
+
+For broad topics, `total` can significantly exceed `limit`. Paginate using `offset` until all records are retrieved.
+
+```python
+import requests
+
+HEADERS = {"Authorization": "Bearer <YOUR_API_TOKEN>"}
+
+PARAMS = {
+    "topic":      "Artificial intelligence regulation",
+    "start_date": "2026-01-01",
+    "limit":      100,
+    "offset":     0
+}
+
+all_articles = []
+
+while True:
+    response = requests.get(
+        "https://api.wokelo.ai/api/enterprise/industry/news/",
+        headers=HEADERS,
+        params=PARAMS
+    )
+    data = response.json()
+    batch = data.get("data", [])
+    all_articles.extend(batch)
+
+    fetched = len(all_articles)
+    total   = data["total"]
+    print(f"Fetched {fetched} / {total} articles")
+
+    if fetched >= total or not batch:
+        break
+
+    PARAMS["offset"] += PARAMS["limit"]
+
+# Deduplicate by article id
+seen_ids  = set()
+unique    = []
+for a in all_articles:
+    if a["id"] not in seen_ids:
+        seen_ids.add(a["id"])
+        unique.append(a)
+
+print(f"\nTotal unique articles: {len(unique)}")
+```
+
+### Comparing sector activity across geographies
+
+Pull the same topic for multiple regions and compare article volume and recency — useful for understanding where in the world a theme is most actively developing.
+
+```python
+import requests
+from datetime import datetime, timedelta
+
+HEADERS = {"Authorization": "Bearer <YOUR_API_TOKEN>"}
+
+REGIONS = {
+    "North America": "USA,CAN,MEX",
+    "Europe":        "GBR,DEU,FRA,NLD,SWE",
+    "Asia-Pacific":  "CHN,JPN,KOR,IND,AUS,SGP"
+}
+
+topic      = "Generative AI investment"
+start_date = (datetime.today() - timedelta(days=90)).strftime("%Y-%m-%d")
+end_date   = datetime.today().strftime("%Y-%m-%d")
+
+print(f"Topic: {topic} | Last 90 days\n{'='*50}")
+
+for region_name, geo in REGIONS.items():
+    response = requests.get(
+        "https://api.wokelo.ai/api/enterprise/industry/news/",
+        headers=HEADERS,
+        params={
+            "topic":      topic,
+            "geo":        geo,
+            "start_date": start_date,
+            "end_date":   end_date,
+            "limit":      1          # We only need total count
+        }
+    )
+    total = response.json().get("total", 0)
+    print(f"{region_name:<20} {total:>5} articles")
+```
+
+### JavaScript / Node.js
+
+```javascript
+const fetch = require("node-fetch");
+
+async function getIndustryNews(topic, options = {}) {
+  const params = new URLSearchParams({
+    topic,
+    ...(options.geo        && { geo:        options.geo }),
+    ...(options.startDate  && { start_date: options.startDate }),
+    ...(options.endDate    && { end_date:   options.endDate }),
+    ...(options.blacklisted && { blacklisted: options.blacklisted }),
+    limit:  options.limit  || 100,
+    offset: options.offset || 0
+  });
+
+  const response = await fetch(
+    `https://api.wokelo.ai/api/enterprise/industry/news/?${params}`,
+    {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${process.env.WOKELO_API_KEY}`,
+        "Content-Type": "application/json"
+      }
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`API error: ${response.status} ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+// Example: monitor warehouse automation in India and Germany
+getIndustryNews("Warehouse automation", {
+  geo:       "IND,DEU",
+  startDate: "2026-01-01",
+  endDate:   "2026-04-30"
+}).then(data => {
+  console.log(`Found ${data.total} articles`);
+  data.data.forEach(a => {
+    console.log(`[${a.geo.join(", ")}] ${a.title}`);
+  });
+});
+```
+
+---
+
+## 7. Error Handling
+
+The API uses standard HTTP status codes. All error responses include a JSON body with a `detail` or `message` field.
+
+| Status | Meaning | Cause & Resolution |
+| --- | --- | --- |
+| `200 OK` | Success | Articles returned successfully. |
+| `400 Bad Request` | Invalid parameters | A required parameter is missing or a value is invalid — e.g. missing `topic`, malformed `start_date`, or invalid ISO country code in `geo`. Check the `detail` field. |
+| `401 Unauthorized` | Auth failed | The `Authorization` header is missing, malformed, or contains an invalid token. Verify your key in **Settings → API Keys**. |
+| `403 Forbidden` | Insufficient access | Your plan does not include access to this endpoint. Contact [support@wokelo.ai](mailto:support@wokelo.ai) to review your plan. |
+| `429 Too Many Requests` | Rate limit exceeded | Implement exponential back-off. The response includes a `Retry-After` header. |
+| `500 Internal Server Error` | Server error | Retry after a brief delay. If the issue persists, contact [support@wokelo.ai](mailto:support@wokelo.ai). |
+
+**Error response example:**
+
+```json
+{
+  "status": "error",
+  "detail": "The 'topic' parameter is required."
+}
+```
+
+**Retry logic with exponential back-off:**
+
+```python
+import time, requests
+
+def fetch_industry_news_with_retry(params, api_key, max_retries=3):
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    for attempt in range(max_retries):
+        try:
+            response = requests.get(
+                "https://api.wokelo.ai/api/enterprise/industry/news/",
+                headers=headers,
+                params=params,
+                timeout=30
+            )
+            if response.status_code == 429:
+                wait = 2 ** attempt   # 1s, 2s, 4s
+                time.sleep(wait)
+                continue
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.Timeout:
+            if attempt == max_retries - 1:
+                raise
+            time.sleep(1)
+    raise Exception(f"Failed after {max_retries} attempts")
+```
+
+---
+
+## 8. Best Practices
+
+**Write a specific, descriptive `topic` — this is the single highest-impact parameter**
+
+The `topic` field drives the entire article retrieval. A vague topic like `"technology"` returns an enormous, noisy result set. A specific topic describing the exact theme, technology, or event produces a tight, actionable feed:
+
+```python
+# ❌ Too broad — will return millions of tangentially related articles
+params["topic"] = "technology"
+
+# ✅ Specific — returns a focused, high-signal result set
+params["topic"] = "Warehouse automation and robotics"
+params["topic"] = "US-China semiconductor export controls"
+params["topic"] = "Offshore wind farm development in the North Sea"
+params["topic"] = "GLP-1 weight loss drug market competition"
+```
+
+**Use `geo` to narrow scope, not to replace topic specificity**
+
+The `geo` filter restricts articles to those tagged with specific countries, but a vague topic with aggressive `geo` filtering can still return a noisy result set. Lead with a specific topic and use `geo` to reduce geographic noise:
+
+```python
+# For India-specific EV charging — be specific in both dimensions
+params = {
+    "topic": "Electric vehicle charging infrastructure investment",
+    "geo":   "IND"
+}
+```
+
+**Use ISO 3166-1 alpha-3 codes — not alpha-2**
+
+The `geo` parameter requires 3-letter codes (`"USA"`, `"GBR"`, `"DEU"`) not the 2-letter equivalents (`"US"`, `"GB"`, `"DE"`). Passing alpha-2 codes will not filter correctly and may return unexpected results.
+
+```python
+# ❌ Wrong format — 2-letter codes
+params["geo"] = "US, GB"
+
+# ✅ Correct format — 3-letter ISO codes
+params["geo"] = "USA,GBR"
+```
+
+**Set a date window for every production run**
+
+Without `start_date` and `end_date`, the query returns articles across the full Wokelo index, which for active topics can mean thousands of articles. Always bound queries to the window you intend to process — 30-day windows work well for regular monitoring runs, 7-day windows for weekly digests:
+
+```python
+from datetime import datetime, timedelta
+
+end_date   = datetime.today().strftime("%Y-%m-%d")
+start_date = (datetime.today() - timedelta(days=30)).strftime("%Y-%m-%d")
+params["start_date"] = start_date
+params["end_date"]   = end_date
+```
+
+**Use article `id` for deduplication across runs**
+
+The `id` field is a stable identifier for each article in Wokelo's index. When running the same topic query on an overlapping date range (e.g. daily refreshes), deduplicate by `id` to avoid processing the same article twice:
+
+```python
+seen_ids = set()
+new_articles = []
+for a in articles:
+    if a["id"] not in seen_ids:
+        seen_ids.add(a["id"])
+        new_articles.append(a)
+```
+
+**Blacklist press release aggregators to improve signal quality**
+
+Wire services and press release aggregators (`prnewswire.com`, `businesswire.com`, `globenewswire.com`) publish high volumes of company-issued releases that can dominate topic results. Blacklisting these domains surfaces editorial journalism and independent analysis:
+
+```python
+params["blacklisted"] = (
+    "https://www.prnewswire.com/, "
+    "https://www.businesswire.com/, "
+    "https://www.globenewswire.com/"
+)
+```
+
+**Use `ai_summary` for fast triage before fetching full articles**
+
+The `ai_summary` field provides a reliable 2–4 sentence synopsis that is sufficient for most triage decisions. Read full articles via the `url` field only for items that pass your relevance threshold, rather than attempting to scrape all articles in a result set.
+
+**Understand the difference from Company News Monitoring**
+
+The Industry API response schema is intentionally leaner — it does not include `sentiment`, `primary_tag`, `secondary_tags`, `newsworthiness_impact`, `company_names`, `publisher`, `author`, or `scraped_text`. If you need these enrichment fields, or if your monitoring is anchored to specific companies, use the [Company News Monitoring API](/company-news-monitoring-doc) instead. The two APIs are complementary: industry monitoring for broad thematic coverage, company monitoring for entity-level depth.
+
+---
+
+## 9. Related APIs
+
+<CardGroup cols={3}>
+  <Card title="Company News Monitoring" icon="building" href="/company-news-monitoring-doc">
+    Fetch company-specific news with richer enrichment — sentiment, event categories, company mentions, and full article text.
+  </Card>
+
+  <Card title="Newsfeed" icon="rss" href="/newsfeed-doc">
+    Retrieve a curated, cross-company newsfeed based on a topic, theme, or portfolio watchlist.
+  </Card>
+
+  <Card title="Industry Deep Intelligence" icon="chart-line" href="/industry-deep-intelligence-doc">
+    Generate a comprehensive AI research report on any industry — market size, competitive dynamics, key players, and outlook.
+  </Card>
+
+  <Card title="Industry Research" icon="microscope" href="/industry-research-doc">
+    Run a structured, async AI research workflow on an industry topic and receive a formatted output report.
+  </Card>
+
+  <Card title="Market Map" icon="map" href="/market-map-doc">
+    Discover and map all companies competing in a specific market or product category.
+  </Card>
+
+  <Card title="Supporting APIs" icon="wrench" href="/supporting-apis-doc">
+    Company Search, Request Status, and other utilities used alongside monitoring workflows.
+  </Card>
+</CardGroup>

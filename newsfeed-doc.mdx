@@ -1,485 +1,843 @@
 ---
 title: "Newsfeed"
+description: "Fetch a curated, signal-filtered news feed across any combination of industries, event categories, sentiment, geography, and breaking news — returned synchronously with all filters applied simultaneously in a single POST request."
 ---
 
-## Quick start
+## 1. Overview
 
-The newsfeed API fetches the latest news articles for a given industry, enriched with AI-generated summaries, event categories, publisher metadata, and article text.
+The Newsfeed API fetches the latest news articles across one or more industries, enriched with AI-generated summaries, sentiment signals, newsworthiness ratings, and geographic tags. All filters are applied simultaneously in a single POST request body — no chaining of separate calls required.
 
-Results are returned synchronously in the response
+This is a **synchronous POST API** — you submit a JSON body with your filter combination and receive a paginated array of enriched news articles immediately.
 
-`POST: /api/enterprise/newsfeed/news/`
+The Newsfeed API is the most composable of the three monitoring APIs. Unlike [Company News Monitoring](/company-news-monitoring-doc) (anchored to a specific company) or [Industry News Monitoring](/industry-news-monitoring-doc) (driven by a free-text topic query), the Newsfeed API uses a **structured taxonomy** of pre-defined industry names and event categories as filters. This makes it well-suited to building consistent, reproducible news pipelines that need to run reliably across many industry verticals simultaneously.
 
-NOTE: This is a synchronous API, which means the results will be returned in the HTTP response itself.
+**What makes this API distinct:**
 
-Lets start with a simple one.
+- **Multi-industry in one request** — pass an array of industries (e.g. `["Financial Services & Fintech", "Enterprise Software & Cloud"]`) to get a unified feed across sectors in a single call
+- **Sentiment filtering at query time** — filter to only `"positive"`, `"negative"`, or `"neutral"` articles before results are returned, rather than filtering client-side after fetching everything
+- **Breaking news flag** — set `breaking_news: true` to retrieve only articles Wokelo has classified as high-velocity, high-importance breaking developments
+- **Event category filtering** — combine industry filters with event category filters (e.g. `"Mergers & Acquisitions"`, `"Product Launches & Enhancements"`) from the same 86-category taxonomy used by the Company News API
+- **Geo as array** — pass multiple countries as an array rather than a comma-separated string
+
+Each article in the response includes:
+
+- **AI summary** — a concise, machine-generated synopsis of the article's key facts
+- **Sentiment** — `Positive`, `Neutral`, or `Negative` classification at the article level
+- **Newsworthiness impact** — `High`, `Medium`, or `Low` rating
+- **Geographic tags** — ISO 3166-1 alpha-3 country codes relevant to the article
+- **Article identifier** — a stable numeric `id` for deduplication
+
+**Common use cases:**
+
+- **Morning intelligence briefing** — Pull `breaking_news: true` across your coverage sectors each morning to surface only high-velocity developments worth reading
+- **Positive deal flow signal** — Filter `sentiment: "positive"` across `["Financial Services & Fintech", "Enterprise Software & Cloud"]` to surface fundraising, M&A, and partnership activity worth tracking for deal sourcing
+- **Negative signal monitoring** — Filter `sentiment: "negative"` across portfolio sectors to catch emerging adverse developments — layoffs, regulatory actions, leadership changes — before they become widely covered
+- **Multi-sector LP reporting** — Pull a combined news feed across all sectors in your fund's thesis at the end of each month for structured LP update content
+- **Regulatory and policy tracking** — Combine `category: ["Regulatory & Compliance", "Policy & Legislative Changes"]` with specific `geo` arrays to track jurisdiction-specific regulatory changes across a sector
+- **Thematic investment screening** — Use `industry` \+ `category` \+ `geo` together to identify investment activity (e.g. M&A and equity fundraising in healthcare in Southeast Asia) at scale
+
+<Info>
+  This API is synchronous. Results are returned directly in the HTTP response — no job submission or polling required. See [How Sync APIs work](/how-sync-apis-work).
+</Info>
+
+---
+
+## 2. Quick Start
+
+**Step 1 — Make a simple request**
 
 <CodeGroup>
 
-```json cURL expandable wrap
+```bash cURL
 curl --location 'https://api.wokelo.ai/api/enterprise/newsfeed/news/' \
---header 'Authorization: Bearer Token' \
---header 'Content-Type: application/json' \
---data '{
-  "industry": ["Energy, Utilities & Environment", "Industrials & Manufacturing"],
-  "breaking_news": true,
-  "sentiment":"positive",
-  "published_date_after":"2026-04-01",
-  "published_date_before":"2026-04-30",
-  "limit":100
-}'
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "industry": ["Energy, Utilities & Environment", "Industrials & Manufacturing"],
+    "breaking_news": true,
+    "sentiment": "positive",
+    "published_date_after": "2026-04-01",
+    "published_date_before": "2026-04-30",
+    "limit": 100
+  }'
 ```
 
-```json Python expandable wrap
+```python Python
 import requests
-import json
 
-url = "https://api.wokelo.ai/api/enterprise/newsfeed/news/"
-
-payload = json.dumps({
-  "industry": [
-    "Energy, Utilities & Environment",
-    "Industrials & Manufacturing"
-  ],
-  "breaking_news": True,
-  "sentiment": "positive",
-  "published_date_after": "2026-04-01",
-  "published_date_before": "2026-04-30",
-  "limit": 100
-})
-headers = {
-  'Authorization': 'Bearer Token',
-  'Content-Type': 'application/json'
-}
-
-response = requests.request("POST", url, headers=headers, data=payload)
-
-print(response.text)
+response = requests.post(
+    "https://api.wokelo.ai/api/enterprise/newsfeed/news/",
+    headers={
+        "Authorization": "Bearer <YOUR_API_TOKEN>",
+        "Content-Type": "application/json"
+    },
+    json={
+        "industry": ["Energy, Utilities & Environment", "Industrials & Manufacturing"],
+        "breaking_news": True,
+        "sentiment": "positive",
+        "published_date_after": "2026-04-01",
+        "published_date_before": "2026-04-30",
+        "limit": 100
+    }
+)
+data = response.json()
+print(f"Retrieved {data['count']} of {data['total']} articles")
 ```
 
 </CodeGroup>
 
-The response will return a set of news articles:
+**Step 2 — Add category and geography filters**
 
-```json expandable
-{
-    "status": "success",
-    "data": [
-        {
-            "id": 10655466,
-            "url": "https://www.bgr.com/2160481/sustainable-air-conditioner-alternative-nescod-ammonium-nitrate-cooling/",
-            "title": "Not A Fan, Not AC: This Cheap Cooling System Works Without Using Electricity",
-            "ai_summary": "Scientists from King Abdullah University of Science and Technology developed Nescod, a cooling system that uses ammonium nitrate and requires no electricity, achieving significant temperature drops during experiments. The system can be regenerated using solar energy, making it suitable for off-grid and low-income areas. ",
-            "published_date": "2026-04-29 17:46:56",
-            "source": "Wokelo",
-            "geo": [
-                "SAU"
-            ],
-            "sentiment": "Positive",
-            "newsworthiness_impact": "Medium"
-        },
-        {
-            "id": 10654876,
-            "url": "https://www.globalbankingandfinance.com/kone-buy-rival-tk-elevator-34-4-billion-deal/",
-            "title": "Kone to Acquire TK Elevator in Historic $34.4 Billion Finance Deal",
-            "ai_summary": "Finnish elevator manufacturer Kone has agreed to acquire German rival TK Elevator (TKE) in a €29.4 billion ($34.4 billion) deal. The merger is expected to create the world's largest lift manufacturer with over €700 million in annual synergies and more than 100,000 employees. ",
-            "published_date": "2026-04-29 05:42:53",
-            "source": "Wokelo",
-            "geo": [
-                "FIN",
-                "DEU"
-            ],
-            "sentiment": "Positive",
-            "newsworthiness_impact": "High"
-        },
-        {
-            "id": 10628677,
-            "url": "https://www.newsweek.com/gm-adds-digital-in-car-personalization-to-current-older-models-11888578",
-            "title": "GM Adds Digital In-Car Personalization to Current, Older Models",
-            "ai_summary": "General Motors announced that they are updating model year 2022 and newer Cadillac, Chevrolet, Buick, and GMC vehicles with Google Gemini to enhance in-car AI capabilities via over-the-air software updates. The upgrade will reach approximately 4 million vehicles in the U.S. and is part of GM's strategy to phase out Apple CarPlay and Android Auto by 2028. ",
-            "published_date": "2026-04-28 00:00:00",
-            "source": "Wokelo",
-            "geo": [
-                "USA"
-            ],
-            "sentiment": "Positive",
-            "newsworthiness_impact": "Medium"
-        },
-        {
-            "id": 10635667,
-            "url": "https://www.dw.com/en/will-the-iran-war-reshape-the-auto-industry/video-76914859",
-            "title": "Will the Iran war reshape the auto industry?",
-            "ai_summary": "Rising fuel prices due to the Iran war and shifting energy politics are accelerating the adoption of electric vehicles globally, especially in Europe and China. ",
-            "published_date": "2026-04-27 12:28:27",
-            "source": "Wokelo",
-            "geo": [
-                "DEU",
-                "USA",
-                "CHN"
-            ],
-            "sentiment": "Positive",
-            "newsworthiness_impact": "High"
-        },
-        {
-            "id": 10586019,
-            "url": "https://tech.eu/2026/04/27/spacetech-investor-seraphim-space-targets-350m-raise/",
-            "title": "Spacetech investor Seraphim Space targets £350M raise",
-            "ai_summary": "Seraphim Space, a spacetech investor listed on the London Stock Exchange, announced plans to raise up to £350 million through new share issuance. The fundraising aims to capitalize on growing interest in the spacetech sector, driven by reduced costs and upcoming IPOs such as SpaceX. ",
-            "published_date": "2026-04-27 11:15:00",
-            "source": "Wokelo",
-            "geo": [
-                "GBR"
-            ],
-            "sentiment": "Positive",
-            "newsworthiness_impact": "High"
-        },
-        {
-            "id": 10451190,
-            "url": "https://techcrunch.com/2026/04/27/meta-inks-deal-for-solar-power-at-night-beamed-from-space/",
-            "title": "Meta inks deal for solar power at night, beamed from space",
-            "ai_summary": "Meta signed an agreement with Overview Energy to receive power from satellites transmitting infrared light to terrestrial solar farms. Overview plans to launch a fleet of 1,000 spacecraft by 2030 to beam space-generated power to Earth, aiming to reduce reliance on fossil fuels. ",
-            "published_date": "2026-04-27 10:00:00",
-            "source": "Wokelo",
-            "geo": [
-                "USA"
-            ],
-            "sentiment": "Positive",
-            "newsworthiness_impact": "High"
-        },
-        {
-            "id": 10653832,
-            "url": "https://www.skynews.com.au/australia-news/politics/australian-army-to-receive-next-generation-laserarmed-bushmasters-as-part-of-12-billion-defence-industry-investment/news-story/685ad8797431e573904bed0062ed15ca",
-            "title": "Australian Army to receive 'next generation' laser-armed Bushmasters as part of $1.2 billion defence industry investment",
-            "ai_summary": "Australia announced a $1.2 billion investment in armed Bushmaster vehicles, including mounting lasers to destroy drones. The order will create 300 defence jobs and support the production of new vehicles for the Australian Army and Netherlands. The new vehicles will feature advanced power systems, remote weapon stations, and directed energy weapons. ",
-            "published_date": "2026-04-27 02:01:28",
-            "source": "Wokelo",
-            "geo": [
-                "AUS",
-                "NLD"
-            ],
-            "sentiment": "Positive",
-            "newsworthiness_impact": "High"
-        },
-        {
-            "id": 10630707,
-            "url": "https://www.morningstar.com/news/pr-newswire/20260422sf41523/hyperscale-data-sees-rising-demand-across-defense-portfolio-amid-heightened-global-activity",
-            "title": "Hyperscale Data Sees Rising Demand Across Defense Portfolio Amid Heightened Global Activity",
-            "ai_summary": "Hyperscale Data announced increased demand in its defense portfolio, supported by its subsidiaries Gresham Worldwide, Inc. and TurnOnGreen, Inc., due to recent global conflicts in the Middle East and Ukraine. The company's Defense Systems Group is experiencing a rise in inquiries and orders for mission-critical defense electronics and technologies. ",
-            "published_date": "2026-04-22 15:30:00",
-            "source": "Wokelo",
-            "geo": [
-                "ISR",
-                "RUS"
-            ],
-            "sentiment": "Positive",
-            "newsworthiness_impact": "High"
-        },
-        {
-            "id": 10640525,
-            "url": "https://markets.businessinsider.com/news/stocks/from-lab-to-field-hpq-and-novacium-secure-first-battery-order-from-european-drone-manufacturer-using-gen4-cells-1036048062",
-            "title": "From Lab to Field: HPQ and Novacium Secure First Battery Order from European Drone Manufacturer Using GEN4 Cells",
-            "ai_summary": "HPQ Silicon and its strategic partner Novacium announced that they received an initial battery pack order from a European drone manufacturer, marking a step towards commercialization of high-capacity lithium-ion batteries for drones. The order involves proposed 8S2P and 8S3P configurations based on GEN4 21700 cells, with ongoing discussions about larger capacity options. ",
-            "published_date": "2026-04-22 00:00:00",
-            "source": "Wokelo",
-            "geo": [
-                "ESP"
-            ],
-            "sentiment": "Positive",
-            "newsworthiness_impact": "Medium"
-        },
-        {
-            "id": 9385534,
-            "url": "https://www.independent.co.uk/news/world/europe/uk-ukraine-drones-aid-russia-b2958133.html",
-            "title": "UK to send £752m and 120,000 drones to Ukraine to bolster defences against Russia",
-            "ai_summary": "The UK announced a military support package for Ukraine, including £752 million in aid and 120,000 drones. The aid aims to help Ukraine defend itself against Russia's ongoing invasion, with a focus on advanced military equipment and drone capabilities. ",
-            "published_date": "2026-04-15 12:18:16",
-            "source": "Wokelo",
-            "geo": [
-                "GBR",
-                "UKR"
-            ],
-            "sentiment": "Positive",
-            "newsworthiness_impact": "High"
-        },
-        {
-            "id": 10654930,
-            "url": "https://www.morningstar.com/news/accesswire/1155961msn/cubic-to-showcase-edge-compute-and-digital-intelligence-advancing-marine-corps-operations-at-modern-day-marine-2026",
-            "title": "Cubic to Showcase Edge Compute and Digital Intelligence Advancing Marine Corps Operations at Modern Day Marine 2026",
-            "ai_summary": "Cubic Defense will showcase its edge compute and digital intelligence capabilities at Modern Day Marine 2026 in Washington, D.C., demonstrating how its technologies support Marine Corps operations in contested environments. The company highlighted solutions like high-speed computing, resilient networking, and shared operational mapping to enhance situational awareness and decision-making. This event emphasizes the integration of advanced digital tools for military operational effectiveness. ",
-            "published_date": "2026-04-14 08:00:00",
-            "source": "Wokelo",
-            "geo": [
-                "USA"
-            ],
-            "sentiment": "Positive",
-            "newsworthiness_impact": "Medium"
-        },
-        {
-            "id": 10635235,
-            "url": "https://www.arabnews.com/node/2638449/amp",
-            "title": "Pakistan signs carbon market deal with Norway to reduce emissions, attract green investment",
-            "ai_summary": "Pakistan signed its first bilateral carbon market deal with Norway under the Paris Agreement, aiming to reduce emissions and promote sustainable development. The agreement allows Pakistan to generate and trade carbon credits from projects in various sectors, supporting climate and economic goals. ",
-            "published_date": "2026-04-01 00:00:00",
-            "source": "Wokelo",
-            "geo": [
-                "PAK",
-                "NOR"
-            ],
-            "sentiment": "Positive",
-            "newsworthiness_impact": "High"
-        }
-    ],
-    "count": 12,
-    "total": 12,
-    "limit": 100,
-    "offset": 0
-}
+```python
+response = requests.post(
+    "https://api.wokelo.ai/api/enterprise/newsfeed/news/",
+    headers={"Authorization": "Bearer <YOUR_API_TOKEN>"},
+    json={
+        "industry": ["Financial Services & Fintech"],
+        "category": ["Mergers & Acquisitions", "Equity Fund-Raising"],
+        "geo": ["USA", "GBR"],
+        "sentiment": "positive",
+        "published_date_after": "2026-04-01",
+        "published_date_before": "2026-04-30",
+        "limit": 50
+    }
+)
+articles = response.json()["data"]
 ```
 
-## Request reference
+**Step 3 — Work with the articles**
 
-A sample request containing all the possible parameters
+```python
+for article in articles:
+    geo_str = ", ".join(article.get("geo", []))
+    print(f"[{article['sentiment']}] [{article['newsworthiness_impact']}] {article['title']}")
+    print(f"  {geo_str} | {article['published_date'][:10]}")
+    print(f"  {article['ai_summary'][:150]}...")
+    print()
+```
+
+---
+
+## 3. Authentication
+
+All requests must include a **Bearer token** in the `Authorization` HTTP header. No other authentication method is supported.
+
+```text
+Authorization: Bearer <YOUR_API_TOKEN>
+```
+
+API tokens are issued from your Wokelo account. Navigate to **Settings → API Keys** in the Wokelo dashboard to generate or rotate a key. Contact [support@wokelo.ai](mailto:support@wokelo.ai) if you do not yet have API access.
+
+<Warning>
+  Never expose your token in client-side code, browser requests, or public repositories. A missing or invalid token returns `401 Unauthorized`. A valid token without sufficient plan permissions returns `403 Forbidden`.
+</Warning>
+
+---
+
+## 4. Request Reference
+
+**Endpoint**
+
+```text
+POST https://api.wokelo.ai/api/enterprise/newsfeed/news/
+```
+
+All parameters are passed as JSON in the request body. No URL query parameters are used.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `industry` | string\[\] | Optional | Array of industry names from Wokelo's controlled taxonomy. Pass one or more to restrict the feed to those sectors. [View all 28 supported industry names](/industry-names). Example: `["Financial Services & Fintech", "Healthcare & Life Sciences"]`. |
+| `category` | string\[\] | Optional | Array of news event categories from Wokelo's 86-category taxonomy. Restricts results to articles tagged with any of the specified categories. [View all supported categories](/news-categories). Example: `["Mergers & Acquisitions", "Product Launches & Enhancements"]`. |
+| `sentiment` | string | Optional | Filter by article-level sentiment. Accepted values: `"positive"`, `"negative"`, `"neutral"`. Case-insensitive. Omit to return articles of all sentiments. |
+| `breaking_news` | boolean | Optional | Set to `true` to return only articles Wokelo has classified as breaking news. Omit or set to `false` to return all articles. |
+| `geo` | string\[\] | Optional | Array of ISO 3166-1 alpha-3 country codes. Returns only articles tagged with at least one of the specified countries. Example: `["USA", "GBR", "DEU"]`. |
+| `published_date_after` | string | Optional | Start of the date window for articles (`YYYY-MM-DD`). Inclusive. |
+| `published_date_before` | string | Optional | End of the date window for articles (`YYYY-MM-DD`). Inclusive. |
+| `limit` | integer | Optional | Maximum number of articles to return. Default `100`, max `1000`. |
+| `offset` | integer | Optional | Number of articles to skip before returning results. Default `0`. Use with `limit` for pagination. |
+| `blacklisted` | string\[\] | Optional | Array of publisher domains to exclude from results. Include the full domain starting with `https://`. Example: `["https://www.prnewswire.com/", "https://www.businesswire.com/"]`. |
+
+<Info>
+  All parameters are optional — the API will return all recent articles if no filters are passed. In practice, always supply at least `published_date_after` / `published_date_before` to avoid processing an unbounded backlog.
+</Info>
+
+**Full request example:**
 
 <CodeGroup>
 
-```json cURL expandable wrap
+```bash cURL
 curl --location 'https://api.wokelo.ai/api/enterprise/newsfeed/news/' \
---header 'Authorization: Bearer Token' \
---header 'Content-Type: application/json' \
---data '{
-  "industry": ["Energy, Utilities & Environment", "Industrials & Manufacturing"],
-  "breaking_news": true,
-  "geo":["USA"],
-  "sentiment":"positive",
-  "published_date_after":"2026-04-01",
-  "published_date_before":"2026-04-30",
-  "limit":100,
-  "offset":2
-}'
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "industry": ["Energy, Utilities & Environment", "Industrials & Manufacturing"],
+    "category": ["Mergers & Acquisitions", "Equity Fund-Raising", "Partnerships & Alliances"],
+    "breaking_news": true,
+    "geo": ["USA"],
+    "sentiment": "positive",
+    "published_date_after": "2026-04-01",
+    "published_date_before": "2026-04-30",
+    "limit": 100,
+    "offset": 0,
+    "blacklisted": ["https://www.prnewswire.com/", "https://www.businesswire.com/"]
+  }'
 ```
 
-```json Python expandable wrap
+```python Python
 import requests
-import json
 
-url = "https://api.wokelo.ai/api/enterprise/newsfeed/news/"
+response = requests.post(
+    "https://api.wokelo.ai/api/enterprise/newsfeed/news/",
+    headers={
+        "Authorization": "Bearer <YOUR_API_TOKEN>",
+        "Content-Type": "application/json"
+    },
+    json={
+        "industry": ["Energy, Utilities & Environment", "Industrials & Manufacturing"],
+        "category": ["Mergers & Acquisitions", "Equity Fund-Raising", "Partnerships & Alliances"],
+        "breaking_news": True,
+        "geo": ["USA"],
+        "sentiment": "positive",
+        "published_date_after": "2026-04-01",
+        "published_date_before": "2026-04-30",
+        "limit": 100,
+        "offset": 0,
+        "blacklisted": ["https://www.prnewswire.com/", "https://www.businesswire.com/"]
+    }
+)
+print(response.json())
+```
 
-payload = json.dumps({
-  "industry": [
-    "Energy, Utilities & Environment",
-    "Industrials & Manufacturing"
-  ],
-  "breaking_news": True,
-  "geo": [
-    "USA"
-  ],
-  "sentiment": "positive",
-  "published_date_after": "2026-04-01",
-  "published_date_before": "2026-04-30",
+</CodeGroup>
+
+---
+
+## 5. Response
+
+### Response structure
+
+```json
+{
+  "status": "success",
+  "data": [ ...article objects... ],
+  "count": 12,
+  "total": 12,
   "limit": 100,
-  "offset": 2
-})
-headers = {
-  'Authorization': 'Bearer Token',
-  'Content-Type': 'application/json'
+  "offset": 0
 }
-
-response = requests.request("POST", url, headers=headers, data=payload)
-
-print(response.text)
 ```
 
-</CodeGroup>
+| Field | Type | Description |
+| --- | --- | --- |
+| `status` | string | `"success"` when the request was processed successfully. |
+| `data` | array | Array of enriched article objects. |
+| `count` | integer | Number of articles returned in this response batch. |
+| `total` | integer | Total number of matching articles available across all pages. |
+| `limit` | integer | The `limit` value applied to this response. |
+| `offset` | integer | The `offset` value applied to this response. |
 
-The table below lists all the parameters available to filter the results.
+### Article object fields
 
-| URL Parameters | Description |
-| :-- | :-- |
-| `industry` | Array of industry names. [View](https://docs.wokelo.ai/industry-names) supported industry names. |
-| `category` | Array of news category values. [View](https://docs.wokelo.ai/news-categories) supported news categories. |
-| `geo` | Geographic scope as [ISO country codes](https://docs.wokelo.ai/iso-country-codes) (e.g. `["USA", "GBR"]`) |
-| `sentiment` | News sentiment- positive, negative, neutral |
-| `breaking_news` | Boolean value. To fetch breaking news, set this to true |
-| `published_date_after` | Lower bound for date range to filter news articles |
-| `published_date_before` | Upper bound for date range to filter news articles |
-| `limit` | Maximum number of news to return |
-| `offset` | Number of records to skip before starting to return results |
-| `blacklisted` | Comma-separated list of publisher domains to exclude from results. (include complete domain starting with https://) |
+Each object in the `data` array contains the following fields:
 
-## Examples
+**Article identity**
 
-**Portfolio adverse signal monitoring**: Get all legal, compliance, layoff, leadership change news for Brex.
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | integer | Stable numeric identifier for the article in Wokelo's index. Use for deduplication across paginated requests or recurring pipeline runs. |
+| `url` | string | Canonical URL of the original article. |
+| `title` | string | Headline of the article as published. |
+| `published_date` | string | Publication datetime in `YYYY-MM-DD HH:MM:SS` format (UTC). |
 
-### Sample Request
+**AI enrichment**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `ai_summary` | string | AI-generated 2–4 sentence summary of the article's key facts and implications. |
+
+**Signals**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `sentiment` | string | Article-level sentiment: `"Positive"`, `"Neutral"`, or `"Negative"`. Note the response uses title case even when the request filter uses lowercase. |
+| `newsworthiness_impact` | string | Strategic significance rating: `"High"`, `"Medium"`, or `"Low"`. |
+
+**Source and geography**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `source` | string | Wokelo's internal signal source designation. Either `"Wokelo"` (directly indexed) or `"Google"` (sourced via search). |
+| `geo` | string\[\] | Array of ISO 3166-1 alpha-3 country codes identifying the geographies covered in the article. Empty array when no country was detected. |
+
+### Sentiment values
+
+| Request filter value | Response field value | Meaning |
+| --- | --- | --- |
+| `"positive"` | `"Positive"` | Article conveys favourable news — growth, deals, launches, positive outcomes |
+| `"negative"` | `"Negative"` | Article conveys unfavourable news — layoffs, regulatory action, losses, adverse events |
+| `"neutral"` | `"Neutral"` | Factual or mixed coverage with no clear directional bias |
+
+<Info>
+  The `sentiment` request parameter uses lowercase (`"positive"`, `"negative"`, `"neutral"`), but the `sentiment` field in each response article uses title case (`"Positive"`, `"Negative"`, `"Neutral"`). This inconsistency is expected — normalise to one case in your application logic.
+</Info>
+
+### Newsworthiness impact values
+
+| Value | Meaning |
+| --- | --- |
+| `"High"` | Material development likely to affect strategic positioning, valuations, or stakeholder decisions |
+| `"Medium"` | Notable update worth tracking but not immediately actionable |
+| `"Low"` | Routine coverage, minor updates, or tangentially related content |
+
+### Notes on the Newsfeed response schema vs other monitoring APIs
+
+The Newsfeed article object is intentionally lean. Compared to the [Company News Monitoring API](/company-news-monitoring-doc), the following fields are **not present** in Newsfeed responses: `primary_tag`, `secondary_tags`, `company_names`, `publisher`, `author`, `scraped_text`, `original_language`, `company_name`. Use `ai_summary` for content triage and `url` to access the full article when deeper processing is needed.
+
+---
+
+## 6. Examples
+
+### Morning breaking news briefing
+
+Pull high-impact breaking news across your coverage sectors each morning — a single call that surfaces only what matters most overnight.
 
 <CodeGroup>
 
-```json cURL
+```bash cURL
 curl --location 'https://api.wokelo.ai/api/enterprise/newsfeed/news/' \
---header 'Authorization: Bearer Token' \
---header 'Content-Type: application/json' \
---data '{
-  "industry": ["Financial Services & Fintech"],
-  "breaking_news": true,
-  "geo":["USA"],
-  "sentiment":"positive",
-  "published_date_after":"2026-04-01",
-  "published_date_before":"2026-04-30"
-}'
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "industry": [
+      "Financial Services & Fintech",
+      "Enterprise Software & Cloud",
+      "Healthcare & Life Sciences",
+      "Data, AI & ML Infrastructure"
+    ],
+    "breaking_news": true,
+    "published_date_after": "2026-05-13",
+    "published_date_before": "2026-05-14",
+    "limit": 50
+  }'
 ```
 
-```json Python
+```python Python
 import requests
-import json
+from datetime import datetime, timedelta
 
-url = "https://api.wokelo.ai/api/enterprise/newsfeed/news/"
+HEADERS = {"Authorization": "Bearer <YOUR_API_TOKEN>"}
 
-payload = json.dumps({
-  "industry": [
-    "Financial Services & Fintech"
-  ],
-  "breaking_news": True,
-  "geo": [
-    "USA"
-  ],
-  "sentiment": "positive",
-  "published_date_after": "2026-04-01",
-  "published_date_before": "2026-04-30"
-})
-headers = {
-  'Authorization': 'Bearer Token',
-  'Content-Type': 'application/json'
-}
+today     = datetime.today().strftime("%Y-%m-%d")
+yesterday = (datetime.today() - timedelta(days=1)).strftime("%Y-%m-%d")
 
-response = requests.request("POST", url, headers=headers, data=payload)
+response = requests.post(
+    "https://api.wokelo.ai/api/enterprise/newsfeed/news/",
+    headers=HEADERS,
+    json={
+        "industry": [
+            "Financial Services & Fintech",
+            "Enterprise Software & Cloud",
+            "Healthcare & Life Sciences",
+            "Data, AI & ML Infrastructure"
+        ],
+        "breaking_news": True,
+        "published_date_after": yesterday,
+        "published_date_before": today,
+        "limit": 50
+    }
+)
 
-print(response.text)
+articles = response.json()["data"]
+
+# Lead with high-impact items
+high = [a for a in articles if a.get("newsworthiness_impact") == "High"]
+rest = [a for a in articles if a.get("newsworthiness_impact") != "High"]
+
+print(f"Morning Briefing — {today}")
+print(f"Breaking news: {len(articles)} articles ({len(high)} high-impact)\n")
+
+for a in high + rest:
+    print(f"[{a['newsworthiness_impact']}] {a['title']}")
+    print(f"  {', '.join(a.get('geo', []))} | {a['published_date'][:10]}")
+    print(f"  {a['ai_summary'][:200]}...")
+    print()
 ```
 
 </CodeGroup>
 
-### Sample Response
+**Sample response (excerpt):**
 
-```json expandable
+```json
 {
-    "status": "success",
-    "data": [
-        {
-            "id": 10659271,
-            "url": "https://tech.eu/2026/04/29/cleo-labs-secures-eur15m-to-scale-ai-driven-product-compliance-globally/",
-            "title": "Cleo Labs secures €1.5M to scale AI-driven product compliance globally",
-            "ai_summary": "Cleo Labs, a Paris-based regtech company, has raised €1.5 million to develop its AI-driven platform for international product compliance. The funding aims to expand its capabilities in Europe and prepare for entry into the United States. ",
-            "published_date": "2026-04-29 10:00:00",
-            "source": "Wokelo",
-            "geo": [
-                "FRA",
-                "USA"
-            ],
-            "sentiment": "Positive",
-            "newsworthiness_impact": "Medium"
-        },
-        {
-            "id": 10630723,
-            "url": "https://www.morningstar.com/news/pr-newswire/20260428la45630/vendavo-named-a-leader-in-the-gartner-magic-quadrant-for-b2b-pricing-rebate-optimization-software",
-            "title": "Vendavo Named a Leader in the Gartner® Magic Quadrant™ for B2B Pricing & Rebate Optimization Software",
-            "ai_summary": "Vendavo has been named a Leader in the Gartner Magic Quadrant for B2B Pricing & Rebate Optimization Software. The company offers a comprehensive suite of solutions to support complex pricing and rebate requirements globally. ",
-            "published_date": "2026-04-28 11:13:00",
-            "source": "Wokelo",
-            "geo": [
-                "USA"
-            ],
-            "sentiment": "Positive",
-            "newsworthiness_impact": "Medium"
-        },
-        {
-            "id": 10656268,
-            "url": "https://financefeeds.com/sec-chair-paul-atkins-says-crypto-and-blockchain-innovation-will-strengthen-u-s-economy/",
-            "title": "SEC Chair Paul Atkins Says Crypto and Blockchain Innovation Will Strengthen U.S. Economy",
-            "ai_summary": "SEC Chair Paul Atkins expressed support for cryptocurrency and blockchain innovation, suggesting it will enhance the U.S. economy and financial system. His comments indicate a shift towards clearer, more innovation-friendly regulation of digital assets by the SEC, amid ongoing legislative debates. ",
-            "published_date": "2026-04-28 10:56:03",
-            "source": "Wokelo",
-            "geo": [
-                "USA"
-            ],
-            "sentiment": "Positive",
-            "newsworthiness_impact": "Medium"
-        },
-        {
-            "id": 10655532,
-            "url": "https://markets.ft.com/data/announce/detail?dockey=600-202604230900BIZWIRE_USPRX____20260423_BW750515-1",
-            "title": "Regions Bank + Dash Solutions Collaborate on New Treasury Management Solution to Modernize Client Payment Operations – Company Announcement",
-            "ai_summary": "Regions Bank launched a new Treasury Management solution called Regions ReimbursePro, powered by Dash Solutions, to modernize client payment operations and enable real-time fund transfers. The solution aims to improve refund efficiency, reduce errors, and support various industries with digital payment options. The development reflects Regions Bank’s focus on innovative payment technology and industry-specific service offerings. ",
-            "published_date": "2026-04-23 00:00:00",
-            "source": "Wokelo",
-            "geo": [
-                "USA"
-            ],
-            "sentiment": "Positive",
-            "newsworthiness_impact": "Medium"
-        },
-        {
-            "id": 10646613,
-            "url": "https://markets.businessinsider.com/news/stocks/maryland-emerges-as-a-national-leader-in-digital-asset-innovation-maryland-blockchain-association-celebrates-historic-legislative-sweep-1036037664",
-            "title": "Maryland Emerges as a National Leader in Digital Asset Innovation: Maryland Blockchain Association Celebrates Historic Legislative Sweep",
-            "ai_summary": "The Maryland Blockchain Association announced the passage of three landmark blockchain legislation acts by the Maryland General Assembly, now heading to the governor's desk for approval. These laws aim to establish a regulatory framework for blockchain technology, real estate land governance, and digital payments, positioning Maryland as a leader in digital asset innovation. ",
-            "published_date": "2026-04-20 00:00:00",
-            "source": "Wokelo",
-            "geo": [
-                "USA"
-            ],
-            "sentiment": "Positive",
-            "newsworthiness_impact": "Medium"
-        },
-        {
-            "id": 10626912,
-            "url": "https://www.latimes.com/b2b/banking-finance/story/2026-04-10/omni-agent-solutions-acquisition-fortress",
-            "title": "Fortress Investment Group Completes Omni Agent Solutions Acquisition",
-            "ai_summary": "Fortress Investment Group's affiliates have acquired Omni Agent Solutions, a provider of bankruptcy and restructuring services based in Woodland Hills. The investment aims to support Omni’s growth, technology development, and expansion in core service lines. ",
-            "published_date": "2026-04-10 17:00:00",
-            "source": "Wokelo",
-            "geo": [
-                "USA"
-            ],
-            "sentiment": "Positive",
-            "newsworthiness_impact": "Medium"
-        },
-        {
-            "id": 10659347,
-            "url": "https://www.morningstar.com/news/pr-newswire/20260407sf28608/katrisk-acquires-red-expanding-global-catastrophe-modeling-capabilities",
-            "title": "KatRisk Acquires RED, Expanding Global Catastrophe Modeling Capabilities",
-            "ai_summary": "KatRisk acquired RED, a catastrophe modeling provider, to expand its global risk modeling capabilities, particularly for earthquakes, floods, and other natural hazards. The acquisition aims to accelerate the development of high-fidelity models and integrate RED's European earthquake platform into KatRisk's software platform, SpatialKat. ",
-            "published_date": "2026-04-07 09:17:00",
-            "source": "Wokelo",
-            "geo": [
-                "USA",
-                "NPL"
-            ],
-            "sentiment": "Positive",
-            "newsworthiness_impact": "High"
-        },
-        {
-            "id": 10625369,
-            "url": "https://markets.ft.com/data/announce/detail?dockey=600-202604020900BIZWIRE_USPRX____20260401_BW646454-1",
-            "title": "Navan Launches AI-powered Audit Engine With Built-in Anti-Corruption & Bribery Flags – Company Announcement",
-            "ai_summary": "Navan announced the launch of its new AI-powered Audit Engine, a transaction screening system with over 45 risk and compliance checks, including anti-corruption and bribery flags. The system aims to automate risk detection in financial transactions and will be available globally, with the anti-corruption check in beta. ",
-            "published_date": "2026-04-02 00:00:00",
-            "source": "Wokelo",
-            "geo": [
-                "USA"
-            ],
-            "sentiment": "Positive",
-            "newsworthiness_impact": "Medium"
-        }
-    ],
-    "count": 8,
-    "total": 8,
-    "limit": 100,
-    "offset": 0
+  "status": "success",
+  "data": [
+    {
+      "id": 10654876,
+      "url": "https://www.globalbankingandfinance.com/kone-buy-rival-tk-elevator-34-4-billion-deal/",
+      "title": "Kone to Acquire TK Elevator in Historic $34.4 Billion Finance Deal",
+      "ai_summary": "Finnish elevator manufacturer Kone has agreed to acquire German rival TK Elevator (TKE) in a €29.4 billion ($34.4 billion) deal. The merger is expected to create the world's largest lift manufacturer with over €700 million in annual synergies and more than 100,000 employees.",
+      "published_date": "2026-04-29 05:42:53",
+      "source": "Wokelo",
+      "geo": ["FIN", "DEU"],
+      "sentiment": "Positive",
+      "newsworthiness_impact": "High"
+    },
+    {
+      "id": 10451190,
+      "url": "https://techcrunch.com/2026/04/27/meta-inks-deal-for-solar-power-at-night-beamed-from-space/",
+      "title": "Meta inks deal for solar power at night, beamed from space",
+      "ai_summary": "Meta signed an agreement with Overview Energy to receive power from satellites transmitting infrared light to terrestrial solar farms. Overview plans to launch a fleet of 1,000 spacecraft by 2030 to beam space-generated power to Earth.",
+      "published_date": "2026-04-27 10:00:00",
+      "source": "Wokelo",
+      "geo": ["USA"],
+      "sentiment": "Positive",
+      "newsworthiness_impact": "High"
+    }
+  ],
+  "count": 12,
+  "total": 12,
+  "limit": 100,
+  "offset": 0
 }
 ```
 
-## Best practices
+### Negative signal monitoring across a fund's portfolio sectors
 
-- Set a `published_date_after`/`published_date_before` range to avoid processing large backlogs — 30-day windows work well for regular monitoring runs.
-- Blacklist low-quality publishers (press release aggregators, forums) to improve signal quality.
-- Paginate with limit and offset when processing companies with high news volume (\>500 articles in your date range).
+Monitor for adverse developments — regulatory scrutiny, workforce reductions, financial distress — across all sectors in your investment thesis simultaneously.
+
+```python
+import requests
+from datetime import datetime, timedelta
+
+HEADERS = {"Authorization": "Bearer <YOUR_API_TOKEN>"}
+
+PORTFOLIO_SECTORS = [
+    "Financial Services & Fintech",
+    "Enterprise Software & Cloud",
+    "Healthcare & Life Sciences",
+    "Industrials & Manufacturing"
+]
+
+ADVERSE_CATEGORIES = [
+    "Legal Proceedings & Litigation",
+    "Regulatory & Compliance",
+    "Workforce Reductions",
+    "Financial Distress & Restructuring",
+    "Cybersecurity Incidents",
+    "C-Suite Appointments & Departures",
+    "Reputational Damage"
+]
+
+end_date   = datetime.today().strftime("%Y-%m-%d")
+start_date = (datetime.today() - timedelta(days=7)).strftime("%Y-%m-%d")
+
+response = requests.post(
+    "https://api.wokelo.ai/api/enterprise/newsfeed/news/",
+    headers=HEADERS,
+    json={
+        "industry":             PORTFOLIO_SECTORS,
+        "category":             ADVERSE_CATEGORIES,
+        "sentiment":            "negative",
+        "published_date_after": start_date,
+        "published_date_before": end_date,
+        "limit":                200,
+        "blacklisted": [
+            "https://www.prnewswire.com/",
+            "https://www.businesswire.com/"
+        ]
+    }
+)
+
+data     = response.json()
+articles = data["data"]
+
+high_impact = [a for a in articles if a.get("newsworthiness_impact") == "High"]
+
+print(f"Adverse Signal Monitor — {start_date} to {end_date}")
+print(f"Total signals: {data['total']} | High-impact: {len(high_impact)}\n")
+
+for a in sorted(high_impact, key=lambda x: x["published_date"], reverse=True):
+    print(f"[HIGH] {a['title']}")
+    print(f"  {', '.join(a.get('geo', []))} | {a['published_date'][:10]}")
+    print(f"  {a['ai_summary'][:250]}...")
+    print()
+```
+
+### Positive deal flow feed — fundraising and M&A
+
+Surface equity fundraising, M&A, and partnership activity across target sectors. Useful for identifying deal flow signals and tracking competitive activity.
+
+```python
+import requests
+
+HEADERS = {"Authorization": "Bearer <YOUR_API_TOKEN>"}
+
+response = requests.post(
+    "https://api.wokelo.ai/api/enterprise/newsfeed/news/",
+    headers=HEADERS,
+    json={
+        "industry": [
+            "Financial Services & Fintech",
+            "Healthcare & Life Sciences",
+            "Data, AI & ML Infrastructure",
+            "Enterprise Software & Cloud"
+        ],
+        "category": [
+            "Mergers & Acquisitions",
+            "Equity Fund-Raising",
+            "Partnerships & Alliances",
+            "IPOs & Follow-on Offerings"
+        ],
+        "sentiment":             "positive",
+        "geo":                   ["USA", "GBR", "DEU", "IND", "SGP"],
+        "published_date_after":  "2026-04-01",
+        "published_date_before": "2026-04-30",
+        "limit":                 200
+    }
+)
+
+articles = response.json()["data"]
+
+# Group by geography for regional breakdown
+from collections import defaultdict
+by_geo = defaultdict(list)
+for a in articles:
+    for country in a.get("geo", ["Unknown"]):
+        by_geo[country].append(a)
+
+print("Deal Flow Feed — April 2026\n")
+for country, items in sorted(by_geo.items(), key=lambda x: -len(x[1])):
+    print(f"{country}: {len(items)} articles")
+    for a in items[:2]:
+        print(f"  [{a['published_date'][:10]}] {a['title']}")
+    print()
+```
+
+### Multi-sector LP update — monthly digest
+
+Aggregate a month's worth of high-impact news across all fund sectors to feed a structured LP report.
+
+```python
+import requests
+from collections import defaultdict
+
+HEADERS = {"Authorization": "Bearer <YOUR_API_TOKEN>"}
+
+ALL_FUND_SECTORS = [
+    "Financial Services & Fintech",
+    "Healthcare & Life Sciences",
+    "Enterprise Software & Cloud",
+    "Data, AI & ML Infrastructure",
+    "Energy, Utilities & Environment",
+    "Industrials & Manufacturing"
+]
+
+response = requests.post(
+    "https://api.wokelo.ai/api/enterprise/newsfeed/news/",
+    headers=HEADERS,
+    json={
+        "industry":              ALL_FUND_SECTORS,
+        "published_date_after":  "2026-04-01",
+        "published_date_before": "2026-04-30",
+        "limit":                 1000
+    }
+)
+
+data     = response.json()
+articles = data["data"]
+
+# Keep only high-impact for LP brevity
+high_impact = [a for a in articles if a.get("newsworthiness_impact") == "High"]
+
+# Split by sentiment for narrative framing
+positive = [a for a in high_impact if a.get("sentiment") == "Positive"]
+negative = [a for a in high_impact if a.get("sentiment") == "Negative"]
+
+print(f"April 2026 LP Digest")
+print(f"Total articles indexed: {data['total']}")
+print(f"High-impact: {len(high_impact)} ({len(positive)} positive, {len(negative)} negative)\n")
+
+print("=== Positive Developments ===")
+for a in sorted(positive, key=lambda x: x["published_date"], reverse=True)[:10]:
+    print(f"  [{a['published_date'][:10]}] {a['title']}")
+    print(f"    {a['ai_summary'][:150]}...")
+
+print("\n=== Adverse Signals ===")
+for a in sorted(negative, key=lambda x: x["published_date"], reverse=True)[:10]:
+    print(f"  [{a['published_date'][:10]}] {a['title']}")
+    print(f"    {a['ai_summary'][:150]}...")
+```
+
+### Paginating through large result sets
+
+When `total` exceeds `limit`, use `offset` to retrieve all matching articles.
+
+```python
+import requests
+
+HEADERS = {"Authorization": "Bearer <YOUR_API_TOKEN>"}
+
+BODY = {
+    "industry": [
+        "Healthcare & Life Sciences",
+        "Data, AI & ML Infrastructure"
+    ],
+    "published_date_after":  "2026-01-01",
+    "published_date_before": "2026-04-30",
+    "limit":  100,
+    "offset": 0
+}
+
+all_articles = []
+
+while True:
+    response = requests.post(
+        "https://api.wokelo.ai/api/enterprise/newsfeed/news/",
+        headers=HEADERS,
+        json=BODY
+    )
+    data  = response.json()
+    batch = data.get("data", [])
+    all_articles.extend(batch)
+
+    print(f"Fetched {len(all_articles)} / {data['total']} articles")
+
+    if len(all_articles) >= data["total"] or not batch:
+        break
+
+    BODY["offset"] += BODY["limit"]
+
+# Deduplicate by id
+seen = set()
+unique = [a for a in all_articles if not (a["id"] in seen or seen.add(a["id"]))]
+print(f"\nUnique articles: {len(unique)}")
+```
+
+### JavaScript / Node.js
+
+```javascript
+const fetch = require("node-fetch");
+
+async function getNewsfeed(options = {}) {
+  const body = {
+    ...(options.industry           && { industry:              options.industry }),
+    ...(options.category           && { category:              options.category }),
+    ...(options.sentiment          && { sentiment:             options.sentiment }),
+    ...(options.geo                && { geo:                   options.geo }),
+    ...(options.breakingNews       && { breaking_news:         options.breakingNews }),
+    ...(options.publishedDateAfter && { published_date_after:  options.publishedDateAfter }),
+    ...(options.publishedDateBefore && { published_date_before: options.publishedDateBefore }),
+    ...(options.blacklisted        && { blacklisted:           options.blacklisted }),
+    limit:  options.limit  || 100,
+    offset: options.offset || 0
+  };
+
+  const response = await fetch(
+    "https://api.wokelo.ai/api/enterprise/newsfeed/news/",
+    {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.WOKELO_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(body)
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`API error: ${response.status} ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+// Example: breaking fintech and AI news in the US today
+getNewsfeed({
+  industry:            ["Financial Services & Fintech", "Data, AI & ML Infrastructure"],
+  breakingNews:        true,
+  geo:                 ["USA"],
+  sentiment:           "positive",
+  publishedDateAfter:  "2026-05-13",
+  publishedDateBefore: "2026-05-14"
+}).then(data => {
+  console.log(`Found ${data.total} articles`);
+  data.data.forEach(a => {
+    console.log(`[${a.newsworthiness_impact}] [${a.sentiment}] ${a.title}`);
+  });
+});
+```
+
+---
+
+## 7. Error Handling
+
+The API uses standard HTTP status codes. All error responses include a JSON body with a `detail` or `message` field.
+
+| Status | Meaning | Cause & Resolution |
+| --- | --- | --- |
+| `200 OK` | Success | Articles returned successfully. |
+| `400 Bad Request` | Invalid parameters | A body parameter has an invalid value — e.g. an unrecognised industry name, an invalid `sentiment` value, a malformed date, or a non-boolean `breaking_news`. Check the `detail` field and verify values against the [industry names](/industry-names) and [news categories](/news-categories) taxonomies. |
+| `401 Unauthorized` | Auth failed | The `Authorization` header is missing, malformed, or contains an invalid token. Verify your key in **Settings → API Keys**. |
+| `403 Forbidden` | Insufficient access | Your plan does not include access to this endpoint. Contact [support@wokelo.ai](mailto:support@wokelo.ai) to review your plan. |
+| `429 Too Many Requests` | Rate limit exceeded | Implement exponential back-off. The response includes a `Retry-After` header. |
+| `500 Internal Server Error` | Server error | Retry after a brief delay. If the issue persists, contact [support@wokelo.ai](mailto:support@wokelo.ai). |
+
+**Error response example:**
+
+```json
+{
+  "status": "error",
+  "detail": "Invalid industry name: 'Fintech'. See /industry-names for accepted values."
+}
+```
+
+**Retry logic with exponential back-off:**
+
+```python
+import time, requests
+
+def fetch_newsfeed_with_retry(body, api_key, max_retries=3):
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    for attempt in range(max_retries):
+        try:
+            response = requests.post(
+                "https://api.wokelo.ai/api/enterprise/newsfeed/news/",
+                headers=headers,
+                json=body,
+                timeout=30
+            )
+            if response.status_code == 429:
+                wait = 2 ** attempt   # 1s, 2s, 4s
+                time.sleep(wait)
+                continue
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.Timeout:
+            if attempt == max_retries - 1:
+                raise
+            time.sleep(1)
+    raise Exception(f"Failed after {max_retries} attempts")
+```
+
+---
+
+## 8. Best Practices
+
+**Use exact industry names from the taxonomy — partial matches will not work**
+
+The `industry` parameter requires values that match the controlled taxonomy exactly (e.g. `"Financial Services & Fintech"`, not `"Fintech"` or `"financial services"`). Check the full list at [/industry-names](/industry-names) before constructing your request. Invalid names return a `400` error:
+
+```python
+# ❌ Will fail — not an exact taxonomy match
+body["industry"] = ["Fintech", "AI & Machine Learning"]
+
+# ✅ Correct — exact taxonomy names
+body["industry"] = ["Financial Services & Fintech", "Data, AI & ML Infrastructure"]
+```
+
+**Combine `industry` and `category` for precision — each independently reduces noise**
+
+Passing only `industry` returns all event types within a sector, which can produce high-volume, low-signal results for active sectors like healthcare or technology. Adding `category` filters narrows to the event types you actually care about:
+
+```python
+# Broad — all healthcare news
+body = {"industry": ["Healthcare & Life Sciences"]}
+
+# Precise — only M&A, fundraising, and product launches in healthcare
+body = {
+    "industry":  ["Healthcare & Life Sciences"],
+    "category":  ["Mergers & Acquisitions", "Equity Fund-Raising", "Product Launches & Enhancements"]
+}
+```
+
+**Use `breaking_news: true` for daily briefings, omit it for research and backlogs**
+
+The `breaking_news` flag surfaces only articles Wokelo has classified as high-velocity, high-importance developments. It is best used for time-sensitive daily or intraday feeds where you want maximum signal density. For monthly research pulls, historical backlogs, or LP reporting, omit the flag to capture the full range of coverage including analysis pieces and secondary reporting.
+
+**Use `sentiment` to segment feeds by strategic intent**
+
+Filtering at request time rather than filtering client-side after fetching reduces payload size and processing time considerably for high-volume sector queries:
+
+```python
+# Opportunity feed — deal flow, launches, wins
+positive_body = {**base_body, "sentiment": "positive"}
+
+# Risk feed — adverse signals, distress, litigation
+negative_body = {**base_body, "sentiment": "negative"}
+```
+
+**Always set a date window — the unbound query can return thousands of articles**
+
+Without `published_date_after` and `published_date_before`, the API returns articles across the full Wokelo index. For active multi-industry queries this can mean 10,000\+ articles. Always bound queries to the window you intend to process:
+
+```python
+from datetime import datetime, timedelta
+
+end_date   = datetime.today().strftime("%Y-%m-%d")
+start_date = (datetime.today() - timedelta(days=30)).strftime("%Y-%m-%d")
+
+body["published_date_after"]  = start_date
+body["published_date_before"] = end_date
+```
+
+**Pass `blacklisted` as an array, not a comma-separated string**
+
+Unlike the Company News Monitoring and Industry News Monitoring APIs (which accept `blacklisted` as a comma-separated URL parameter string), the Newsfeed API takes `blacklisted` as a JSON array in the request body:
+
+```python
+# ❌ Wrong format for Newsfeed API
+body["blacklisted"] = "https://www.prnewswire.com/, https://www.businesswire.com/"
+
+# ✅ Correct format — JSON array
+body["blacklisted"] = [
+    "https://www.prnewswire.com/",
+    "https://www.businesswire.com/",
+    "https://www.globenewswire.com/"
+]
+```
+
+**Use article `id` for deduplication across recurring pipeline runs**
+
+When running the same query on overlapping date windows (e.g. daily refreshes with a 7-day window), deduplicate by `id` to avoid processing the same article more than once:
+
+```python
+seen_ids = set()
+new_only = [a for a in articles if not (a["id"] in seen_ids or seen_ids.add(a["id"]))]
+```
+
+**Understand the difference from Industry News Monitoring**
+
+The Newsfeed and Industry News Monitoring APIs both return a similar lean response schema but are fundamentally different in how they select articles. Industry News Monitoring uses a **free-text `topic` string** and matches articles by relevance — giving flexibility for niche or cross-cutting themes. The Newsfeed API uses a **structured taxonomy** of pre-defined industry names and event categories — giving consistency and reproducibility, but requiring that your topics map to Wokelo's 28 supported industry buckets. Use Industry News Monitoring for bespoke or narrow topics; use Newsfeed for standardised, recurring pipelines across canonical industry sectors.
+
+---
+
+## 9. Related APIs
+
+<CardGroup cols={3}>
+  <Card title="Company News Monitoring" icon="building" href="/company-news-monitoring-doc">
+    Fetch company-specific news with the richest enrichment — sentiment, event categories, full article text, and company mention resolution.
+  </Card>
+
+  <Card title="Industry News Monitoring" icon="newspaper" href="/industry-news-monitoring-doc">
+    Fetch news on any free-text industry topic — flexible and precise for niche or cross-cutting themes not covered by the standard taxonomy.
+  </Card>
+
+  <Card title="Industry Deep Intelligence" icon="chart-line" href="/industry-deep-intelligence-doc">
+    Generate a comprehensive AI research report on any industry — market size, competitive dynamics, key players, and outlook.
+  </Card>
+
+  <Card title="Target Screening" icon="crosshairs" href="/target-screening-doc">
+    Identify and score potential acquisition targets — AI-ranked with deal feasibility, synergy, and precedent scores.
+  </Card>
+
+  <Card title="Market Map" icon="map" href="/market-map-doc">
+    Discover and map all companies competing in a specific market or product category.
+  </Card>
+
+  <Card title="Supporting APIs" icon="wrench" href="/supporting-apis-doc">
+    Company Search, Request Status, and other utilities used alongside monitoring workflows.
+  </Card>
+</CardGroup>
