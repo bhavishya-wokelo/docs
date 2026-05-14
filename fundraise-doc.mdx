@@ -1,164 +1,781 @@
 ---
-title: "Fundraising Activity"
+title: "Fundraise Activity"
 hidden: true
+description: "Retrieve structured fundraising and investment activity data for a defined market or report — returns a complete funding round record set with amounts, stages, investor profiles, company firmographics, and news context."
 ---
 
-Surface fundraising activity across a topic, industry, or market segment. Given a topic (e.g. `"organic food delivery"`, `"climate tech"`, `"generative AI"`), the API returns a list of funding rounds raised in that space — with structured details on the company, round, investors, and geography.
+<Note>
+  Fetch the complete documentation index at: [https://docs.wokelo.ai/llms.txt](https://docs.wokelo.ai/llms.txt)
+</Note>
 
-NOTE: This is an asynchronous API. It returns a `report_id`, which you can use to fetch the [report status](https://docs.wokelo.ai/supporting-apis-doc#report-status) and later call the [download report](https://docs.wokelo.ai/supporting-apis-doc#download-report) endpoint to retrieve the final report.
+## 1. Overview
 
-## Request reference
+The Fundraise Activity API gives you programmatic access to Wokelo's curated database of funding rounds and investment events for a given report. Each record surfaces the full round context: which company raised, at what stage, from which investors, on what date, what the company does, and relevant news coverage — all structured and ready to query.
 
-Here is a sample request containing all parameters:
+This is a **synchronous API** — submitting a request returns the complete result set immediately. No polling is required.
+
+Each funding record in the result set includes:
+
+- **Round metadata** — funding date, stage, disclosed amount, and lead and other investors
+- **Company firmographics** — headquarters, founding year, employee count, and operating geography
+- **Company business profile** — product category, core offering description, and product catalog
+- **News context** — curated coverage excerpts with source URLs for rounds with public reporting
+
+One company can appear multiple times in the result set — once per distinct funding event. This allows you to reconstruct a company's full financing history and track investor participation across rounds.
+
+**Common use cases:**
+
+- **Deal origination and market intelligence** — Track which investors are most active in a sector. Identify emerging companies attracting capital before they become widely known
+- **Investor profiling** — Map which VCs, corporate strategists, and institutional funds are backing companies in a given product category or geography
+- **Competitive landscape analysis** — Monitor funding velocity in your market. A cluster of seed rounds signals early-stage activity; a wave of Series B and C rounds signals rapid scaling
+- **Portfolio monitoring** — Catch new funding events in categories you track. Filter by stage to surface only the events relevant to your thesis
+- **LP and fund research** — Identify sector specialists and prolific lead investors by aggregating round-level data across a report
+- **Startup scouting** — Surface pre-seed and seed companies in niche product categories before they appear on mainstream databases
+
+<Info>
+  This API is synchronous. A single POST request returns the complete funding round data immediately — no job polling required. See [How Sync APIs work](/how-sync-apis-work).
+</Info>
+
+---
+
+## 2. Quick Start
+
+**Step 1 — Submit the request**
 
 <CodeGroup>
 
-```bash cURL expandable wrap
-curl --location 'https://api.wokelo.ai/api/assets/process_common/' \
---header 'Authorization: Bearer Token' \
---header 'Content-Type: application/json' \
---data '{
-  "reportType": "fundraisers_workflow",
-  "payload": {
-    "topic": "organic food delivery",
-    "workbook_name": "organic food delivery",
-    "advanced_settings": {
-      "company_type": "all",
-      "geography": [
-        "Worldwide"
-      ],
-      "funding_stage": [],
-      "employee_count": [],
-      "total_funding_include_blanks": true
-    }
-  },
-  "reportSource": "WKLAPP"
-}'
+```bash cURL
+curl --location 'https://api.wokelo.ai/api/enterprise/fundraise-activity/' \
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "report_id": 1009641
+  }'
 ```
 
-```python Python expandable wrap
+```python Python
 import requests
-import json
 
-url = "https://api.wokelo.ai/api/assets/process_common/"
-
-payload = json.dumps({
-  "reportType": "fundraisers_workflow",
-  "payload": {
-    "topic": "Organic food delivery",
-    "workbook_name": "Organic food delivery",
-    "advanced_settings": {
-      "company_type": "all",
-      "geography": [
-        "Worldwide"
-      ],
-      "funding_stage": [],
-      "employee_count": [],
-      "total_funding_include_blanks": True
+response = requests.post(
+    "https://api.wokelo.ai/api/enterprise/fundraise-activity/",
+    headers={
+        "Authorization": "Bearer <YOUR_API_TOKEN>",
+        "Content-Type": "application/json"
+    },
+    json={
+        "report_id": 1009641
     }
-  },
-  "reportSource": "WKLAPP"
-})
-
-headers = {
-  "Authorization": "Bearer Token",
-  "Content-Type": "application/json"
-}
-
-response = requests.post(url, headers=headers, data=payload)
-
-print(response.text)
+)
+data = response.json()
+print("Report title:", data["meta"]["title"])
 ```
 
 </CodeGroup>
 
-The `topic` field specifies the industry, segment, or product category for which fundraising rounds should be returned. Use `parameters` to filter the deal universe.
+**Step 2 — Access the funding records**
 
-Use `advanced_settings` to filter the fundraising universe by:
+```python
+# The Grid object contains one key — extract the records array
+records = list(data["Grid"].values())[0]
+print(f"Retrieved {len(records)} funding records")
+```
 
-| Parameter | Description |
-| --- | --- |
-| `company_type` | Filter by company type (`private`, `public`, or `all`) |
-| `geography` | Geographic scope as [ISO country codes](https://docs.wokelo.ai/iso-country-codes) (e.g. `["USA", "GBR"]`) |
-| `funding_stage` | Filter by funding stage |
-| `employee_count` | Filter by employee size buckets |
-| `total_funding_include_blanks` | Include companies with missing funding data |
+**Step 3 — Work with the data**
 
-Pass empty arrays (`[]`) to include all available options.
+```python
+# Example: print each round
+for r in records:
+    amount = r.get("Funding Amount ($M)")
+    amount_str = f"${amount / 1e6:.1f}M" if amount and amount < 1e9 else (
+        f"${amount / 1e9:.1f}B" if amount else "undisclosed"
+    )
+    lead = ", ".join(r.get("Lead Investor(s)") or []) or "no lead"
+    print(f"{r['Name']} | {r['Funding Stage']} | {amount_str} | {lead}")
+```
 
-## Examples
+---
 
-### Fundraising Workflow
+## 3. Authentication
 
-Get all the funding activities in the EdTech domain.
+All requests must include a **Bearer token** in the `Authorization` HTTP header. No other authentication method is supported.
 
-#### Sample Request
+```text
+Authorization: Bearer <YOUR_API_TOKEN>
+```
+
+API tokens are issued from your Wokelo account. Navigate to **Settings → API Keys** in the Wokelo dashboard to generate or rotate a key. Contact [support@wokelo.ai](mailto:support@wokelo.ai) if you do not yet have API access.
+
+<Warning>
+  Never expose your token in client-side code, browser requests, or public repositories. A missing or invalid token returns `401 Unauthorized`. A valid token without sufficient plan permissions returns `403 Forbidden`.
+</Warning>
+
+---
+
+## 4. Request Reference
+
+**Endpoint**
+
+```text
+POST https://api.wokelo.ai/api/enterprise/fundraise-activity/
+```
+
+The request body is JSON. The `report_id` is the only required parameter.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `report_id` | integer | **Required** | The unique identifier for the fundraise report you want to retrieve. Find this in the URL when viewing a report in the Wokelo dashboard (`app.wokelo.ai/reports/<report_id>`) or via the [Reports API](/reports-doc). |
+
+**Full request example:**
 
 <CodeGroup>
 
-```bash cURL expandable wrap
-curl --location 'https://api.wokelo.ai/api/assets/process_common/' \
---header 'Authorization: Bearer Token' \
---header 'Content-Type: application/json' \
---data '{
-  "reportType": "fundraisers_workflow",
-  "payload": {
-    "topic": "EdTech",
-    "workbook_name": "EdTech",
-    "advanced_settings": {
-      "company_type": "all",
-      "geography": [
-        "Worldwide"
-      ],
-      "funding_stage": [],
-      "employee_count": [],
-      "total_funding_include_blanks": true
-    }
-  },
-  "reportSource": "WKLAPP"
-}'
+```bash cURL
+curl --location 'https://api.wokelo.ai/api/enterprise/fundraise-activity/' \
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "report_id": 1009641
+  }'
 ```
 
-```python Python expandable wrap
+```python Python
 import requests
-import json
 
-url = "https://api.wokelo.ai/api/assets/process_common/"
-
-payload = json.dumps({
-  "reportType": "fundraisers_workflow",
-  "payload": {
-    "topic": "EdTech",
-    "workbook_name": "EdTech",
-    "advanced_settings": {
-      "company_type": "all",
-      "geography": [
-        "Worldwide"
-      ],
-      "funding_stage": [],
-      "employee_count": [],
-      "total_funding_include_blanks": True
+response = requests.post(
+    "https://api.wokelo.ai/api/enterprise/fundraise-activity/",
+    headers={
+        "Authorization": "Bearer <YOUR_API_TOKEN>",
+        "Content-Type": "application/json"
+    },
+    json={
+        "report_id": 1009641
     }
-  },
-  "reportSource": "WKLAPP"
-})
-
-headers = {
-  "Authorization": "Bearer Token",
-  "Content-Type": "application/json"
-}
-
-response = requests.post(url, headers=headers, data=payload)
-
-print(response.text)
+)
+print(response.json())
 ```
 
 </CodeGroup>
 
-#### Sample Response
+---
 
-```json expandable wrap
+## 5. Response
+
+### Response structure
+
+```json
 {
-  "report_id": 123345
+  "Grid": {
+    "<workflow_key>": [ ...funding round objects... ]
+  },
+  "meta": {
+    "report_id": 1009641,
+    "title": "Apple",
+    "user": "you@yourcompany.com",
+    "dt_createdon": "2026-05-13 05:25:59"
+  }
 }
 ```
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `Grid` | object | Contains one key (a workflow identifier string) whose value is an array of funding round objects. Use `list(data["Grid"].values())[0]` to extract the array. |
+| `meta.report_id` | integer | The report ID that was requested. |
+| `meta.title` | string | Human-readable title of the report. |
+| `meta.user` | string | Email of the Wokelo user who created the report. |
+| `meta.dt_createdon` | string | ISO 8601 datetime when the report was generated. |
+
+### Funding round object fields
+
+Each object in the records array represents a single funding event. A company with multiple rounds will appear once per round.
+
+**Round identity**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `Permalink` | string | Stable Wokelo company identifier (e.g. `"clarifruit"`, `"apeel-sciences"`). Use this as a company key — the same `Permalink` appears across multiple rounds for the same company. |
+| `Funding Date` | string | ISO 8601 date when the round was announced or closed (`YYYY-MM-DD`). |
+| `Funding Stage` | string | Round classification. See [Funding Stage values](/fundraise-doc#funding-stage-values) below. |
+| `Funding Amount ($M)` | float \| null | Total round size. Null when undisclosed. See the note on units below. |
+
+**Investors**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `Lead Investor(s)` | string\[\] \| null | Array of lead investor names for this round. Null when no lead was identified or the round has no lead. |
+| `Other Investor(s)` | string\[\] \| null | Array of non-lead participating investors. Null when none were identified. |
+
+**Company identity & firmographics**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `Name` | string | Display name of the company that raised. |
+| `Website` | string \| null | Primary domain of the company (e.g. `"clarifruit.com"`). |
+| `HQ City` | string \| null | Headquarters city of the company. |
+| `HQ Country` | string \| null | Headquarters country of the company. |
+| `HQ Continent` | string \| null | Headquarters continent of the company. |
+| `Founded` | string \| null | Year the company was founded. |
+| `Employees (Crunchbase)` | string \| null | Employee headcount band from Crunchbase (e.g. `"11-50"`). |
+| `Employees (LinkedIn)` | integer \| null | Numeric employee count from LinkedIn. |
+
+**Company business profile**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `Product Category` | string \| null | Short label for the company's primary product or service category (e.g. `"Produce Quality Data Platform"`). |
+| `Core Offering` | string \| null | AI-generated 2–4 sentence description of what the company does, its customers, and its market position. |
+| `Product Catalog` | string \| null | Comma-separated list of key products and services. |
+
+**News**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `News` | string \| null | Concatenated news coverage for the funding event. Each section contains a prose summary followed by a source URL on a new line. Multiple coverage items are separated by blank lines. Null when no coverage was indexed. |
+
+<Info>
+  The `News` field is unstructured text, not JSON. Parse it by splitting on newlines and identifying lines that start with `http` to extract source URLs separately from prose summaries.
+</Info>
+
+### Funding Stage values
+
+The `Funding Stage` field uses the following standardised values:
+
+| Stage | Description |
+| --- | --- |
+| `Pre-seed` | Very early capital, often friends, family, or micro-funds |
+| `Seed` | First institutional round |
+| `Series A` through `Series J` | Labelled venture equity rounds |
+| `Series Unknown` | A round was confirmed but the series label was not publicly disclosed |
+| `Angel round` | Investment from individual angel investors |
+| `Equity Crowdfunding` | Capital raised from retail investors via a crowdfunding platform |
+| `Product Crowdfunding` | Campaign-style fundraise (e.g. Kickstarter) |
+| `Convertible note` | Debt that converts to equity at a future event |
+| `Non-Equity Assistance` | Accelerator programmes, grants-in-kind, or advisory support with no direct equity exchange |
+| `Grant` | Non-dilutive funding from government bodies, foundations, or innovation programmes |
+| `Debt-Funded` | Venture debt, revenue-based financing, or other loan structures |
+| `Private equity round` | Growth equity or buyout investment from a PE firm |
+| `Corporate-Funded` | Strategic investment from a corporate venture arm or operating company |
+| `Secondary Market` | Sale of existing shares between investors (no new capital to the company) |
+| `Post IPO Equity` | Follow-on equity offering after a public listing |
+| `Post IPO Debt` | Debt issuance after a public listing |
+| `Post IPO Secondary` | Secondary share sale after a public listing |
+| `Undisclosed` | Funding confirmed but stage and amount are not publicly available |
+
+### Funding Amount units
+
+The `Funding Amount ($M)` field is labelled in millions but stored values are in **raw USD**. A round reported as "\$12 million" is stored as `12000000.0`. Always convert before displaying:
+
+```python
+amount_raw = record["Funding Amount ($M)"]
+if amount_raw:
+    amount_m  = amount_raw / 1e6   # millions
+    amount_bn = amount_raw / 1e9   # billions
+```
+
+### Notes on null values
+
+Several fields are frequently null, and this is expected:
+
+- `Funding Amount ($M)` — Many rounds are not publicly disclosed. Null means undisclosed, not zero.
+- `Lead Investor(s)` — Null for rounds with no named lead, grants, debt rounds, and crowdfunding events.
+- `Other Investor(s)` — Null when investor participation was not reported beyond the lead.
+- `Product Category` and `Core Offering` — Null for companies where Wokelo's enrichment pipeline did not find sufficient public information.
+- `News` — Null when no news coverage was indexed for the event.
+
+### Multiple records per company
+
+A single company can appear many times in the result set, once per funding event. For example, `"hectre"` has ten separate records across Seed, Convertible note, Grant, Series A, and Non-Equity Assistance rounds. Use the `Permalink` field to group all rounds for a given company:
+
+```python
+from collections import defaultdict
+
+by_company = defaultdict(list)
+for r in records:
+    by_company[r["Permalink"]].append(r)
+
+# Get full funding history for Hectre
+for round in by_company["hectre"]:
+    print(round["Funding Stage"], round["Funding Date"], round.get("Funding Amount ($M)"))
+```
+
+---
+
+## 6. Examples
+
+### Retrieving and filtering a full report
+
+Retrieve all funding records in a report and filter to disclosed Series A rounds and above.
+
+<CodeGroup>
+
+```bash cURL
+curl --location 'https://api.wokelo.ai/api/enterprise/fundraise-activity/' \
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "report_id": 1009641
+  }'
+```
+
+```python Python
+import requests
+
+HEADERS = {
+    "Authorization": "Bearer <YOUR_API_TOKEN>",
+    "Content-Type": "application/json"
+}
+
+response = requests.post(
+    "https://api.wokelo.ai/api/enterprise/fundraise-activity/",
+    headers=HEADERS,
+    json={"report_id": 1009641}
+)
+
+data = response.json()
+records = list(data["Grid"].values())[0]
+
+INSTITUTIONAL_STAGES = {
+    "Series A", "Series B", "Series C", "Series D",
+    "Series E", "Series F", "Series G", "Series H",
+    "Series I", "Series J", "Private equity round",
+    "Post IPO Equity", "Post IPO Debt"
+}
+
+institutional = [
+    r for r in records
+    if r["Funding Stage"] in INSTITUTIONAL_STAGES
+    and r.get("Funding Amount ($M)") is not None
+]
+
+for r in sorted(institutional, key=lambda x: x["Funding Amount ($M)"], reverse=True):
+    lead = ", ".join(r.get("Lead Investor(s)") or []) or "undisclosed lead"
+    print(f"${r['Funding Amount ($M)'] / 1e6:.0f}M | {r['Funding Stage']} | {r['Name']} | {lead}")
+```
+
+</CodeGroup>
+
+**Sample response (excerpt):**
+
+```json
+{
+  "Grid": {
+    "Fundraisers Workflow - Grid_c04cd87a-0868-4659-86fa-e15350702d08": [
+      {
+        "Permalink": "clarifruit",
+        "Name": "Clarifruit",
+        "Website": "clarifruit.com",
+        "Funding Amount ($M)": 12000000.0,
+        "Funding Stage": "Series A",
+        "Funding Date": "2022-11-16",
+        "Lead Investor(s)": [
+          "Firstime Venture Capital",
+          "Champel Capital"
+        ],
+        "Other Investor(s)": [
+          "Kubota",
+          "Nevateam Partners"
+        ],
+        "HQ City": "Rishon Le Zion",
+        "HQ Country": "Israel",
+        "HQ Continent": "Asia",
+        "Founded": "2018",
+        "Product Category": "Produce Quality Data Platform",
+        "Core Offering": "Clarifruit provides a cloud-based software platform that offers automatic quality control and data analytics solutions specifically for the fresh produce industry, enabling users to efficiently monitor and analyze fruit quality.",
+        "Product Catalog": "Automatic QC & data analytics platform for the Fresh Produce industry",
+        "Employees (Crunchbase)": "11-50",
+        "Employees (LinkedIn)": null,
+        "News": "Clarifruit, a Jerusalem-based company, raised $12 million in Series A funding to expand its AI-powered quality control software...\nhttps://www.finsmes.com/2022/11/clarifruit-raises-12m-in-series-a-funding.html"
+      },
+      {
+        "Permalink": "apeel-sciences",
+        "Name": "Apeel Sciences",
+        "Website": "apeel.com",
+        "Funding Amount ($M)": 250000000.0,
+        "Funding Stage": "Series E",
+        "Funding Date": "2021-08-18",
+        "Lead Investor(s)": [
+          "Temasek Holdings"
+        ],
+        "Other Investor(s)": [
+          "Andreessen Horowitz",
+          "Disruptive Technologies",
+          "GIC",
+          "K3 Ventures",
+          "KAAN Ventures"
+        ],
+        "HQ City": "Goleta",
+        "HQ Country": "United States",
+        "HQ Continent": "North America",
+        "Founded": "2012",
+        "Product Category": "Edible coating technology",
+        "Core Offering": "Apeel Sciences develops plant-derived protection technology to enhance the freshness and shelf life of fruits and vegetables by applying an edible coating that reduces moisture loss and oxidation.",
+        "Product Catalog": "Avocados, Apples, Mangos, Cucumbers, Citrus",
+        "Employees (Crunchbase)": "101-250",
+        "Employees (LinkedIn)": 251,
+        "News": "Apeel has raised $250 million in Series E funding, led by Temasek, increasing its valuation to over $2 billion...\nhttps://www.fooddive.com/news/grocery--apeel-hits-2b-valuation-with-250m-investment/605172/"
+      }
+    ]
+  },
+  "meta": {
+    "report_id": 1009641,
+    "title": "Apple",
+    "user": "you@yourcompany.com",
+    "dt_createdon": "2026-05-13 05:25:59"
+  }
+}
+```
+
+### Building a full funding history per company
+
+Since each company can have multiple records, group by `Permalink` to reconstruct the complete financing timeline for each company.
+
+```python
+from collections import defaultdict
+
+records = list(data["Grid"].values())[0]
+by_company = defaultdict(list)
+
+for r in records:
+    by_company[r["Permalink"]].append(r)
+
+# Sort each company's rounds chronologically and print
+for permalink, rounds in sorted(by_company.items(), key=lambda x: -len(x[1])):
+    rounds_sorted = sorted(rounds, key=lambda x: x["Funding Date"])
+    total = sum(r.get("Funding Amount ($M)") or 0 for r in rounds_sorted)
+    print(f"\n{rounds_sorted[0]['Name']} ({len(rounds_sorted)} rounds, ${total / 1e6:.1f}M disclosed)")
+    for r in rounds_sorted:
+        amount = r.get("Funding Amount ($M)")
+        amount_str = f"${amount / 1e6:.1f}M" if amount else "undisclosed"
+        lead = ", ".join(r.get("Lead Investor(s)") or []) or "—"
+        print(f"  {r['Funding Date']} | {r['Funding Stage']:<25} | {amount_str:<12} | Lead: {lead}")
+```
+
+**Sample output:**
+
+```text
+Hectre (10 rounds, $12.2M disclosed)
+  2021-06-03 | Non-Equity Assistance     | undisclosed  | Lead: Sprout
+  2021-08-19 | Grant                     | $0.1M        | Lead: Callaghan Innovation
+  2021-10-12 | Seed                      | $2.4M        | Lead: —
+  2022-08-29 | Grant                     | $0.0M        | Lead: Callaghan Innovation
+  2023-02-27 | Grant                     | $0.0M        | Lead: Callaghan Innovation
+  2023-10-06 | Convertible note          | $3.0M        | Lead: Nuance Capital
+  2024-08-16 | Seed                      | $1.5M        | Lead: —
+  2025-04-11 | Series Unknown            | undisclosed  | Lead: —
+  2026-02-11 | Series A                  | $7.3M        | Lead: Punakaiki Fund
+  ...
+```
+
+### Profiling the most active investors
+
+Identify which investors appear most frequently across all rounds — useful for targeting warm introductions or understanding who controls the capital in a sector.
+
+```python
+from collections import Counter
+
+records = list(data["Grid"].values())[0]
+investor_counts = Counter()
+
+for r in records:
+    for inv in (r.get("Lead Investor(s)") or []):
+        investor_counts[inv] += 1
+    for inv in (r.get("Other Investor(s)") or []):
+        investor_counts[inv] += 1
+
+print("Most active investors by deal count:")
+for investor, count in investor_counts.most_common(15):
+    print(f"  {count:>3}x  {investor}")
+```
+
+**Sample output:**
+
+```text
+Most active investors by deal count:
+   11x  Callaghan Innovation
+    4x  New Zealand Growth Capital Partners
+    3x  SOSV
+    3x  Right Road Ventures
+    2x  BCP Ventures
+    2x  National Science Foundation
+    2x  Icehouse Ventures
+    ...
+```
+
+### Filtering by funding stage
+
+Isolate grant and non-dilutive rounds to track government and foundation funding in a sector — distinct from venture activity.
+
+```python
+NON_DILUTIVE = {"Grant", "Non-Equity Assistance"}
+VENTURE = {"Pre-seed", "Seed", "Series A", "Series B", "Series C",
+           "Series D", "Series E", "Series F", "Angel round", "Equity Crowdfunding"}
+
+non_dilutive = [r for r in records if r["Funding Stage"] in NON_DILUTIVE]
+venture      = [r for r in records if r["Funding Stage"] in VENTURE]
+
+print(f"Non-dilutive rounds: {len(non_dilutive)}")
+print(f"Venture rounds: {len(venture)}")
+
+# Grant funders
+grant_funders = Counter()
+for r in non_dilutive:
+    for inv in (r.get("Lead Investor(s)") or []) + (r.get("Other Investor(s)") or []):
+        grant_funders[inv] += 1
+
+print("\nTop grant providers:")
+for funder, count in grant_funders.most_common(10):
+    print(f"  {count}x  {funder}")
+```
+
+### Exporting the funding dataset to CSV
+
+Export the full records to CSV for CRM upload, investor outreach lists, or pipeline analysis.
+
+```python
+import requests, csv
+
+HEADERS = {"Authorization": "Bearer <YOUR_API_TOKEN>"}
+
+records = list(
+    requests.post(
+        "https://api.wokelo.ai/api/enterprise/fundraise-activity/",
+        headers={**HEADERS, "Content-Type": "application/json"},
+        json={"report_id": 1009641}
+    ).json()["Grid"].values()
+)[0]
+
+fields = [
+    "Permalink", "Name", "Website",
+    "HQ City", "HQ Country", "HQ Continent",
+    "Founded", "Product Category", "Core Offering",
+    "Employees (Crunchbase)", "Employees (LinkedIn)",
+    "Funding Stage", "Funding Date", "Funding Amount ($M)"
+]
+
+# Flatten list fields for CSV
+def flatten(record):
+    flat = {k: record.get(k) for k in fields}
+    flat["Lead Investor(s)"] = "; ".join(record.get("Lead Investor(s)") or [])
+    flat["Other Investor(s)"] = "; ".join(record.get("Other Investor(s)") or [])
+    return flat
+
+csv_fields = fields + ["Lead Investor(s)", "Other Investor(s)"]
+
+with open("fundraise_activity.csv", "w", newline="") as f:
+    writer = csv.DictWriter(f, fieldnames=csv_fields, extrasaction="ignore")
+    writer.writeheader()
+    writer.writerows(flatten(r) for r in records)
+
+print(f"Exported {len(records)} funding records to fundraise_activity.csv")
+```
+
+### Loading into a pandas DataFrame for analysis
+
+For analytics workflows, load the full response into a DataFrame and filter in memory rather than making repeated API calls.
+
+```python
+import pandas as pd, requests
+
+HEADERS = {"Authorization": "Bearer <YOUR_API_TOKEN>"}
+
+data = requests.post(
+    "https://api.wokelo.ai/api/enterprise/fundraise-activity/",
+    headers={**HEADERS, "Content-Type": "application/json"},
+    json={"report_id": 1009641}
+).json()
+
+df = pd.DataFrame(list(data["Grid"].values())[0])
+
+# Convert raw dollar amount to millions
+df["Amount ($M)"] = df["Funding Amount ($M)"] / 1e6
+
+# Funding activity by year
+df["Year"] = pd.to_datetime(df["Funding Date"], errors="coerce").dt.year
+print(df.groupby("Year")["Amount ($M)"].agg(["count", "sum"]).rename(
+    columns={"count": "Rounds", "sum": "Total ($M)"}
+))
+
+# Top product categories by round count
+print(df["Product Category"].value_counts().head(10))
+
+# Stage breakdown
+print(df["Funding Stage"].value_counts())
+
+# Deduplicated company count (one row per company)
+unique_companies = df.drop_duplicates(subset="Permalink")
+print(f"\nUnique companies: {len(unique_companies)}")
+print(f"Total funding records: {len(df)}")
+```
+
+---
+
+## 7. Error Handling
+
+The API uses standard HTTP status codes. All error responses include a JSON body with a `detail` or `message` field.
+
+| Status | Meaning | Cause & Resolution |
+| --- | --- | --- |
+| `200 OK` | Success | Results returned successfully. |
+| `400 Bad Request` | Invalid parameters | A required field is missing or a parameter value is invalid — e.g. missing `report_id` or a non-integer value. Check the `detail` field. |
+| `401 Unauthorized` | Auth failed | The `Authorization` header is missing, malformed, or contains an invalid token. Verify your key in **Settings → API Keys**. |
+| `403 Forbidden` | Insufficient access | Your plan does not include access to this endpoint or report. Contact [support@wokelo.ai](mailto:support@wokelo.ai) to review your plan. |
+| `404 Not Found` | Resource not found | The `report_id` does not exist or is not accessible to your account. Confirm the ID in your dashboard. |
+| `429 Too Many Requests` | Rate limit exceeded | Implement exponential back-off. The response includes a `Retry-After` header. |
+| `500 Internal Server Error` | Server error | Retry after a brief delay. If the issue persists, contact [support@wokelo.ai](mailto:support@wokelo.ai) with your `report_id`. |
+
+**Error response example:**
+
+```json
+{
+  "status": "error",
+  "detail": "Report with id '9999999' could not be found."
+}
+```
+
+**Retry logic with exponential back-off:**
+
+```python
+import time, requests
+
+def fetch_with_retry(report_id, api_key, max_retries=3):
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    for attempt in range(max_retries):
+        try:
+            response = requests.post(
+                "https://api.wokelo.ai/api/enterprise/fundraise-activity/",
+                headers=headers,
+                json={"report_id": report_id},
+                timeout=30
+            )
+            if response.status_code == 429:
+                wait = 2 ** attempt   # 1s, 2s, 4s
+                time.sleep(wait)
+                continue
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.Timeout:
+            if attempt == max_retries - 1:
+                raise
+            time.sleep(1)
+    raise Exception(f"Failed after {max_retries} attempts")
+```
+
+---
+
+## 8. Best Practices
+
+**Use `Permalink` as the company key — not `Name`**
+
+The same company can appear many times across different funding rounds. Always group by `Permalink`, not `Name`, to avoid creating duplicates when building company-level aggregations:
+
+```python
+# ❌ Name can vary slightly across records (rebrands, abbreviations)
+by_name = {}
+for r in records:
+    by_name.setdefault(r["Name"], []).append(r)
+
+# ✅ Permalink is stable and unique per company
+from collections import defaultdict
+by_company = defaultdict(list)
+for r in records:
+    by_company[r["Permalink"]].append(r)
+```
+
+**Handle null investor arrays defensively**
+
+`Lead Investor(s)` and `Other Investor(s)` are arrays but may be null — not empty arrays — when no investor data was available. Guard before iterating:
+
+```python
+# ❌ Throws a TypeError when Lead Investor(s) is null
+for inv in record["Lead Investor(s)"]:
+    ...
+
+# ✅ Safe
+for inv in (record.get("Lead Investor(s)") or []):
+    ...
+```
+
+**Account for the `Funding Amount ($M)` unit quirk**
+
+Despite the field name suggesting millions, the stored values are raw USD. Always convert before displaying or aggregating:
+
+```python
+raw = r.get("Funding Amount ($M)")
+if raw and raw >= 1e9:
+    display = f"${raw / 1e9:.1f}B"
+elif raw:
+    display = f"${raw / 1e6:.0f}M"
+else:
+    display = "Undisclosed"
+```
+
+**Parse the `News` field as structured text**
+
+The `News` field is a multi-section string, not JSON. Each section contains a prose summary followed by a source URL. Parse it by splitting on newlines:
+
+```python
+def extract_news_urls(news_text):
+    if not news_text:
+        return []
+    return [line.strip() for line in news_text.split("\n")
+            if line.strip().startswith("http")]
+
+def extract_news_summaries(news_text):
+    if not news_text:
+        return []
+    return [line.strip() for line in news_text.split("\n")
+            if line.strip() and not line.strip().startswith("http")]
+```
+
+**Distinguish grant and non-dilutive rounds from equity rounds**
+
+The `Funding Stage` field mixes venture equity rounds with grants, debt, and non-equity assistance. When computing total capital raised or building investor lists, filter to the stage types relevant to your analysis:
+
+```python
+EQUITY_STAGES = {
+    "Pre-seed", "Seed", "Series A", "Series B", "Series C",
+    "Series D", "Series E", "Angel round", "Equity Crowdfunding",
+    "Private equity round", "Corporate-Funded"
+}
+equity_rounds = [r for r in records if r["Funding Stage"] in EQUITY_STAGES]
+```
+
+**Cache responses for analytics workloads**
+
+Fundraise reports are relatively static. For dashboards or batch pipelines, cache the full response locally and refresh on a schedule rather than calling the API on every page load or query.
+
+**Iterate your report scope for deeper coverage**
+
+If the returned records don't cover the geography, time range, or sub-sector you need, contact your Wokelo account manager to create or refine the underlying report. The richness of the API output is directly dependent on how the report scope was configured.
+
+---
+
+## 9. Related APIs
+
+<CardGroup cols={3}>
+  <Card title="M&A Activity" icon="handshake" href="/acquisitions-doc">
+    Retrieve structured deal data for a market — acquirer profiles, target details, deal amounts, and news context.
+  </Card>
+
+  <Card title="Market Map" icon="map" href="/market-map-doc">
+    Discover and map all companies competing in a specific market or product category.
+  </Card>
+
+  <Card title="Target Screening" icon="crosshairs" href="/target-screening-doc">
+    Identify and score potential acquisition targets for a defined acquirer — AI-ranked with deal feasibility and synergy scores.
+  </Card>
+
+  <Card title="Buyer Screening" icon="users" href="/buyer-screening-doc">
+    Identify and score potential acquirers for a target company — the inverse of Target Screening.
+  </Card>
+
+  <Card title="Company Deep Intelligence" icon="brain" href="/company-deep-intelligence-doc">
+    Generate deep AI intelligence on any company — business model, financials, strategy, and funding history.
+  </Card>
+
+  <Card title="Company Instant Enrichment" icon="bolt" href="/company-instant-enrichment-doc">
+    Synchronously enrich firmographic and financial data for any company in the funding dataset.
+  </Card>
+</CardGroup>

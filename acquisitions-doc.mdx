@@ -1,161 +1,653 @@
 ---
 title: "M&A Activity"
+description: "Retrieve structured mergers and acquisitions data for a defined market or report — returns a complete transaction record set with deal amounts, acquirer and target profiles, deal status, and news context."
 ---
 
-Surface M&A transactions across a topic, industry, or market segment. Given a topic (e.g. `"food tech"`, `"cybersecurity"`, `"EV charging infrastructure"`), the API returns a list of completed and announced acquisitions in that space — with structured details on the target, acquirer, deal, and geography.
+<Note>
+  Fetch the complete documentation index at: [https://docs.wokelo.ai/llms.txt](https://docs.wokelo.ai/llms.txt)
+</Note>
 
-NOTE: This is an asynchronous API. It returns a `report_id`, which you can use to fetch the [report status](https://docs.wokelo.ai/supporting-apis-doc#report-status) and later call the [download report](https://docs.wokelo.ai/supporting-apis-doc#download-report) endpoint to retrieve the final report.
+## 1. Overview
 
-## Request reference
+The M&A Activity API gives you programmatic access to Wokelo's curated database of merger and acquisition transactions for a given report. Each record surfaces the full deal context: who acquired whom, at what price, on what date, what the target company does, and the relevant news coverage — all structured and ready to query.
 
-Here is a sample request containing all parameters:
+This is a **synchronous API** — submitting a request returns the complete result set immediately. No polling is required.
+
+Each transaction in the result set includes:
+
+- **Deal metadata** — announced date, completion date, deal status, and disclosed transaction value
+- **Acquirer profile** — name, website, and buyer type (Strategic or Institutional)
+- **Target firmographics** — headquarters, founding year, employee count, and operating geography
+- **Target business profile** — product category, core offering description, and product catalog
+- **News context** — curated coverage excerpts with source URLs for deals with public reporting
+
+**Common use cases:**
+
+- **Deal sourcing and competitive intelligence** — Track which strategic and institutional acquirers are most active in a sector. Identify consolidation patterns, serial acquirers, and emerging buyer profiles
+- **Market mapping** — Understand how a sector is consolidating by pulling all transactions within a product category, geography, or date range
+- **Portfolio monitoring** — Catch new deals involving companies in categories you track. Distinguish completed transactions from pending announcements using the `Deal Status` field
+- **Due diligence enrichment** — Pull prior acquisitions by a specific acquirer or in a comparable category to assemble precedent transaction context rapidly
+- **Buyer screening** — Identify which strategic and institutional buyers are most active in a space, segmented by acquirer type, deal size, and geography
+
+<Info>
+  This API is synchronous. A single POST request returns the complete transaction data immediately — no job polling required. See [How Sync APIs work](/how-sync-apis-work).
+</Info>
+
+---
+
+## 2. Quick Start
+
+**Step 1 — Submit the request**
 
 <CodeGroup>
 
-```bash cURL expandable wrap
-curl --location 'https://api.wokelo.ai/api/assets/process_common/' \
---header 'Authorization: Bearer Token' \
---header 'Content-Type: application/json' \
---data '{
-  "reportType": "acquisition_workflow",
-  "payload": {
-    "topic": "Food Tech",
-    "workbook_name": "Food Tech",
-    "advanced_settings": {
-      "company_type": "all",
-      "geography": [
-        "Worldwide"
-      ],
-      "funding_stage": [],
-      "employee_count": [],
-      "total_funding_include_blanks": true
-    }
-  },
-  "reportSource": "WKLAPP"
-}'
+```bash cURL
+curl --location 'https://api.wokelo.ai/api/enterprise/ma-activity/' \
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "report_id": 1009657
+  }'
 ```
 
-```python Python expandable wrap
+```python Python
 import requests
-import json
 
-url = "https://api.wokelo.ai/api/assets/process_common/"
-
-payload = json.dumps({
-  "reportType": "acquisition_workflow",
-  "payload": {
-    "topic": "Food Tech",
-    "workbook_name": "Food Tech",
-    "advanced_settings": {
-      "company_type": "all",
-      "geography": [
-        "Worldwide"
-      ],
-      "funding_stage": [],
-      "employee_count": [],
-      "total_funding_include_blanks": True
+response = requests.post(
+    "https://api.wokelo.ai/api/enterprise/ma-activity/",
+    headers={
+        "Authorization": "Bearer <YOUR_API_TOKEN>",
+        "Content-Type": "application/json"
+    },
+    json={
+        "report_id": 1009657
     }
-  },
-  "reportSource": "WKLAPP"
-})
-
-headers = {
-  "Authorization": "Bearer Token",
-  "Content-Type": "application/json"
-}
-
-response = requests.post(url, headers=headers, data=payload)
-
-print(response.text)
+)
+data = response.json()
+print("Report title:", data["meta"]["title"])
 ```
 
 </CodeGroup>
 
-The `topic` field specifies the industry, segment, or product category for which M&A transactions should be returned. Use `parameters` to filter the deal universe.
+**Step 2 — Access the transactions**
 
-Use `advanced_settings` to filter the acquisition universe by:
+```python
+# The Grid object contains one key — extract the transactions array
+transactions = list(data["Grid"].values())[0]
+print(f"Retrieved {len(transactions)} transactions")
+```
 
-| Parameter | Description |
-| --- | --- |
-| `company_type` | Filter by company type (`private`, `public`, or `all`) |
-| `geography` | Geographic scope as [ISO country codes](https://docs.wokelo.ai/iso-country-codes) (e.g. `["USA", "GBR"]`) |
-| `funding_stage` | Filter by funding stage |
-| `employee_count` | Filter by employee size buckets |
-| `total_funding_include_blanks` | Include companies with missing funding data |
+**Step 3 — Work with the data**
 
-Pass empty arrays (`[]`) to include all available options.
+```python
+# Example: print each deal
+for t in transactions:
+    amount = t.get("Deal Amount ($M)")
+    amount_str = f"${amount / 1e9:.1f}B" if amount else "undisclosed"
+    print(f"{t['Acquirer Name']} → {t['Target Name']} | {amount_str} | {t['Deal Status']}")
+```
 
-## Examples
+---
 
-**Sector deal-flow tracking:** Surface M&A transactions in the EV charging infrastructure domain. 
+## 3. Authentication
 
-#### Sample Request
+All requests must include a **Bearer token** in the `Authorization` HTTP header. No other authentication method is supported.
+
+```text
+Authorization: Bearer <YOUR_API_TOKEN>
+```
+
+API tokens are issued from your Wokelo account. Navigate to **Settings → API Keys** in the Wokelo dashboard to generate or rotate a key. Contact [support@wokelo.ai](mailto:support@wokelo.ai) if you do not yet have API access.
+
+<Warning>
+  Never expose your token in client-side code, browser requests, or public repositories. A missing or invalid token returns `401 Unauthorized`. A valid token without sufficient plan permissions returns `403 Forbidden`.
+</Warning>
+
+---
+
+## 4. Request Reference
+
+**Endpoint**
+
+```text
+POST https://api.wokelo.ai/api/enterprise/ma-activity/
+```
+
+The request body is JSON. The `report_id` is the only required parameter.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `report_id` | integer | **Required** | The unique identifier for the M&A report you want to retrieve. Find this in the URL when viewing a report in the Wokelo dashboard (`app.wokelo.ai/reports/<report_id>`) or via the [Reports API](/reports-doc). |
+
+**Full request example:**
 
 <CodeGroup>
 
-```bash cURL expandable wrap
-curl --location 'https://api.wokelo.ai/api/assets/process_common/' \
---header 'Authorization: Bearer Token' \
---header 'Content-Type: application/json' \
---data '{
-  "reportType": "acquisition_workflow",
-  "payload": {
-    "topic": "EV Charging infrastructure",
-    "workbook_name": "EV Charging Infra",
-    "advanced_settings": {
-      "company_type": "all",
-      "geography": [
-        "Worldwide"
-      ],
-      "funding_stage": [],
-      "employee_count": [],
-      "total_funding_include_blanks": true
-    }
-  },
-  "reportSource": "WKLAPP"
-}'
+```bash cURL
+curl --location 'https://api.wokelo.ai/api/enterprise/ma-activity/' \
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "report_id": 1009657
+  }'
 ```
 
-```python Python expandable wrap
+```python Python
 import requests
-import json
 
-url = "https://api.wokelo.ai/api/assets/process_common/"
-
-payload = json.dumps({
-  "reportType": "acquisition_workflow",
-  "payload": {
-    "topic": "EV Charging infrastructure",
-    "workbook_name": "EV Charging Infra",
-    "advanced_settings": {
-      "company_type": "all",
-      "geography": [
-        "Worldwide"
-      ],
-      "funding_stage": [],
-      "employee_count": [],
-      "total_funding_include_blanks": True
+response = requests.post(
+    "https://api.wokelo.ai/api/enterprise/ma-activity/",
+    headers={
+        "Authorization": "Bearer <YOUR_API_TOKEN>",
+        "Content-Type": "application/json"
+    },
+    json={
+        "report_id": 1009657
     }
-  },
-  "reportSource": "WKLAPP"
-})
-
-headers = {
-  "Authorization": "Bearer Token",
-  "Content-Type": "application/json"
-}
-
-response = requests.post(url, headers=headers, data=payload)
-
-print(response.text)
+)
+print(response.json())
 ```
 
 </CodeGroup>
 
-#### Sample Response
+---
 
-```json expandable wrap
+## 5. Response
+
+### Response structure
+
+```json
 {
-  "report_id": 123345
+  "Grid": {
+    "<workflow_key>": [ ...transaction objects... ]
+  },
+  "meta": {
+    "report_id": 1009657,
+    "title": "EV Charging Infra",
+    "user": "you@yourcompany.com",
+    "dt_createdon": "2026-05-13 11:26:20"
+  }
 }
 ```
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `Grid` | object | Contains one key (a workflow identifier string) whose value is an array of transaction objects. Use `list(data["Grid"].values())[0]` to extract the array. |
+| `meta.report_id` | integer | The report ID that was requested. |
+| `meta.title` | string | Human-readable title of the report. |
+| `meta.user` | string | Email of the Wokelo user who created the report. |
+| `meta.dt_createdon` | string | ISO 8601 datetime when the report was generated. |
+
+### Transaction object fields
+
+Each object in the transactions array contains the following fields:
+
+**Deal identity**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `Permalink` | string | Stable unique identifier for this transaction (e.g. `"siemens-acquires-heliox--d575a4c7"`). Use this as a primary key when storing transactions. |
+| `Deal Date (Announced)` | string | ISO 8601 date when the deal was announced (`YYYY-MM-DD`). |
+| `Deal Completion Date` | string \| null | ISO 8601 date when the deal closed. Null for pending deals or where the close date was not reported. |
+| `Deal Status` | string | `"Complete"` or `"Pending"`. |
+| `Deal Amount ($M)` | float \| null | Total transaction value. Null when undisclosed. See the note on units below. |
+
+**Acquirer**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `Acquirer Name` | string | Display name of the acquiring company. |
+| `Acquirer Website` | string | Primary domain of the acquirer (e.g. `"siemens.com"`). |
+| `Acquirer Type` | string | `"Strategic"` for operating companies; `"Institutional"` for financial buyers (private equity, infrastructure funds, family offices). |
+
+**Target identity & firmographics**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `Target Name` | string | Display name of the acquired company. |
+| `Target Website` | string \| null | Primary domain of the target. Null when not available. |
+| `Target HQ City` | string \| null | Headquarters city of the target. |
+| `Target HQ Country` | string \| null | Headquarters country of the target. |
+| `Target HQ Continent` | string \| null | Headquarters continent of the target. |
+| `Target Founded` | string \| null | Year the target company was founded. |
+| `Target Employees (Crunchbase)` | string \| null | Employee headcount band from Crunchbase (e.g. `"51-100"`). |
+| `Target Employees (LinkedIn)` | integer \| null | Numeric employee count from LinkedIn. |
+
+**Target business profile**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `Target Product Category` | string \| null | Short label for the target's primary product or service category (e.g. `"Electric Vehicle Charging Infrastructure"`). |
+| `Target Core Offering` | string \| null | AI-generated 2–4 sentence description of what the target does, its customers, and its market position. |
+| `Target Product Catalog` | string \| null | Comma-separated list of key products and services. |
+
+**News**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `News` | string \| null | Concatenated news coverage for the transaction. Each section contains a prose summary followed by a source URL on a new line. Multiple coverage items are separated by blank lines. Null when no coverage was indexed. |
+
+<Info>
+  The `News` field is unstructured text, not JSON. Parse it by splitting on newlines and identifying lines that start with `http` to extract source URLs separately from prose summaries.
+</Info>
+
+### Deal Amount units
+
+The `Deal Amount ($M)` field is labelled in millions but stored values are in **raw USD**. A deal reported as "\$1.1 billion" is stored as `1100000000.0`. Always convert before displaying:
+
+```python
+amount_raw = transaction["Deal Amount ($M)"]
+if amount_raw:
+    amount_bn = amount_raw / 1e9   # billions
+    amount_m  = amount_raw / 1e6   # millions
+```
+
+### Notes on null values
+
+Several fields are frequently null, and this is expected:
+
+- `Deal Amount ($M)` — The majority of M&A transactions are not publicly disclosed. Null means undisclosed, not zero.
+- `Target Core Offering` and `Target Product Category` — Null for targets where Wokelo's enrichment pipeline did not find sufficient public information.
+- `Deal Completion Date` — Null for pending deals and for completed deals where the close date was not reported.
+- `News` — Null when no news coverage was indexed for the transaction.
+
+---
+
+## 6. Examples
+
+### Retrieving and filtering a full report
+
+Retrieve all transactions in a report and filter to completed deals over \$1 billion.
+
+<CodeGroup>
+
+```bash cURL
+curl --location 'https://api.wokelo.ai/api/enterprise/ma-activity/' \
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "report_id": 1009657
+  }'
+```
+
+```python Python
+import requests
+
+HEADERS = {
+    "Authorization": "Bearer <YOUR_API_TOKEN>",
+    "Content-Type": "application/json"
+}
+
+response = requests.post(
+    "https://api.wokelo.ai/api/enterprise/ma-activity/",
+    headers=HEADERS,
+    json={"report_id": 1009657}
+)
+
+data = response.json()
+transactions = list(data["Grid"].values())[0]
+
+# Filter to completed deals over $1B
+large_deals = [
+    t for t in transactions
+    if t["Deal Status"] == "Complete"
+    and t.get("Deal Amount ($M)") is not None
+    and t["Deal Amount ($M)"] >= 1_000_000_000
+]
+
+for t in sorted(large_deals, key=lambda x: x["Deal Amount ($M)"], reverse=True):
+    print(f"${t['Deal Amount ($M)'] / 1e9:.1f}B — {t['Acquirer Name']} → {t['Target Name']}")
+```
+
+</CodeGroup>
+
+**Sample response (excerpt):**
+
+```json
+{
+  "Grid": {
+    "Acquisition Workflow - Grid_419a21d1-32e0-4c10-a6bd-6f6cc100187c": [
+      {
+        "Permalink": "siemens-acquires-heliox--d575a4c7",
+        "Target Name": "Heliox",
+        "Target Website": "heliox-energy.com",
+        "Acquirer Name": "Siemens",
+        "Acquirer Website": "siemens.com",
+        "Acquirer Type": "Strategic",
+        "Deal Amount ($M)": null,
+        "Deal Date (Announced)": "2023-08-22",
+        "Deal Completion Date": "2024-01-11",
+        "Deal Status": "Complete",
+        "Target HQ City": "Best",
+        "Target HQ Country": "Netherlands",
+        "Target HQ Continent": "Europe",
+        "Target Founded": "2009",
+        "Target Product Category": "Electric Vehicle Charging Infrastructure",
+        "Target Core Offering": "Heliox specializes in innovative electric vehicle charging solutions, particularly for heavy-duty applications such as buses and trucks, providing fast charging technology and related services for reliable operation.",
+        "Target Product Catalog": "Switch mode power technology products, Customized products and services",
+        "Target Employees (Crunchbase)": "11-50",
+        "Target Employees (LinkedIn)": 252,
+        "News": null
+      },
+      {
+        "Permalink": "gdf-suez-acquires-uk-power-networks--d7f01b2c",
+        "Target Name": "UK Power Networks",
+        "Target Website": "ukpowernetworks.co.uk",
+        "Acquirer Name": "Engie",
+        "Acquirer Website": "engie.com",
+        "Acquirer Type": "Strategic",
+        "Deal Amount ($M)": 14194943896.0,
+        "Deal Date (Announced)": "2026-02-25",
+        "Deal Completion Date": null,
+        "Deal Status": "Complete",
+        "Target HQ City": "London",
+        "Target HQ Country": "United Kingdom",
+        "Target HQ Continent": "Europe",
+        "Target Founded": "2010",
+        "Target Product Category": null,
+        "Target Core Offering": null,
+        "Target Product Catalog": null,
+        "Target Employees (Crunchbase)": "5001-10000",
+        "Target Employees (LinkedIn)": 3223,
+        "News": "ENGIE is set to acquire UK Power Networks from CKI, pending regulatory approval...\nhttps://www.ukpowernetworks.co.uk/news/engie-announces-the-acquisition-of-uk-power-networks\n\nA French utility company, Engie, plans to acquire UK Power Networks for over $14 billion.\nhttps://www.tradingview.com/news/reuters.com,2026:newsml_L4N3ZL1YH:0-french-utility-engie-to-acquire-uk-power-networks-for-over-14-billion/"
+      }
+    ]
+  },
+  "meta": {
+    "report_id": 1009657,
+    "title": "EV Charging Infra",
+    "user": "you@yourcompany.com",
+    "dt_createdon": "2026-05-13 11:26:20"
+  }
+}
+```
+
+### Grouping transactions by acquirer
+
+Build an acquirer activity profile to identify the most active buyers in a sector — useful for buyer targeting and market structure analysis.
+
+```python
+from collections import defaultdict
+
+transactions = list(data["Grid"].values())[0]
+by_acquirer = defaultdict(list)
+
+for t in transactions:
+    by_acquirer[t["Acquirer Name"]].append(t)
+
+# Sort by deal count, most active first
+for acquirer, deals in sorted(by_acquirer.items(), key=lambda x: -len(x[1])):
+    completed = sum(1 for d in deals if d["Deal Status"] == "Complete")
+    pending   = sum(1 for d in deals if d["Deal Status"] == "Pending")
+    print(f"{acquirer}: {len(deals)} deals ({completed} complete, {pending} pending)")
+    for d in deals:
+        print(f"  → {d['Target Name']} ({d['Deal Date (Announced)'][:4]})")
+```
+
+**Sample output:**
+
+```text
+Siemens: 15 deals (14 complete, 1 pending)
+  → Heliox (2023)
+  → Trayer Engineering (2024)
+  → Altair (2024)
+  → Dotmatics (2025)
+  ...
+TotalEnergies: 10 deals (8 complete, 2 pending)
+  → Total Eren (2023)
+  → Kyon Energy (2024)
+  → VSB Group (2024)
+  ...
+```
+
+### Filtering by product category with news
+
+Filter transactions to a specific product category and surface deals with news coverage for deeper context.
+
+```python
+category_keyword = "Electric Vehicle Charging"
+
+ev_charging = [
+    t for t in transactions
+    if t.get("Target Product Category")
+    and category_keyword.lower() in t["Target Product Category"].lower()
+]
+
+with_news = [t for t in ev_charging if t.get("News")]
+
+print(f"Found {len(ev_charging)} EV charging deals, {len(with_news)} with news coverage\n")
+
+for t in with_news:
+    urls = [line.strip() for line in t["News"].split("\n")
+            if line.strip().startswith("http")]
+    print(f"{t['Acquirer Name']} → {t['Target Name']} | {t['Deal Date (Announced)']}")
+    if urls:
+        print(f"  Source: {urls[0]}")
+    print()
+```
+
+### Exporting the transaction set to CSV
+
+Export the full deal list to CSV for CRM upload (Affinity, DealCloud, Salesforce), deal-team review, or further analysis.
+
+```python
+import requests, csv
+
+HEADERS = {"Authorization": "Bearer <YOUR_API_TOKEN>"}
+
+transactions = list(
+    requests.post(
+        "https://api.wokelo.ai/api/enterprise/ma-activity/",
+        headers={**HEADERS, "Content-Type": "application/json"},
+        json={"report_id": 1009657}
+    ).json()["Grid"].values()
+)[0]
+
+fields = [
+    "Permalink",
+    "Target Name", "Target Website",
+    "Target HQ City", "Target HQ Country",
+    "Target Founded",
+    "Target Product Category", "Target Core Offering",
+    "Target Employees (Crunchbase)", "Target Employees (LinkedIn)",
+    "Acquirer Name", "Acquirer Website", "Acquirer Type",
+    "Deal Amount ($M)", "Deal Date (Announced)", "Deal Completion Date", "Deal Status"
+]
+
+with open("ma_transactions.csv", "w", newline="") as f:
+    writer = csv.DictWriter(f, fieldnames=fields, extrasaction="ignore")
+    writer.writeheader()
+    writer.writerows(transactions)
+
+print(f"Exported {len(transactions)} transactions to ma_transactions.csv")
+```
+
+### Loading into a pandas DataFrame for analysis
+
+For analytics workflows, load the full response into a DataFrame and filter in memory rather than making repeated API calls.
+
+```python
+import pandas as pd, requests
+
+HEADERS = {"Authorization": "Bearer <YOUR_API_TOKEN>"}
+
+data = requests.post(
+    "https://api.wokelo.ai/api/enterprise/ma-activity/",
+    headers={**HEADERS, "Content-Type": "application/json"},
+    json={"report_id": 1009657}
+).json()
+
+df = pd.DataFrame(list(data["Grid"].values())[0])
+
+# Convert raw dollar amount to billions
+df["Deal Value ($B)"] = df["Deal Amount ($M)"] / 1e9
+
+# Top product categories by deal count
+print(df["Target Product Category"].value_counts().head(10))
+
+# Deal volume by announced year
+df["Year"] = pd.to_datetime(df["Deal Date (Announced)"], errors="coerce").dt.year
+print(df.groupby("Year").size())
+
+# Strategic vs institutional split
+print(df["Acquirer Type"].value_counts())
+```
+
+---
+
+## 7. Error Handling
+
+The API uses standard HTTP status codes. All error responses include a JSON body with a `detail` or `message` field.
+
+| Status | Meaning | Cause & Resolution |
+| --- | --- | --- |
+| `200 OK` | Success | Results returned successfully. |
+| `400 Bad Request` | Invalid parameters | A required field is missing or a parameter value is invalid — e.g. missing `report_id` or a non-integer value. Check the `detail` field. |
+| `401 Unauthorized` | Auth failed | The `Authorization` header is missing, malformed, or contains an invalid token. Verify your key in **Settings → API Keys**. |
+| `403 Forbidden` | Insufficient access | Your plan does not include access to this endpoint or report. Contact [support@wokelo.ai](mailto:support@wokelo.ai) to review your plan. |
+| `404 Not Found` | Resource not found | The `report_id` does not exist or is not accessible to your account. Confirm the ID in your dashboard. |
+| `429 Too Many Requests` | Rate limit exceeded | Implement exponential back-off. The response includes a `Retry-After` header. |
+| `500 Internal Server Error` | Server error | Retry after a brief delay. If the issue persists, contact [support@wokelo.ai](mailto:support@wokelo.ai) with your `report_id`. |
+
+**Error response example:**
+
+```json
+{
+  "status": "error",
+  "detail": "Report with id '9999999' could not be found."
+}
+```
+
+**Retry logic with exponential back-off:**
+
+```python
+import time, requests
+
+def fetch_with_retry(report_id, api_key, max_retries=3):
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    for attempt in range(max_retries):
+        try:
+            response = requests.post(
+                "https://api.wokelo.ai/api/enterprise/ma-activity/",
+                headers=headers,
+                json={"report_id": report_id},
+                timeout=30
+            )
+            if response.status_code == 429:
+                wait = 2 ** attempt   # 1s, 2s, 4s
+                time.sleep(wait)
+                continue
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.Timeout:
+            if attempt == max_retries - 1:
+                raise
+            time.sleep(1)
+    raise Exception(f"Failed after {max_retries} attempts")
+```
+
+---
+
+## 8. Best Practices
+
+**Use the `Permalink` field as a stable identifier**
+
+If you're storing transactions in your own database or CRM, use `Permalink` as the primary key. It is a stable, unique identifier for each transaction that persists across API versions and report refreshes:
+
+```python
+transaction_map = {t["Permalink"]: t for t in transactions}
+```
+
+**Handle null values defensively**
+
+Many fields are null for legitimate reasons — especially `Deal Amount ($M)`. Always guard before operating on field values:
+
+```python
+# ❌ Throws on deals with undisclosed amounts
+total = sum(t["Deal Amount ($M)"] for t in transactions)
+
+# ✅ Safe — treat null as zero for aggregation
+total = sum(t.get("Deal Amount ($M)") or 0 for t in transactions)
+disclosed = [t for t in transactions if t.get("Deal Amount ($M)") is not None]
+```
+
+**Parse the `News` field as structured text**
+
+The `News` field is a multi-section string, not JSON. Each section contains a prose summary followed by a source URL. Parse it by splitting on newlines:
+
+```python
+def extract_news_urls(news_text):
+    if not news_text:
+        return []
+    return [line.strip() for line in news_text.split("\n")
+            if line.strip().startswith("http")]
+
+def extract_news_summaries(news_text):
+    if not news_text:
+        return []
+    return [line.strip() for line in news_text.split("\n")
+            if line.strip() and not line.strip().startswith("http")]
+```
+
+**Account for the `Deal Amount ($M)` unit quirk**
+
+Despite the field name suggesting millions, the stored values are raw USD. Always convert before displaying or aggregating:
+
+```python
+raw = t.get("Deal Amount ($M)")
+if raw and raw >= 1e9:
+    display = f"${raw / 1e9:.1f}B"
+elif raw:
+    display = f"${raw / 1e6:.0f}M"
+else:
+    display = "Undisclosed"
+```
+
+**Cache responses for analytics workloads**
+
+M&A reports are relatively static — a report generated today won't change minute-to-minute. For dashboards or batch pipelines, cache the full response locally and refresh on a schedule (e.g. daily) rather than calling the API on every page load or query.
+
+**Use both `Acquirer Type` and `Acquirer Name` to profile the buyer landscape**
+
+`Acquirer Type` (`"Strategic"` vs `"Institutional"`) gives you the high-level split. Grouping by `Acquirer Name` lets you identify serial acquirers — companies appearing five or more times in a sector are a meaningful signal for buyer targeting or market structure analysis.
+
+**Use `Deal Status` to monitor live transactions**
+
+Filter to `"Pending"` deals to track active announcements that haven't yet closed. Re-querying the same report over time surfaces status transitions as pending deals complete, giving you a lightweight deal-tracking workflow without building a separate monitoring layer.
+
+**Iterate your report scope, not just your client-side filters**
+
+If the returned transaction set doesn't cover the geography, time range, or sub-sector you need, contact your Wokelo account manager to create or refine the underlying report. The richness of the API output is directly dependent on how the report scope was configured.
+
+---
+
+## 9. Related APIs
+
+<CardGroup cols={3}>
+  <Card title="Target Screening" icon="crosshairs" href="/target-screening-doc">
+    Identify and score potential acquisition targets for a defined acquirer — AI-ranked with deal feasibility, synergy, and precedent scores.
+  </Card>
+
+  <Card title="Buyer Screening" icon="users" href="/buyer-screening-doc">
+    Identify and score potential acquirers for a target company — the inverse of Target Screening.
+  </Card>
+
+  <Card title="Market Map" icon="map" href="/market-map-doc">
+    Discover and map all companies competing in a specific market or product category.
+  </Card>
+
+  <Card title="Company Deep Intelligence" icon="brain" href="/company-deep-intelligence-doc">
+    Generate deep AI intelligence on any acquirer or target — business model, financials, strategy, and M&A history.
+  </Card>
+
+  <Card title="Company Instant Enrichment" icon="bolt" href="/company-instant-enrichment-doc">
+    Synchronously enrich firmographic and financial data for any company in the transaction set.
+  </Card>
+
+  <Card title="Industry Deep Intelligence" icon="chart-line" href="/industry-deep-intelligence-doc">
+    Generate a deep intelligence report on the sector behind the deal activity for thesis development.
+  </Card>
+</CardGroup>
