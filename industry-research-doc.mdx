@@ -135,6 +135,774 @@ All requests must include a **Bearer token** in the `Authorization` HTTP header.
 Authorization: Bearer <YOUR_API_TOKEN>
 ```
 
+API tokens are issued from your Wokelo account. Navigate to **Account Details → API Credentials** in the Wokelo dashboard to get your client id and client secret. Contact [support@wokelo.ai](mailto:support@wokelo.ai) if you do not yet have API access.
+
+<Warning>
+  Never expose your token in client-side code, browser requests, or public repositories. A missing or invalid token returns `401 Unauthorized`. A valid token without sufficient plan permissions returns `403 Forbidden`.
+</Warning>
+
+---
+
+## 4. Request Reference
+
+**Endpoint**
+
+```text
+POST https://api.wokelo.ai/api/workflow_manager/start/
+```
+
+All parameters are passed as JSON in the request body.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `workflow` | string | **Required** | Must always be `"industry_primer"`. This fixed value tells Wokelo's workflow engine to run the Industry Research report. Do not confuse with `"company_primer"` (Company Research) or `"peer_comparison"` (Peer Comparison). |
+| `industry` | string | **Required** | Free-text description of the industry or sector to research. Specificity drives report quality — see Best Practices for guidance on phrasing. Examples: `"Warehouse Automation"`, `"Electronics Manufacturing Services"`, `"GLP-1 Obesity Drug Market"`, `"Offshore Wind Energy"`. |
+| `custom_files` | object\[\] | Optional | Array of file references to include in the report alongside Wokelo's synthesis. Each object should use the `fileName` value returned by the [File Upload API](/supporting-apis-doc#file-upload). Use this to incorporate proprietary market research, analyst reports, or internal sector notes. |
+
+<Info>
+  Unlike Company Research, Industry Research has no `permalink`, `website`, or `workbook_name` parameters. The `industry` string is the only identifier and the primary driver of report scope and quality.
+</Info>
+
+**Full request example:**
+
+<CodeGroup>
+
+```bash cURL
+curl --location 'https://api.wokelo.ai/api/workflow_manager/start/' \
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "workflow": "industry_primer",
+    "industry": "Electronics Manufacturing Services"
+  }'
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    "https://api.wokelo.ai/api/workflow_manager/start/",
+    headers={
+        "Authorization": "Bearer <YOUR_API_TOKEN>",
+        "Content-Type": "application/json"
+    },
+    json={
+        "workflow": "industry_primer",
+        "industry": "Electronics Manufacturing Services"
+    }
+)
+print(response.json())   # {"report_id": 123345}
+```
+
+</CodeGroup>
+
+---
+
+## 5. Response
+
+### Submission response
+
+The initial POST returns immediately with a single field:
+
+```json
+{
+  "report_id": 123345
+}
+```
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `report_id` | integer | Unique identifier for this report job. Use it with the Report Status and Download Report endpoints to track and retrieve the completed report. Store this value immediately — it is the only handle to your report. |
+
+### Report status response
+
+Poll `GET /api/assets/get_notebook_status/?report_id={report_id}` until the status field is `"Completed"`.
+
+| Status value | Meaning |
+| --- | --- |
+| `"Pending"` | Report is queued and waiting to start. |
+| `"Processing"` | Report generation is in progress. |
+| `"Completed"` | Report is ready to download. |
+| `"Failed"` | Report generation encountered an error. Retry the submission. |
+
+### Downloaded report structure
+
+When you call Download Report with `"file_type": "json"`, the response is a deeply nested JSON object. Each top-level key is a named report section. The five sections produced by Industry Research are:
+
+**Executive Summary**
+
+Contains two sub-keys:
+
+- `Executive Summary` → `summary` object with a `source` array of citation objects (`id`, `title`, `url`, `publisher`, `date`) and a `summary` field containing a full markdown-formatted multi-section narrative (Overview, Market Dynamics and Growth Drivers, Regional Market Leadership, Technological Innovation, Supply Chain, Regulatory Environment)
+- `Key Insights` → `key_insights` array of 8–10 insight card objects. Each card has:
+  - `insight` — object with `title` (bold headline with key metric), `paragraph` (supporting data sentence), and `sources` array
+  - `commentary` — array of 2–3 commentary paragraph objects, each with `paragraph` (analyst interpretation) and `sources` array
+
+**Overview**
+
+Contains an `industry_overview_details` object with a `source` array and a `summary` field covering: industry definition, how it operates, key offerings (as named and described categories), market segments, and problems being solved.
+
+**Trends and Innovations**
+
+Contains a `trend_and_innovations` object with a `source` array and a `summary` field — a long-form markdown narrative organised by innovation themes (e.g. Advanced Materials, Cybersecurity, Printed Electronics, AI Automation, Predictive Maintenance, Sustainability, Adaptive Manufacturing, Strategic Partnerships).
+
+**Select Transactions**
+
+Contains two sub-keys:
+
+- `Fundraising activities` → `fundraising` object with:
+  - `fundraising` array — individual deal records (see below)
+  - `key_investors_in_this_space` → `key_investors_in_this_space` array — ranked investor records with `organization` (name, logo, url, permalink), `no_of_investments`, and `key_investments` (array of strings)
+  - `sources` array — data attribution (typically Crunchbase)
+  - `charts` object — three chart data structures (see below)
+
+**Fundraising deal record fields:**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `organization` | object | Company that raised. Contains `name`, `url` (Wokelo dashboard link), `logo`, and `permalink`. |
+| `funding` | integer | Raw USD amount raised (e.g. `30000000` for \$30M). Always a numeric integer — never an empty string. |
+| `funding_type` | string | Round type. Examples: `"Series A"`, `"Series B"`, `"Seed"`, `"Debt-Funded"`, `"Non-Equity Assistance"`, `"Corporate-Funded"`, `"Private Equity"`. |
+| `date` | string | Close date in `DD-Mon-YYYY` format (e.g. `"23-Dec-2025"`). |
+| `product_category` | string | Short label for the company's product or service area. |
+| `lead_investors` | object\[\] | Array of lead investor objects, each with an `organization` sub-object (`name`, `url`, `logo`, `permalink`). May be absent when lead was not publicly disclosed. |
+| `investors` | object\[\] | Array of non-lead investor objects, same structure as `lead_investors`. May be absent. |
+
+**Chart data structures:**
+
+The `charts` object contains three keys, each with a `title`, `data` array, `source` attribution string, and `url` (pre-rendered chart image):
+
+- `fundraising_line_chart` — quarterly deal count time series. Each data point: `{quarter: "Q3 '24", deals: 13}`
+- `fundraising_stage_chart` — quarterly deal count broken out by stage (Seed Stage, Early Stage, Late Stage, Private Equity, Others). Each data point: `{quarter: "Q3 '24", stage: "Early Stage", deals: 3}`
+- `fundraising_quarter_wise_chart` — quarterly total funding raised. Each data point uses a two-field value structure: `{quarter: "Q2 '24", funding: {value: 5.4, multiplier: 1000000000}}` — multiply `value × multiplier` to get the raw USD amount
+
+<Info>
+  The `fundraising_quarter_wise_chart` uses a `{value, multiplier}` pattern rather than raw integers to keep chart data readable. Always multiply `value × multiplier` before presenting amounts: `5.4 × 1,000,000,000 = $5.4B`. The `multiplier` is typically `1000000` (millions) or `1000000000` (billions), but always check rather than assuming.
+</Info>
+
+### Download format options
+
+| `file_type` | Description |
+| --- | --- |
+| `"json"` | Fully structured JSON — all sections, fields, and source citations. Best for programmatic processing, pipeline ingestion, or downstream analysis. |
+| `"pdf"` | Formatted PDF report. Best for sharing with stakeholders who need a readable, printable document. |
+| `"docx"` | Editable Word document. Best for teams that customise or annotate reports before distribution. |
+| `"ppt"` | PowerPoint presentation with section slides. Best for IC presentations, LP updates, and conference briefings. |
+
+---
+
+## 6. Examples
+
+### Basic industry research
+
+Submit, poll, and download JSON — the standard three-step pattern.
+
+<CodeGroup>
+
+```bash cURL
+# Step 1: Submit
+curl --location 'https://api.wokelo.ai/api/workflow_manager/start/' \
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{"workflow": "industry_primer", "industry": "Electronics Manufacturing Services"}'
+
+# Step 2: Poll (replace 123345 with your report_id)
+curl --location 'https://api.wokelo.ai/api/assets/get_notebook_status/?report_id=123345' \
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>'
+
+# Step 3: Download
+curl --location 'https://api.wokelo.ai/api/assets/download_report/' \
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{"report_id": 123345, "file_type": "json"}'
+```
+
+```python Python
+import requests, time
+
+API_KEY = "<YOUR_API_TOKEN>"
+HEADERS = {
+    "Authorization": f"Bearer {API_KEY}",
+    "Content-Type": "application/json"
+}
+
+# Step 1: Submit
+submit = requests.post(
+    "https://api.wokelo.ai/api/workflow_manager/start/",
+    headers=HEADERS,
+    json={"workflow": "industry_primer", "industry": "Electronics Manufacturing Services"}
+)
+report_id = submit.json()["report_id"]
+print(f"Submitted. report_id: {report_id}")
+
+# Step 2: Poll
+while True:
+    status_r = requests.get(
+        "https://api.wokelo.ai/api/assets/get_notebook_status/",
+        headers=HEADERS,
+        params={"report_id": report_id}
+    )
+    status = status_r.json().get("status")
+    print(f"Status: {status}")
+    if status == "Completed":
+        break
+    if status == "Failed":
+        raise Exception("Report failed")
+    time.sleep(15)
+
+# Step 3: Download
+result = requests.post(
+    "https://api.wokelo.ai/api/assets/download_report/",
+    headers=HEADERS,
+    json={"report_id": report_id, "file_type": "json"}
+)
+report = result.json()
+print(f"Sections: {list(report.keys())}")
+```
+
+</CodeGroup>
+
+**Sample submission response:**
+
+```json
+{
+  "report_id": 123345
+}
+```
+
+### Extracting key sections from the JSON report
+
+Work with individual sections for targeted downstream processing.
+
+```python
+# Assume report is already downloaded as a dict
+report = result.json()
+
+# --- Executive Summary narrative ---
+exec_summary = report["Executive Summary"]["Executive Summary"]["summary"]["summary"]
+print("EXECUTIVE SUMMARY (first 500 chars):")
+print(exec_summary[:500])
+print()
+
+# --- Key Insights headlines ---
+insights = report["Executive Summary"]["Key Insights"]["key_insights"]
+print(f"KEY INSIGHTS ({len(insights)} total):")
+for i, card in enumerate(insights, 1):
+    print(f"  {i}. {card['insight']['title']}")
+    print(f"     {card['insight']['paragraph'][:120]}...")
+print()
+
+# --- Industry overview summary ---
+overview = report["Overview"]["Overview"]["industry_overview_details"]["summary"]
+print("OVERVIEW (first 400 chars):")
+print(overview[:400])
+print()
+
+# --- Trends and innovations ---
+trends = report["Trends and innovations"]["Key trends and innovations"]["trend_and_innovations"]["summary"]
+print(f"TRENDS SECTION LENGTH: {len(trends.split())} words")
+print()
+
+# --- Top fundraising deals (by size) ---
+deals = report["Select transactions"]["Fundraising activities"]["fundraising"]["fundraising"]
+sorted_deals = sorted(deals, key=lambda x: x.get("funding", 0), reverse=True)
+print("TOP FUNDRAISING DEALS:")
+for deal in sorted_deals[:5]:
+    amount_m = deal["funding"] / 1_000_000
+    lead = deal.get("lead_investors", [{}])[0].get("organization", {}).get("name", "undisclosed")
+    print(f"  ${amount_m:.0f}M  {deal['organization']['name']}  ({deal['funding_type']})  Lead: {lead}")
+```
+
+### Parsing fundraising chart data
+
+The quarterly funding chart uses a `{value, multiplier}` two-field pattern. Parse it correctly before presenting amounts.
+
+```python
+charts = report["Select transactions"]["Fundraising activities"]["fundraising"]["fundraising"]["charts"]
+
+# Deal count over time
+print("Quarterly Deal Count:")
+for pt in charts["fundraising_line_chart"]["data"]:
+    print(f"  {pt['quarter']}: {pt['deals']} deals")
+
+# Total funding over time (value × multiplier = USD)
+print("\nQuarterly Total Funding:")
+for pt in charts["fundraising_quarter_wise_chart"]["data"]:
+    f = pt["funding"]
+    usd = f["value"] * f["multiplier"]
+    if usd >= 1e9:
+        label = f"${usd / 1e9:.1f}B"
+    else:
+        label = f"${usd / 1e6:.0f}M"
+    print(f"  {pt['quarter']}: {label}")
+
+# Stage breakdown
+print("\nDeals by Stage (most recent quarter):")
+stage_data = charts["fundraising_stage_chart"]["data"]
+latest_q = stage_data[-1]["quarter"]
+latest = [pt for pt in stage_data if pt["quarter"] == latest_q]
+for pt in latest:
+    print(f"  {pt['stage']}: {pt['deals']} deals")
+```
+
+### Identifying top investors in a sector
+
+Use the key investors sub-section to find the most active investors for deal sourcing or LP targeting.
+
+```python
+investors = (
+    report["Select transactions"]
+    ["Fundraising activities"]
+    ["key_investors_in_this_space"]
+    ["key_investors_in_this_space"]
+)
+
+print(f"Top investors in {industry} ({len(investors)} total):\n")
+for inv in investors[:10]:
+    org  = inv["organization"]["name"]
+    n    = inv["no_of_investments"]
+    keys = ", ".join(inv.get("key_investments", []))
+    print(f"  {org}  ({n} investments)")
+    if keys:
+        print(f"    Notable: {keys}")
+```
+
+### Batch research across a portfolio of sectors
+
+Submit Industry Research for multiple sectors concurrently, then collect all reports.
+
+```python
+import requests, time, concurrent.futures
+
+API_KEY  = "<YOUR_API_TOKEN>"
+HEADERS  = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
+
+SECTORS = [
+    "Warehouse Automation",
+    "GLP-1 Obesity Drug Market",
+    "Offshore Wind Energy",
+    "Electronics Manufacturing Services",
+    "Generative AI Infrastructure"
+]
+
+def submit_research(industry):
+    r = requests.post(
+        "https://api.wokelo.ai/api/workflow_manager/start/",
+        headers=HEADERS,
+        json={"workflow": "industry_primer", "industry": industry}
+    )
+    return industry, r.json()["report_id"]
+
+def poll_until_done(report_id, interval=20, timeout=900):
+    elapsed = 0
+    while elapsed < timeout:
+        r = requests.get(
+            "https://api.wokelo.ai/api/assets/get_notebook_status/",
+            headers=HEADERS,
+            params={"report_id": report_id}
+        )
+        status = r.json().get("status")
+        if status == "Completed":
+            return True
+        if status == "Failed":
+            return False
+        time.sleep(interval)
+        elapsed += interval
+    return False
+
+def fetch_report(report_id):
+    r = requests.post(
+        "https://api.wokelo.ai/api/assets/download_report/",
+        headers=HEADERS,
+        json={"report_id": report_id, "file_type": "json"}
+    )
+    return r.json()
+
+# Submit all concurrently
+with concurrent.futures.ThreadPoolExecutor(max_workers=5) as pool:
+    futures = {pool.submit(submit_research, s): s for s in SECTORS}
+    jobs = {}
+    for future in concurrent.futures.as_completed(futures):
+        sector, report_id = future.result()
+        jobs[sector] = report_id
+        print(f"Submitted: {sector} → report_id {report_id}")
+
+# Poll and collect
+reports = {}
+for sector, report_id in jobs.items():
+    ok = poll_until_done(report_id)
+    if ok:
+        reports[sector] = fetch_report(report_id)
+        print(f"Collected: {sector}")
+    else:
+        print(f"Failed or timed out: {sector}")
+
+print(f"\nCollected {len(reports)} / {len(SECTORS)} reports")
+```
+
+### Research with a custom file
+
+Upload a proprietary report and attach it so Wokelo synthesises it alongside its own research.
+
+```python
+import requests
+
+API_KEY = "<YOUR_API_TOKEN>"
+HEADERS = {"Authorization": f"Bearer {API_KEY}"}
+
+# Step 1: Upload the file
+with open("internal_sector_brief.pdf", "rb") as f:
+    upload_r = requests.post(
+        "https://api.wokelo.ai/api/assets/upload/",
+        headers=HEADERS,
+        files={"files": ("internal_sector_brief.pdf", f, "application/pdf")}
+    )
+file_name = upload_r.json()["fileName"]
+
+# Step 2: Submit report referencing the uploaded file
+submit_r = requests.post(
+    "https://api.wokelo.ai/api/workflow_manager/start/",
+    headers={**HEADERS, "Content-Type": "application/json"},
+    json={
+        "workflow":     "industry_primer",
+        "industry":     "Carbon Capture and Storage",
+        "custom_files": [{"fileName": file_name}]
+    }
+)
+report_id = submit_r.json()["report_id"]
+print(f"Report with custom file submitted. report_id: {report_id}")
+```
+
+### Exporting as PPT for an IC presentation
+
+```python
+import requests
+
+HEADERS = {"Authorization": "Bearer <YOUR_API_TOKEN>"}
+
+ppt_r = requests.post(
+    "https://api.wokelo.ai/api/assets/download_report/",
+    headers=HEADERS,
+    json={"report_id": 123345, "file_type": "ppt"}
+)
+
+with open("ems_industry_research.pptx", "wb") as f:
+    f.write(ppt_r.content)
+
+print("Saved ems_industry_research.pptx")
+```
+
+---
+
+## 7. Error Handling
+
+The API uses standard HTTP status codes. The submission endpoint returns errors synchronously; processing errors appear as `"Failed"` status when polling.
+
+| Status | Meaning | Cause & Resolution |
+| --- | --- | --- |
+| `200 OK` | Request accepted | `report_id` returned. Proceed to polling. |
+| `400 Bad Request` | Invalid parameters | Missing `workflow`, missing `industry`, or unrecognised `workflow` string. Check the `detail` field. Ensure `workflow` is exactly `"industry_primer"`. |
+| `401 Unauthorized` | Auth failed | The `Authorization` header is missing or contains an invalid token. Verify your key in **Settings → API Keys**. |
+| `403 Forbidden` | Insufficient access | Your plan does not include access to this endpoint. Contact [support@wokelo.ai](mailto:support@wokelo.ai). |
+| `429 Too Many Requests` | Rate limit exceeded | Implement exponential back-off on submission. The response includes a `Retry-After` header. |
+| `500 Internal Server Error` | Server error | Retry the submission after a brief delay. If the issue persists, contact [support@wokelo.ai](mailto:support@wokelo.ai). |
+
+**Handling a `"Failed"` report status:**
+
+```python
+status_r = requests.get(
+    "https://api.wokelo.ai/api/assets/get_notebook_status/",
+    headers=HEADERS,
+    params={"report_id": report_id}
+)
+if status_r.json().get("status") == "Failed":
+    print(f"Report {report_id} failed. Resubmitting...")
+    resubmit = requests.post(
+        "https://api.wokelo.ai/api/workflow_manager/start/",
+        headers=HEADERS,
+        json={"workflow": "industry_primer", "industry": "Warehouse Automation"}
+    )
+    new_id = resubmit.json()["report_id"]
+    print(f"New report_id: {new_id}")
+```
+
+**Retry with exponential back-off on submission:**
+
+```python
+import time, requests
+
+def submit_with_retry(body, api_key, max_retries=3):
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    for attempt in range(max_retries):
+        try:
+            r = requests.post(
+                "https://api.wokelo.ai/api/workflow_manager/start/",
+                headers=headers,
+                json=body,
+                timeout=30
+            )
+            if r.status_code == 429:
+                time.sleep(2 ** attempt)
+                continue
+            r.raise_for_status()
+            return r.json()["report_id"]
+        except requests.exceptions.Timeout:
+            if attempt == max_retries - 1:
+                raise
+            time.sleep(1)
+    raise Exception(f"Submission failed after {max_retries} attempts")
+```
+
+---
+
+## 8. Best Practices
+
+**Be specific and descriptive in the `industry` string — this is the single highest-impact parameter**
+
+The `industry` field is a free-text string, and the specificity of what you write directly determines how focused and useful the report is. Vague inputs like `"technology"` or `"manufacturing"` produce broad, shallow reports. Specific, descriptive inputs produce deep, actionable sector coverage:
+
+```python
+# ❌ Too broad — produces a generic, high-level report
+body["industry"] = "Manufacturing"
+body["industry"] = "Healthcare"
+body["industry"] = "Finance"
+
+# ✅ Specific — produces a focused, high-signal report
+body["industry"] = "Electronics Manufacturing Services (EMS)"
+body["industry"] = "GLP-1 Obesity Drug Market"
+body["industry"] = "Offshore Wind Farm Development"
+body["industry"] = "Carbon Capture and Storage Technology"
+body["industry"] = "AI-Powered Revenue Cycle Management in Healthcare"
+```
+
+**`workflow` must always be `"industry_primer"` — not `"company_primer"`**
+
+The `/api/workflow_manager/start/` endpoint is shared across all Workflow APIs. The `workflow` parameter is what distinguishes Industry Research from Company Research, Peer Comparison, and Custom Workflow. For Industry Research, it must be exactly `"industry_primer"`. Omitting it, misspelling it, or using `"company_primer"` returns a `400` error or generates the wrong report type.
+
+**Store `report_id` immediately and durably**
+
+The submission response contains only `report_id`. If this value is lost before the report is downloaded, there is no API endpoint to list or recover past `report_id` values. Store it to a database, log, or job queue entry as soon as the submission response is received:
+
+```python
+report_id = response.json()["report_id"]
+# ✅ Persist immediately before any further processing
+save_to_db({"sector": industry, "report_id": report_id, "submitted_at": datetime.now()})
+```
+
+**Use 15–20 second polling intervals — not tight loops**
+
+Industry Research reports typically complete in 2–5 minutes. Polling more frequently than every 15 seconds wastes rate limit budget without meaningfully reducing wait time. Use a progressive back-off for batch workloads:
+
+```python
+for wait in [15, 15, 30, 30, 60, 60, 120]:
+    time.sleep(wait)
+    status = get_status(report_id)
+    if status in ("Completed", "Failed"):
+        break
+```
+
+**Parse the `{value, multiplier}` chart pattern defensively**
+
+The quarterly funding chart uses a two-field encoding (`value` × `multiplier`) rather than raw integers. Always compute the actual amount rather than presenting `value` directly — a label of `"5.4"` instead of `"$5.4B"` will confuse stakeholders:
+
+```python
+# ❌ Wrong — presents raw value without multiplier
+amount = pt["funding"]["value"]                              # "5.4"
+
+# ✅ Correct — applies the multiplier
+amount_usd = pt["funding"]["value"] * pt["funding"]["multiplier"]  # 5400000000.0
+```
+
+**Check for absent `lead_investors` / `investors` before accessing them**
+
+Both fields are optional in fundraising deal records — they are omitted entirely (not set to `[]`) when investor information was not publicly disclosed. Always use `.get()` with a default:
+
+```python
+# ❌ KeyError risk when field is absent
+lead_name = deal["lead_investors"][0]["organization"]["name"]
+
+# ✅ Safe
+leads = deal.get("lead_investors", [])
+lead_name = leads[0]["organization"]["name"] if leads else "Undisclosed"
+```
+
+**Use `custom_files` to incorporate proprietary research**
+
+The `custom_files` parameter causes Wokelo to synthesise your uploaded documents alongside its web research, producing a report that bridges your internal knowledge with current market data. This is particularly valuable for sectors where you already hold proprietary market maps, prior diligence, or analyst reports. Upload files via the [File Upload API](/supporting-apis-doc#file-upload) first, then pass the returned `fileName` values in the array.
+
+**Use `"json"` for pipelines; `"ppt"` or `"pdf"` for human deliverables**
+
+The JSON output contains all structured data, citation arrays, and chart data. Use it for any programmatic downstream work. The formatted outputs strip much of the metadata but are better suited for IC decks, LP updates, and conference briefings. A single `report_id` supports all four formats — you can download both JSON and PPT for the same report without resubmitting.
+
+**Understand the difference from Industry News Monitoring**
+
+Industry Research and Industry News Monitoring both accept a free-text topic and both cover a sector — but they are fundamentally different in output and use case. Industry News Monitoring returns a paginated list of real-time news articles (synchronous, no report generation). Industry Research returns a synthesised, structured intelligence report with market sizing, trend analysis, and transaction data (asynchronous, minutes to generate). Use Industry News Monitoring for ongoing real-time tracking; use Industry Research for periodic deep-dive primers and one-time sector coverage.
+
+---
+
+## 9. Related APIs
+
+<CardGroup cols={3}>
+  <Card title="Company Research" icon="building" href="/company-research-doc">
+    The company-level equivalent — generates a sourced intelligence report on any specific company using the same async workflow pattern.
+  </Card>
+
+  <Card title="Peer Comparison" icon="scale-balanced" href="/peer-comparison-doc">
+    Generate a structured side-by-side comparison of two or more companies across key dimensions in a single report.
+  </Card>
+
+  <Card title="Industry Deep Intelligence" icon="brain" href="/industry-deep-intelligence-doc">
+    Synchronous alternative for structured industry intelligence — returns results directly without the report polling step.
+  </Card>
+
+  <Card title="Industry News Monitoring" icon="newspaper" href="/industry-news-monitoring-doc">
+    Real-time news articles for any industry topic — synchronous, paginated, no polling required. Complements Industry Research for ongoing monitoring.
+  </Card>
+
+  <Card title="Newsfeed" icon="rss" href="/newsfeed-doc">
+    Structured multi-industry news feed filtered by sentiment, geography, and event category — ideal for recurring monitoring pipelines.
+  </Card>
+
+  <Card title="Supporting APIs" icon="wrench" href="/supporting-apis-doc">
+    Report Status, Download Report, and File Upload — all used alongside Industry Research in the async workflow.
+  </Card>
+</CardGroup>
+
+## 1. Overview
+
+The Industry Research API generates an end-to-end sector intelligence report on any industry or market, covering market sizing, growth drivers, competitive dynamics, innovation trends, and recent transaction activity. The report is fully source-cited and delivered as structured JSON or as a formatted document (PDF, DOCX, or PPT).
+
+This is an **asynchronous POST API** — submitting a request returns a `report_id` immediately. You then poll for completion using the [Report Status](/supporting-apis-doc#report-status) endpoint and retrieve the finished report using the [Download Report](/supporting-apis-doc#download-report) endpoint.
+
+**The three-step workflow:**
+
+```text
+Step 1: POST /api/workflow_manager/start/         → returns report_id
+Step 2: GET  /api/assets/get_notebook_status/     → poll until status = "Completed"
+Step 3: POST /api/assets/download_report/         → retrieve JSON / PDF / DOCX / PPT
+```
+
+The completed report is structured into five major sections, each returned as a named key in the JSON output:
+
+- **Executive Summary** — multi-paragraph narrative covering market size, growth drivers, regional dynamics, technology trends, supply chain, and regulatory landscape; fully source-cited with 20–30\+ references
+- **Key Insights** — 8–10 analyst-style insight cards, each with a headline metric, supporting data paragraph, and multi-point commentary with citations
+- **Overview** — structured description of the industry — definition, key offerings, market segments, and core problems the sector solves
+- **Trends and Innovations** — detailed synthesis of technological, operational, and strategic trends reshaping the industry, with named company examples and quantified data points
+- **Select Transactions** — fundraising activity data for companies in the space, including per-deal records with investor details, funding stage, and amounts; quarterly deal-count and total-funding charts; and a ranked list of key investors
+
+**Common use cases:**
+
+- **Thesis development for new sectors** — generate a sourced, structured primer on any industry before committing diligence resources to it
+- **LP and IC briefing decks** — export as PPT or PDF for sector updates, investment committee presentations, or fund strategy reviews
+- **Market entry and expansion research** — understand market size, regional dynamics, and competitive structure for any industry in minutes
+- **Deal sourcing context** — use the Select Transactions section to identify active fundraising companies and leading investors in a sector
+- **Competitive intelligence** — track innovation trends and strategic partnerships across a sector to identify white spaces and disruption vectors
+- **Custom report augmentation** — supply `custom_files` to layer proprietary internal research or market data on top of Wokelo's synthesis
+
+<Info>
+  This API is asynchronous. The initial POST returns a `report_id` only — not the report content. Report generation typically completes in 2–5 minutes. See [How Async APIs work](/how-async-apis-work) for a full explanation of the polling lifecycle.
+</Info>
+
+---
+
+## 2. Quick Start
+
+**Step 1 — Submit the report request**
+
+<CodeGroup>
+
+```bash cURL
+curl --location 'https://api.wokelo.ai/api/workflow_manager/start/' \
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "workflow": "industry_primer",
+    "industry": "Warehouse Automation"
+  }'
+```
+
+```python Python
+import requests
+
+response = requests.post(
+    "https://api.wokelo.ai/api/workflow_manager/start/",
+    headers={
+        "Authorization": "Bearer <YOUR_API_TOKEN>",
+        "Content-Type": "application/json"
+    },
+    json={
+        "workflow": "industry_primer",
+        "industry": "Warehouse Automation"
+    }
+)
+report_id = response.json()["report_id"]
+print(f"Report submitted. report_id: {report_id}")
+```
+
+</CodeGroup>
+
+**Step 2 — Poll for completion**
+
+```python
+import time, requests
+
+def wait_for_report(report_id, api_key, poll_interval=15, timeout=600):
+    headers = {"Authorization": f"Bearer {api_key}"}
+    elapsed = 0
+    while elapsed < timeout:
+        r = requests.get(
+            "https://api.wokelo.ai/api/assets/get_notebook_status/",
+            headers=headers,
+            params={"report_id": report_id}
+        )
+        status = r.json().get("status", "")
+        print(f"[{elapsed}s] Status: {status}")
+        if status == "Completed":
+            return True
+        if status == "Failed":
+            raise Exception(f"Report {report_id} failed")
+        time.sleep(poll_interval)
+        elapsed += poll_interval
+    raise TimeoutError(f"Report {report_id} did not complete within {timeout}s")
+
+wait_for_report(report_id, api_key="<YOUR_API_TOKEN>")
+```
+
+**Step 3 — Download the report**
+
+```python
+# Fetch as JSON for programmatic processing
+result = requests.post(
+    "https://api.wokelo.ai/api/assets/download_report/",
+    headers={"Authorization": "Bearer <YOUR_API_TOKEN>"},
+    json={"report_id": report_id, "file_type": "json"}
+)
+report = result.json()
+print(f"Sections: {list(report.keys())}")
+
+# Or download as a formatted document
+ppt_result = requests.post(
+    "https://api.wokelo.ai/api/assets/download_report/",
+    headers={"Authorization": "Bearer <YOUR_API_TOKEN>"},
+    json={"report_id": report_id, "file_type": "ppt"}
+)
+with open("industry_research.pptx", "wb") as f:
+    f.write(ppt_result.content)
+```
+
+---
+
+## 3. Authentication
+
+All requests must include a **Bearer token** in the `Authorization` HTTP header.
+
+```text
+Authorization: Bearer <YOUR_API_TOKEN>
+```
+
 API tokens are issued from your Wokelo account. Navigate to **Settings → API Keys** in the Wokelo dashboard to generate or rotate a key. Contact [support@wokelo.ai](mailto:support@wokelo.ai) if you do not yet have API access.
 
 <Warning>
