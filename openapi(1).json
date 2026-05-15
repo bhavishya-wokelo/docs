@@ -336,7 +336,7 @@
                       "type": "string",
                       "enum": [
                         "firmographics",
-                        "products",
+                        "gtm_and_business_model",
                         "headcount",
                         "funding",
                         "public_company_financials",
