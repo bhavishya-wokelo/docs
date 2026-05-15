@@ -350,7 +350,7 @@
                 },
                 "example": {
                   "company": "",
-                  "sections": ["firmographics"]
+                  "sections": ["firmographics" ]
                 }
               }
             }
