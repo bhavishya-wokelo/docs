@@ -313,7 +313,7 @@
         "tags": ["Enrichment"],
         "operationId": "companyInstantEnrichment",
         "summary": "Company Instant Enrichment",
-        "description": "Delivers structured data for a single company across sections such as firmographics, products, funding, headcount, and more.\nReturns the enriched data directly in the response.\n",
+        "description": "Delivers structured data for a single company across sections such as firmographics, , funding, headcount, and more.\nReturns the enriched data directly in the response.\n",
         "security": [{"bearerAuth": []}],
         "requestBody": {
           "required": true,
@@ -336,7 +336,7 @@
                       "type": "string",
                       "enum": [
                         "firmographics",
-                        "products",
+                        "gtm_and_business_model",
                         "headcount",
                         "funding",
                         "public_company_financials",
@@ -345,13 +345,12 @@
                         "investments",
                         "website_traffic"
                       ]
-                    },
-                    "example": ["firmographics", "products", "funding"]
+                    }
                   }
                 },
                 "example": {
-                  "company": "canva",
-                  "sections": ["firmographics", "products", "funding"]
+                  "company": "",
+                  "sections": ["firmographics"]
                 }
               }
             }
@@ -404,7 +403,7 @@
                       "type": "string",
                       "enum": [
                         "firmographics",
-                        "products",
+                        "gtm_and_business_model",
                         "headcount",
                         "funding",
                         "public_company_financials",
@@ -423,7 +422,7 @@
                         "product_sentiment"
                       ]
                     },
-                    "example": ["firmographics", "products", "funding"]
+                    "example": ["firmographics"]
                   },
                   "parameters": {
                     "type": "object",
@@ -460,7 +459,7 @@
                 },
                 "example": {
                   "companies": ["tesla-motors", "stripe"],
-                  "sections": ["firmographics", "products", "funding"]
+                  "sections": ["firmographics"]
                 }
               }
             }
@@ -1367,10 +1366,138 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "category": {
+                    "type": "array",
+                    "description": "List of news categories to filter by. E.g. `[\"Strategic Development\", \"Leadership & Governance\"]`. See [News Categories](../news-categories) for all available values.",
+                    "items": {
+                      "type": "string",
+                      "enum": [ 
+                        "Strategic Development",
+                        "Capital Markets & Transactions",
+                        "Leadership & Governance",
+                        "Workforce & Talent",
+                        "Financial Results & Performance",
+                        "Regulatory & Compliance",
+                        "Macro & Market Environment",
+                        "Market Dynamic",
+                        "Industry Disruption & Innovation",
+                        "Risk & Crisis Events",
+                        "Product Launches & Enhancements",
+                        "Partnerships & Alliances",
+                        "Geographic Expansion",
+                        "Operational Milestones",
+                        "Market Share & Positioning",
+                        "Digital Transformation",
+                        "Brand & Marketing Initiatives",
+                        "Research, Development & Innovation",
+                        "Sustainability & ESG",
+                        "Pricing & Commercial Strategy",
+                        "Equity Fund-Raising",
+                        "Debt Financing",
+                        "Mergers & Acquisitions",
+                        "Divestitures & Asset Sales",
+                        "IPOs & Follow-on Offerings",
+                        "SPAC Deals & De-SPACs",
+                        "Secondary Transactions",
+                        "Shareholder Returns (Buybacks & Dividends)",
+                        "Valuation Events",
+                        "Deal Flow & Volume Statistics",
+                        "Public-to-Private/Take-Private",
+                        "C-Suite Appointments & Departures",
+                        "Board Composition & Changes",
+                        "Succession Planning",
+                        "Organisational Restructuring",
+                        "Executive Commentary & Interviews",
+                        "Strategic Hiring",
+                        "Workforce Reductions",
+                        "Compensation & Benefits",
+                        "Culture & Workplace Practices",
+                        "Talent-Market Dynamics",
+                        "Earnings Releases",
+                        "Revenue & Growth Metrics",
+                        "Profitability & Margins",
+                        "Cash Flow & Capital Expenditure",
+                        "Guidance & Forecast Revisions",
+                        "Credit-Rating Actions",
+                        "Sector Performance Dashboards",
+                        "Regulatory Approvals & Certifications",
+                        "Policy & Legislative Changes",
+                        "Legal Proceedings & Litigation",
+                        "Compliance & Reporting Updates",
+                        "Intellectual Property",
+                        "Antitrust & Competition",
+                        "Data Privacy & Cybersecurity Regulation",
+                        "Tax & Accounting Rules",
+                        "Economic Indicators",
+                        "Monetary Policy",
+                        "Fiscal Policy",
+                        "Trade, Tariffs & Sanctions",
+                        "Consumer Behaviour & Spending",
+                        "Labor-Market Statistics",
+                        "Sector Outlook & Forecasts",
+                        "Market Indices Performance",
+                        "Institutional Flows & Positioning",
+                        "Sector Rotation",
+                        "Volatility & Risk Appetite",
+                        "FX & Commodity Pricing",
+                        "Liquidity Conditions",
+                        "Investor Sentiment",
+                        "Emerging Technologies",
+                        "Technology Adoption & Disruption",
+                        "Business-Model Evolution",
+                        "Competitive Threats",
+                        "Market-Structure Changes",
+                        "Geopolitical Risk",
+                        "Public-Health Crises",
+                        "Natural Disasters",
+                        "Operational Disruptions",
+                        "Cybersecurity Incidents",
+                        "Reputational Damage",
+                        "Financial Distress & Restructuring",
+                        "Supply-Chain Disruptions",
+                        "Awards, Rankings & Recognitions",
+                        "Conflicts of Interest & Related-Party Transactions",
+                         "Others"
+                      ]
+                    },
+                    "example": ["Strategic Development"]
+                  },
                   "industry": {
                     "type": "array",
-                    "description": "List of industry topics for which news articles should be fetched.",
-                    "items": {"type": "string"},
+                    "description": "List of industry topics for which news articles should be fetched. See [Industry Names](../industry-names) for all available values.",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "Agriculture & Food",
+                        "Agriculture & Food Production",
+                        "Advertising & Marketing",
+                        "Business & Public Services",
+                        "Corporate & Business Services",
+                        "Consumer & E-commerce",
+                        "Consumer Packaged Goods (CPG)",
+                        "Consumer Products & Retail",
+                        "Education",
+                        "Enterprise Software & Cloud",
+                        "Energy & Utilities",
+                        "Energy, Utilities & Environment",
+                        "Financial & Insurance",
+                        "Financial Services & Fintech",
+                        "Gaming & Entertainment",
+                        "Hardware, Technology & Telecom",
+                        "Healthcare & Life Sciences",
+                        "Home & Personal Services",
+                        "Industrials, Manufacturing & Construction",
+                        "Industrials & Manufacturing",
+                        "Data, AI & ML Infrastructure",
+                        "Media, Entertainment & Sports",
+                        "Public Sector & GovTech",
+                        "Real Estate & Construction",
+                        "Semiconductors & Electronics",
+                        "Telecommunications",
+                        "Travel & Hospitality",
+                        "Transportation & Logistics"
+                      ]
+                    },
                     "example": ["Enterprise SaaS", "Cybersecurity"]
                   },
                   "blacklisted": {
