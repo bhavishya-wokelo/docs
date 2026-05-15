@@ -1,1361 +1,984 @@
+## 1. Overview
+
+The Company Deep Intelligence API generates structured, source-cited intelligence on any company or set of companies. Where Company Instant Enrichment returns raw firmographic data, this API returns **AI-synthesised narratives** — product portfolios, strategic moves, launch timelines, key customer profiles, leadership analysis, and employee sentiment — going well beyond what structured databases can provide.
+
+This is an **asynchronous POST API** — submitting a request returns a `request_id` (a UUID string) and an initial `"PENDING"` status immediately. You then poll the [Request Status](/supporting-apis-doc#request-status) endpoint until status becomes `"COMPLETED"`, at which point the full result is embedded directly in the status response.
+
+**The two-step workflow:**
+
+```text
+Step 1: POST /api/enterprise/company/enrich/        → returns request_id + status: "PENDING"
+Step 2: GET  /api/enterprise/request/status/        → poll until status = "COMPLETED"; result embedded in response
+```
+
+<Info>
+  This API uses the **same async pattern as Industry Deep Intelligence** — `request_id` (UUID string), polls `request/status/`, and embeds the completed result directly in the status response. It does **not** use the Workflow API infrastructure (`report_id`, `get_notebook_status`, `download_report`). The two patterns are not interchangeable.
+</Info>
+
+**Two capabilities make this API architecturally distinct from all others in Wokelo:**
+
+- **Multi-company in one request** — pass an array of company identifiers (`companies`) to enrich 1–N companies simultaneously. Results are returned as a dict keyed by each company identifier.
+- **Section-selective output** — choose exactly which of the 9 section types to generate. Request only what you need; each additional section adds processing time.
+
+**The nine available sections:**
+
+| Section | What you get |
+| --- | --- |
+| `products_and_services` | Full product portfolio — overview narrative with screenshot, categorised product areas with per-product titles and summaries, and source citations |
+| `product_launches` | Dated release timeline — recent launches with initiative names, bullet-point summaries, and source URLs; plus future announcements array |
+| `strategic_initiatives` | Operational moves — office expansions, hiring activity, layoffs, M&A, awards, and other named strategic areas, each with sourced bullet points |
+| `partnerships` | Partnership ecosystem — technology partners, channel partners, and strategic alliances with context and sourcing |
+| `business_model` | Revenue model analysis — pricing strategy, monetisation approach, and go-to-market structure |
+| `key_customers` | Major customer identification — named accounts with industry context, deal details, and source citations |
+| `management_profiles` | Leadership team analysis — background, track record, tenure, and career trajectory for key executives |
+| `employee_sentiment` | Workplace culture analysis — synthesised from employee reviews and Glassdoor data |
+| `product_sentiment` | Market perception analysis — synthesised from product reviews, G2, Capterra, and social signals |
+
+**Common use cases:**
+
+- **Pre-IC product intelligence sweep** — for a set of target companies, request `products_and_services` \+ `product_launches` \+ `strategic_initiatives` to understand product trajectory and roadmap signals before a committee meeting
+- **Competitive diligence on multiple players at once** — send 3–5 competitors in a single `companies` array and get parallel product and business model analysis without chaining calls
+- **Leadership due diligence** — request `management_profiles` for an acquisition target and its key executives to surface background, tenure, and track record data
+- **Customer and partner mapping** — request `key_customers` \+ `partnerships` to identify major accounts and technology alliances before outreach or deal structuring
+- **Employee health monitoring** — request `employee_sentiment` across a portfolio to catch early cultural warning signals or compare workplace satisfaction across peers
+- **CRM enrichment pipeline** — batch enrich a watchlist of companies on specific sections and push results into Salesforce, HubSpot, or DealCloud records automatically
+
 ---
-title: "Company Deep Intelligence"
----
 
-On-demand custom intelligence on any company.
+## 2. Quick Start
 
-## Quick start
-
-Insights APIs generate AI-synthesized intelligence that goes beyond the basic data obtained from Enrichment API. While Enrichment returns raw data (firmographics, numbers), Insights returns analyzed narratives — product launches, strategic initiatives, employee sentiment etc.
-
-`POST: /api/enterprise/company/enrich/`
-
-NOTE: This is a asynchronous API, which means it will return a request\_id in the response. You would be required to poll the status and then retrieve the results. Read more about async APIs [here](https://docs.wokelo.ai/how-async-apis-work).
-
-Start with a basic query to get the products\_and\_services and product\_launches of the company. See the complete API reference for complete parameter documentation.
+**Step 1 — Submit a request**
 
 <CodeGroup>
 
-```json cURL expandable wrap
+```bash cURL
 curl --location 'https://api.wokelo.ai/api/enterprise/company/enrich/' \
---header 'Authorization: Bearer Token' \
---header 'Content-Type: application/json' \
---data '{
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
     "companies": [
-        "https://tesla.com"
+      "https://tesla.com"
     ],
     "sections": [
-        "products_and_services",
-        "product_launches"
+      "products_and_services",
+      "product_launches"
     ]
-}'
+  }'
 ```
 
-```json Python expandable wrap
+```python Python
 import requests
-import json
 
-url = "https://api.wokelo.ai/api/enterprise/company/enrich"
-
-payload = json.dumps({
-  "companies": [
-    "https://tesla.com"
-  ],
-  "sections": [
-    "products_and_services",
-    "product_launches"
-  ]
-})
-headers = {
-  'Authorization': 'Bearer Token',
-  'Content-Type': 'application/json'
-}
-
-response = requests.request("POST", url, headers=headers, data=payload)
-
-print(response.text)
+response = requests.post(
+    "https://api.wokelo.ai/api/enterprise/company/enrich/",
+    headers={
+        "Authorization": "Bearer <YOUR_API_TOKEN>",
+        "Content-Type": "application/json"
+    },
+    json={
+        "companies": ["https://tesla.com"],
+        "sections": ["products_and_services", "product_launches"]
+    }
+)
+data = response.json()
+request_id = data["request_id"]
+print(f"Submitted. request_id: {request_id}  status: {data['status']}")
 ```
 
 </CodeGroup>
 
-## Request reference
+**Step 2 — Poll until completed and retrieve the result**
 
-A sample request containing all the parameters
+```python
+import time, requests
+
+def poll_until_complete(request_id, api_key, poll_interval=10, timeout=600):
+    headers = {"Authorization": f"Bearer {api_key}"}
+    elapsed = 0
+    while elapsed < timeout:
+        r = requests.get(
+            "https://api.wokelo.ai/api/enterprise/request/status/",
+            headers=headers,
+            params={"request_id": request_id}
+        )
+        data = r.json()
+        status = data.get("status", "")
+        print(f"[{elapsed}s] Status: {status}")
+        if status == "COMPLETED":
+            return data["result"]      # result is embedded in the status response
+        if status == "FAILED":
+            raise Exception(f"Request {request_id} failed")
+        time.sleep(poll_interval)
+        elapsed += poll_interval
+    raise TimeoutError(f"Request {request_id} did not complete within {timeout}s")
+
+result = poll_until_complete(request_id, api_key="<YOUR_API_TOKEN>")
+print(f"Companies enriched: {list(result.keys())}")
+```
+
+**Step 3 — Work with the result**
+
+```python
+# Result is keyed by the company identifier you submitted
+company_data = result["https://tesla.com"]   # or result["tesla"] if you used a permalink
+
+firmographics = company_data["firmographics"]
+print(f"Company: {firmographics['name']}")
+print(f"Type: {firmographics['type']} | Status: {firmographics['operating_status']}")
+
+enrichment = company_data["CP enrichment"]
+
+# Products overview
+if "products_and_services" in enrichment:
+    overview = enrichment["products_and_services"]["product_overview"]["summary"]
+    print(f"\nProducts overview:\n{overview[:400]}...")
+
+# Recent launches
+if "product_launches" in enrichment:
+    launches = enrichment["product_launches"]["product_launches_and_initiatives"]["released_products"]
+    print(f"\nRecent launches ({len(launches)}):")
+    for launch in launches[:3]:
+        print(f"  [{launch['date']}] {launch['initiative']}")
+```
+
+---
+
+## 3. Authentication
+
+All requests must include a **Bearer token** in the `Authorization` HTTP header.
+
+```text
+Authorization: Bearer <YOUR_API_TOKEN>
+```
+
+API tokens are issued from your Wokelo account. Navigate to **Settings → API Keys** in the Wokelo dashboard to generate or rotate a key. Contact [support@wokelo.ai](mailto:support@wokelo.ai) if you do not yet have API access.
+
+<Warning>
+  Never expose your token in client-side code, browser requests, or public repositories. A missing or invalid token returns `401 Unauthorized`. A valid token without sufficient plan permissions returns `403 Forbidden`.
+</Warning>
+
+---
+
+## 4. Request Reference
+
+**Endpoint**
+
+```text
+POST https://api.wokelo.ai/api/enterprise/company/enrich/
+```
+
+All parameters are passed as JSON in the request body.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `companies` | string\[\] | **Required** | Array of company identifiers. Each entry is either a **permalink** (e.g. `"zendesk"`, `"stripe"`) or a **website URL** (e.g. `"https://tesla.com"`). Permalinks resolve faster — use the [Company Search API](/supporting-apis-doc#company-search) to look them up. Multiple companies are processed in parallel; results are keyed by the identifier you provide. |
+| `sections` | string\[\] | **Required** | Array of one or more section identifiers to include in the output. Request only what you need — each section adds processing time. See the supported sections table in Section 1. |
+
+<Info>
+  There is no hard-coded limit on the number of companies per request, but processing time scales with the number of companies × sections. For large watchlists, consider batching into groups of 5–10 companies and running requests concurrently.
+</Info>
+
+**Full request example:**
 
 <CodeGroup>
 
-```json cURL expandable wrap
+```bash cURL
 curl --location 'https://api.wokelo.ai/api/enterprise/company/enrich/' \
---header 'Authorization: Bearer Token \
---header 'Content-Type: application/json' \
---data '{
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
     "companies": [
-        "zendesk",
-        "freshworks",
-        "intercom"
+      "zendesk",
+      "freshworks",
+      "intercom"
     ],
     "sections": [
-        "products_and_services",
-        "product_launches",
-        "strategic_initiatives"
-
+      "products_and_services",
+      "product_launches",
+      "strategic_initiatives"
     ]
-}'
+  }'
 ```
 
-```json Python expandable wrap
+```python Python
 import requests
-import json
 
-url = "https://api.wokelo.ai/api/enterprise/company/enrich/"
-
-payload = json.dumps({
-  "companies": [
-    "zendesk",
-    "freshworks",
-    "intercom"
-  ],
-  "sections": [
-    "products_and_services",
-    "product_launches",
-    "strategic_initiatives"
-  ]
-})
-headers = {
-  'Authorization': 'Bearer Token',
-  'Content-Type': 'application/json'
-}
-
-response = requests.request("POST", url, headers=headers, data=payload)
-
-print(response.text)
+response = requests.post(
+    "https://api.wokelo.ai/api/enterprise/company/enrich/",
+    headers={
+        "Authorization": "Bearer <YOUR_API_TOKEN>",
+        "Content-Type": "application/json"
+    },
+    json={
+        "companies": ["zendesk", "freshworks", "intercom"],
+        "sections": [
+            "products_and_services",
+            "product_launches",
+            "strategic_initiatives"
+        ]
+    }
+)
+print(response.json())
+# {"request_id": "c2ad9d34-f432-4b9b-b5a2-46fbd124db5f", "status": "PENDING"}
 ```
 
 </CodeGroup>
 
-### Supported Sections
+---
 
-| **Section Value** | **Description** |
-| :-- | :-- |
-| products\_and\_services | Comprehensive product/service analysis including market positioning and differentiators |
-| product\_launches | Recent product launches, announcements, and roadmap signals |
-| strategic\_initiatives | Key strategic priorities, transformation programs, M&A strategy |
-| partnerships | Partnership ecosystem: technology partners, channel partners, strategic alliances |
-| business\_model | Revenue model analysis, pricing strategy, monetization approach |
-| key\_customers | Major customer identification with industry and deal context |
-| management\_profiles | Leadership team analysis: background, track record, tenure |
-| employee\_sentiment | Workplace culture analysis from employee reviews and Glassdoor data |
-| product\_sentiment | Market perception analysis from product reviews and social signals |
+## 5. Response
 
-## Examples
+### Submission response
 
-**Product intelligence before IC**: For Zendesk, Freshworks, and Intercom — assess each company's product trajectory, identify where roadmaps are converging, and flag any launches that signal a move upmarket or into an adjacent category.
-
-### Sample Request
+The initial POST returns a `202 Accepted` with two fields:
 
 ```json
-curl --location 'https://api.wokelo.ai/api/enterprise/company/enrich/' \
---header 'Authorization: Bearer Token \
---header 'Content-Type: application/json' \
---data '{
-    "companies": [
-        "zendesk",
-        "freshworks",
-        "intercom"
-    ],
-    "sections": [
-        "products_and_services",
-        "product_launches",
-        "strategic_initiatives"
-
-    ]
-}'
-```
-
-### Sample Response
-
-```json expandable
 {
-    "request_id": "c2ad9d34-f432-4b9b-b5a2-46fbd124db5f",
-    "status": "COMPLETED",
-    "result": {
-        "zendesk": {
-            "firmographics": {
-                "name": "Zendesk",
-                "website": "http://zendesk.com",
-                "location": "San Francisco, United States",
-                "founded": 2007,
-                "type": "private",
-                "operating_status": "Acquired",
-                "ticker": "NYSE:ZEN"
-            },
-            "CP enrichment": {
-                "products_and_services": {
-                    "product_overview": {
-                        "source": [
-                            {
-                                "id": 1,
-                                "title": "Sourced from Wokelo Synthesis",
-                                "url": "",
-                                "publisher": "",
-                                "date": ""
-                            },
-                            {
-                                "id": 2,
-                                "title": "2024-08-21 Client portal",
-                                "url": "http://zendesk.com/service/customer-portal/",
-                                "publisher": "",
-                                "date": ""
-                            },
-                            {
-                                "id": 3,
-                                "title": "2024-05-02 Zendesk: AI-Powered Workforce Management Software",
-                                "url": "http://zendesk.com/service/workforce-management/",
-                                "publisher": "",
-                                "date": ""
-                            },
-                            {
-                                "id": 4,
-                                "title": "2024-11-04 AI-powered knowledge base for faster self-service",
-                                "url": "http://zendesk.com/service/knowledge-base/",
-                                "publisher": "",
-                                "date": ""
-                            },
-                            {
-                                "id": 5,
-                                "title": "2025-07-28 AI-powered knowledge base software",
-                                "url": "http://zendesk.com/service/knowledge/",
-                                "publisher": "",
-                                "date": ""
-                            },
-                            {
-                                "id": 6,
-                                "title": "2025-05-02 Develop custom experiences with the Zendesk Platform | Zendesk Sunshine",
-                                "url": "http://zendesk.com/platform/",
-                                "publisher": "",
-                                "date": ""
-                            }
-                        ],
-                        "summary": "**Overview of Zendesk's Products and Services**\n\n**Zendesk** offers a comprehensive suite of **customer service** and **sales solutions** designed to streamline communication and improve operational efficiency. Core offerings include the **Zendesk Support** ticketing system, **Zendesk Chat** for real-time messaging, **Zendesk Talk** for voice interactions, and **Zendesk Guide**, a content-powered knowledge base. Advanced capabilities such as AI-driven automation tools, analytics dashboards, and multi-channel integrations are provided to optimize agent productivity. The **Zendesk Suite** consolidates these features into an omnichannel platform for seamless customer service management. [1-3]\n\nAdditional specialized services include the **Zendesk Resolution Platform** for faster issue resolution, **AI Copilot** for proactive agent assistance, and **Zendesk Sell**, a CRM platform for managing sales pipelines. The company also focuses on enhancing self-service through its **AI-powered knowledge base** and **Zendesk Gather**, a community forum platform. Employee service solutions such as IT and HR support are also offered, alongside integrations with third-party systems for enhanced customization and scalability. [4-6]",
-                        "screenshot_url": "https://files.test.wokelo.ai/notebook/1008951/assets/b38f38d3-8ddd-488f-93c5-1f0e5e7de637/398d18f69c00daab1896629bb2f996af.png"
-                    },
-                    "products_and_services": [
-                        {
-                            "product_area": "Customer Service AI Solutions",
-                            "details": [
-                                {
-                                    "title": "AI Agents",
-                                    "summary": "Autonomous AI-powered bots that resolve complex customer interactions end-to-end without human intervention. Automate 80%+ of customer requests across voice, chat, messaging, and email channels. Powered by agentic AI trained on 18+ billion service interactions."
-                                },
-                                {
-                                    "title": "Copilot",
-                                    "summary": "AI-powered assistant that provides real-time guidance and suggestions to human agents during customer interactions. Offers intelligent insights, context, and next-best actions to improve agent productivity and response quality."
-                                },
-                                {
-                                    "title": "Zendesk AI",
-                                    "summary": "Comprehensive AI platform that continuously improves service resolutions through machine learning. Includes generative AI capabilities for content creation, automated responses, and predictive analytics for customer service optimization."
-                                }
-                            ],
-                            "sources": "1-3"
-                        },
-                        {
-                            "product_area": "Customer Service Communication Platforms",
-                            "details": [
-                                {
-                                    "title": "Messaging and Live Chat",
-                                    "summary": "Real-time conversational support platform enabling omnichannel customer engagement across web, mobile, and social media channels. Supports both synchronous and asynchronous interactions with unified agent workspace."
-                                },
-                                {
-                                    "title": "Ticketing System",
-                                    "summary": "Comprehensive help desk software for tracking, organizing, and resolving customer support requests across multiple channels. Includes automated routing, priority management, and workflow customization capabilities."
-                                },
-                                {
-                                    "title": "Voice Support",
-                                    "summary": "Cloud-based call center solution with AI-powered voice capabilities. Includes IVR, call routing, recording, and integration with other communication channels in a unified platform."
-                                }
-                            ],
-                            "sources": "4-6"
-                        },
-                        {
-                            "product_area": "Self-Service Knowledge Management",
-                            "details": [
-                                {
-                                    "title": "Knowledge Base",
-                                    "summary": "AI-powered knowledge management system that centralizes and surfaces information for customers and agents. Features generative search, semantic search, and automated content creation capabilities."
-                                },
-                                {
-                                    "title": "Community Forums",
-                                    "summary": "Customer collaboration platform enabling peer-to-peer support and knowledge sharing. Includes moderation tools, user permissions, and brand customization features."
-                                },
-                                {
-                                    "title": "Help Center",
-                                    "summary": "Self-service customer portal providing access to knowledge base articles, FAQs, and support resources. Customizable to match brand identity with multi-language support."
-                                },
-                                {
-                                    "title": "Client Portal",
-                                    "summary": "Secure customer portal for managing support tickets, accessing account information, and self-service capabilities. Includes role-based access controls and data privacy protections."
-                                }
-                            ],
-                            "sources": "7-9"
-                        },
-                        {
-                            "product_area": "Contact Center Solutions",
-                            "details": [
-                                {
-                                    "title": "Contact Center",
-                                    "summary": "AI-powered omnichannel contact center solution built on AWS infrastructure. Integrates voice, digital, and self-service capabilities with enterprise-grade reliability and global scale."
-                                },
-                                {
-                                    "title": "Workforce Management",
-                                    "summary": "AI-powered staff scheduling and forecasting platform for optimizing agent productivity. Includes automated scheduling, real-time performance tracking, and predictive analytics for staffing needs."
-                                },
-                                {
-                                    "title": "Quality Assurance",
-                                    "summary": "Automated quality monitoring system that evaluates 100% of customer interactions using AI. Provides performance scoring, coaching insights, and compliance tracking for both human and AI agents."
-                                }
-                            ],
-                            "sources": "10-12"
-                        },
-                        {
-                            "product_area": "Platform and Integration Services",
-                            "details": [
-                                {
-                                    "title": "Zendesk Resolution Platform",
-                                    "summary": "Unified service ecosystem that connects data, workflows, and AI across all business systems. Includes the Resolution Learning Loop for continuous improvement and automation scaling."
-                                },
-                                {
-                                    "title": "Sunshine Platform",
-                                    "summary": "Open and flexible development platform for creating custom customer experience applications. Provides APIs, SDKs, and development tools for extending Zendesk capabilities."
-                                },
-                                {
-                                    "title": "Marketplace Integrations",
-                                    "summary": "App marketplace with 1,800+ pre-built integrations and applications for extending Zendesk functionality. Includes business system connectors, productivity tools, and industry-specific solutions."
-                                }
-                            ],
-                            "sources": "13-14"
-                        }
-                    ]
-                },
-                "product_launches": {
-                    "product_launches_and_initiatives": {
-                        "released_products": [
-                            {
-                                "date": "26-Mar-2025",
-                                "initiative": "Resolution Platform",
-                                "sources": [
-                                    {
-                                        "url": "https://www.prnewswire.com/news-releases/zendesk-revolutionizes-customer-experience-with-the-launch-of-agentic-ai-powered-zendesk-resolution-platform-302412044.html",
-                                        "title": "Zendesk Revolutionizes Customer Experience with the Launch of Agentic AI-Powered Zendesk Resolution Platform",
-                                        "publisher": "PR Newswire",
-                                        "publishedDate": "2025-03-26"
-                                    }
-                                ],
-                                "summary": [
-                                    "AI Integration: **AI-powered resolution** platform with autonomous agents, a comprehensive knowledge graph, and seamless workflow automation.",
-                                    "Outcome Focus: Designed to deliver **faster resolutions** and improved customer service outcomes."
-                                ]
-                            },
-                            {
-                                "date": "26-Mar-2025",
-                                "initiative": "Outcome-Based Pricing",
-                                "sources": [
-                                    {
-                                        "url": "https://www.computerweekly.com/news/366611612/Zendesk-debuts-outcome-based-pricing-for-AI-agents",
-                                        "title": "Zendesk debuts outcome-based pricing for AI agents",
-                                        "publisher": "Computer Weekly",
-                                        "publishedDate": "2024-09-23"
-                                    }
-                                ],
-                                "summary": [
-                                    "Result Focus: Debuts a pricing model where customers pay only for **successful AI query resolutions**.",
-                                    "Scalable Options: Offers discounted volumes and a **pay-as-you-go** option to minimize risks during AI adoption."
-                                ]
-                            },
-                            {
-                                "date": "18-Mar-2025",
-                                "initiative": "Oomnitza Essentials Integration",
-                                "sources": [
-                                    {
-                                        "url": "https://finance.yahoo.com/news/oomnitza-launches-oomnitza-essentials-zendesk-140200749.html",
-                                        "title": "Oomnitza Launches Oomnitza Essentials for Zendesk - A Same-Day Deployment, Unified IT Asset Management Solution for Elevated Employee Support",
-                                        "publisher": "Yahoo",
-                                        "publishedDate": "2025-03-18"
-                                    }
-                                ],
-                                "summary": [
-                                    "IT Asset Management: Launches a plug-in for **same-day deployment** to deliver unified IT asset visibility within Zendesk.",
-                                    "Operational Efficiency: Enables direct asset modification to **reduce MTTR** and enhance employee support."
-                                ]
-                            },
-                            {
-                                "date": "11-Nov-2024",
-                                "initiative": "Flexible AI Pricing",
-                                "sources": [
-                                    {
-                                        "url": "https://www.prnewswire.com/news-releases/zendesk-launches-flexible-pricing-for-customized-ai-journeys-302300626.html",
-                                        "title": "Zendesk Launches Flexible Pricing for Customized AI Journeys",
-                                        "publisher": "PR Newswire",
-                                        "publishedDate": "2024-11-11"
-                                    }
-                                ],
-                                "summary": [
-                                    "Dynamic Model: Introduces the **AI Dynamic Pricing Plan** offering flexible allocation between human and AI agents.",
-                                    "Adaptive Investment: Empowers businesses to scale their **AI and automation investments** in line with evolving needs."
-                                ]
-                            }
-                        ],
-                        "future_announcements": [
-                            {
-                                "date": "31-Aug-2027",
-                                "initiative": "Sell Discontinuation",
-                                "sources": [
-                                    {
-                                        "url": "https://www.cxtoday.com/crm/zendesk-to-shutter-zendesk-sell-go-all-in-on-customer-service/",
-                                        "title": "Zendesk to Shutter Zendesk Sell, Go All-In on Customer Service",
-                                        "publisher": "Cxtoday",
-                                        "publishedDate": "2025-09-16"
-                                    }
-                                ],
-                                "summary": [
-                                    "Product Exit: Shutting down **Zendesk Sell** on **Aug 31, 2027** to focus entirely on customer service.",
-                                    "Integration Support: Provides a native integration with **Pipedrive** for smooth data export during transition."
-                                ]
-                            }
-                        ]
-                    }
-                },
-                "strategic_initiatives": {
-                    "strategic_moves": [
-                        {
-                            "Area": "Office expansion",
-                            "Details": [
-                                {
-                                    "point": "**Zendesk moved its headquarters** to over 40,000 sq ft in the **55-story 181 Fremont Street tower in San Francisco's Transbay District**, leaving its previous location at 989 Market Street in Mid-Market.",
-                                    "sources": [
-                                        {
-                                            "url": "https://therealdeal.com/san-francisco/2024/11/12/zendesk-becomes-latest-tech-firm-to-exit-sfs-mid-market/",
-                                            "title": "Zendesk becomes latest tech firm to leave SF’s Mid-Market",
-                                            "publisher": "The Real Deal",
-                                            "publishedDate": "2024-11-12"
-                                        }
-                                    ]
-                                },
-                                {
-                                    "point": "Since establishing its **Dublin office in 2012**, Zendesk has expanded significantly, employing over **450 people**, equating to nearly **10% of its global workforce**, and invested **€10 million** in a purpose-built office on Dublin’s Grand Canal.",
-                                    "sources": [
-                                        {
-                                            "url": "https://www.idaireland.com/success-stories/zendesk",
-                                            "title": "Zendesk",
-                                            "publisher": "IDA Ireland",
-                                            "publishedDate": "2022-06-23"
-                                        }
-                                    ]
-                                }
-                            ]
-                        },
-                        {
-                            "Area": "Hiring",
-                            "Details": [
-                                {
-                                    "point": "**Sarah Gavin** has joined Zendesk as its **chief communications officer**, highlighting the company's strategic position with **AI innovations** in customer experience.",
-                                    "sources": [
-                                        {
-                                            "url": "https://www.geekwire.com/2024/tech-moves-communications-vet-joins-zendesk-qumulo-founder-leads-new-startup/",
-                                            "title": "Tech Moves: Impinj promotes execs; Zendesk hires comms vet; Qumulo founder leads new startup",
-                                            "publisher": "GeekWire",
-                                            "publishedDate": "2024-07-24"
-                                        }
-                                    ]
-                                }
-                            ]
-                        },
-                        {
-                            "Area": "Layoffs",
-                            "Details": [
-                                {
-                                    "point": "**Zendesk plans to lay off 51 employees** at its San Francisco headquarters, effective **April 21, 2023**, as part of resource allocation changes to focus on AI-enabled services.",
-                                    "sources": [
-                                        {
-                                            "url": "https://www.sfchronicle.com/tech/article/zendesk-sf-layoffs-20183262.php",
-                                            "title": "Zendesk laying off 51 workers in San Francisco",
-                                            "publisher": "San Francisco Chronicle",
-                                            "publishedDate": "2025-02-27"
-                                        }
-                                    ]
-                                },
-                                {
-                                    "point": "**Zendesk laid off 300 employees globally in November 2022**, citing cost-cutting measures. These layoffs cost **$28 million**, covering severance, bonuses, and benefits for affected staff.",
-                                    "sources": [
-                                        {
-                                            "url": "https://www.cio.com/article/411699/zendesk-announces-300-job-cuts-to-reduce-costs.html",
-                                            "title": "Zendesk announces 300 job cuts to reduce costs",
-                                            "publisher": "CIO Australia",
-                                            "publishedDate": "2022-11-10"
-                                        }
-                                    ]
-                                },
-                                {
-                                    "point": "Zendesk announced **300 layoffs globally** in late 2022, impacting **5% of its workforce**, to balance profitability and growth, following its **$10.2 billion private equity acquisition**.",
-                                    "sources": [
-                                        {
-                                            "url": "https://trib.al/JEf9UTw",
-                                            "title": "Zendesk, headquartered in S.F.’s Mid-Market, is laying off 5% of staff",
-                                            "publisher": "San Francisco Chronicle",
-                                            "publishedDate": "2022-11-08"
-                                        }
-                                    ]
-                                }
-                            ]
-                        }
-                    ]
-                }
-            },
-            "meta": {
-                "report_id": 1008951,
-                "title": "Zendesk - API Insights",
-                "user": "saish.kapadi@wokelo.ai",
-                "dt_createdon": "2026-04-06 07:16:56"
-            }
-        },
-        "freshworks": {
-            "firmographics": {
-                "name": "Freshworks",
-                "website": "https://www.freshworks.com",
-                "location": "San Mateo, United States",
-                "founded": 2010,
-                "type": "public",
-                "operating_status": "IPO",
-                "ticker": "NASDAQ:FRSH"
-            },
-            "CP enrichment": {
-                "products_and_services": {
-                    "product_overview": {
-                        "source": [
-                            {
-                                "id": 1,
-                                "title": "Freshworks Freshmarketer: Marketing Automation, Email & SMS - Freshworks",
-                                "url": "https://www.freshworks.com/crm/marketing/",
-                                "publisher": "",
-                                "date": ""
-                            },
-                            {
-                                "id": 2,
-                                "title": "CX Today Freshworks Unifies Customer Messaging on a Single Platform",
-                                "url": "https://www.cxtoday.com/crm/freshworks-unifies-customer-messaging/",
-                                "publisher": "",
-                                "date": ""
-                            },
-                            {
-                                "id": 3,
-                                "title": "Freshworks: Uncomplicated Software | IT Service, Customer Service",
-                                "url": "https://www.freshworks.com/",
-                                "publisher": "",
-                                "date": ""
-                            },
-                            {
-                                "id": 4,
-                                "title": "2025-11-03 Freshdesk Omni: Omnichannel, AI-Powered Support and Chat Software - Freshworks",
-                                "url": "https://www.freshworks.com/freshdesk/omni/",
-                                "publisher": "",
-                                "date": ""
-                            },
-                            {
-                                "id": 5,
-                                "title": "Freshworks Inc., Q2 2024 Earnings Call, Jul 30, 2024",
-                                "url": "https://dev.wokelo.ai/earning-transcript-viewer/WXENCHD5KN",
-                                "publisher": "",
-                                "date": ""
-                            },
-                            {
-                                "id": 6,
-                                "title": "Quiverquant Freshworks Inc. Launches Freshservice for Business Teams as Standalone Solution to Enhan...",
-                                "url": "https://www.quiverquant.com/news/Freshworks+Inc.+Launches+Freshservice+for+Business+Teams+as+Standalone+Solution+to+Enhance+Employee+Experience+Across+Non-IT+Departments",
-                                "publisher": "",
-                                "date": ""
-                            },
-                            {
-                                "id": 7,
-                                "title": "Freshworks Inc., Q2 2025 Earnings Call, Jul 29, 2025",
-                                "url": "https://dev.wokelo.ai/earning-transcript-viewer/WX5BJME8UK",
-                                "publisher": "",
-                                "date": ""
-                            }
-                        ],
-                        "summary": "**Overview of Products and Services Offered by Freshworks**\n\n**Freshworks** offers an advanced suite of **customer service**, **IT service management** (ITSM), **customer relationship management** (CRM), and **marketing automation** solutions. These products include **Freshdesk**, an omnichannel customer support platform; **Freshservice**, an ITSM solution for managing IT operations; **Freshsales**, an AI-powered CRM for sales operations; and **Freshmarketer**, a marketing platform designed for campaign optimization. All solutions leverage built-in **Freddy AI** to provide actionable insights, enhance productivity, and automate decision-making processes. With seamless integrations and broad functionality, the company targets businesses of varying sizes across 170 countries. [1-4]\n\nFreshworks also delivers specific services such as customer messaging (**Freshchat**), voice support (**Freshcaller**), and enterprise-grade service management tailored for HR, Finance, Facilities, and Legal through **Freshservice for Business Teams**. **Freddy AI** underpins these systems, offering capabilities such as ticket resolution, workflow automation, lead scoring, and predictive analytics. Additional offerings include **Device42** for IT asset management and **FireHydrant** for incident response, demonstrating commitment to operational efficiency and scalability. [5-7]",
-                        "screenshot_url": "https://files.test.wokelo.ai/notebook/1008952/assets/3b8e0648-892e-413d-9ace-e83b14235d18/27f2f7985e9fcc21a2ab463a8f94f099.png"
-                    },
-                    "products_and_services": [
-                        {
-                            "product_area": "AI-Powered Customer Service Solutions",
-                            "details": [
-                                {
-                                    "title": "Freshdesk Omni",
-                                    "summary": "All-in-one omnichannel customer service platform that unifies customer interactions, simplifies support operations, and empowers agents to deliver exceptional experiences across all support channels in a single workspace with AI-powered capabilities."
-                                },
-                                {
-                                    "title": "Freshdesk",
-                                    "summary": "AI-powered ticketing and case management solution for fast issue resolution, featuring intelligent routing, seamless collaboration, automated workflows, and self-service portals with knowledge bases."
-                                },
-                                {
-                                    "title": "Freshchat",
-                                    "summary": "Customer messaging platform enabling live chat and engagement across messaging channels including WhatsApp, SMS, and social media platforms, with conversational support and automated self-service capabilities."
-                                },
-                                {
-                                    "title": "Freshcaller",
-                                    "summary": "Cloud-based contact center solution for scalable voice operations with advanced inbound routing, speech-enabled IVR capabilities, call recordings, post-call transcripts, and real-time monitoring dashboards."
-                                }
-                            ],
-                            "sources": "1-3"
-                        },
-                        {
-                            "product_area": "IT Service Management Solutions",
-                            "details": [
-                                {
-                                    "title": "Freshservice",
-                                    "summary": "Unified IT and enterprise service management platform that brings together IT Service Management, IT Operations Management, and IT Infrastructure Management with automation, conversational support, and AI-driven insights for employees, agents, and organizational leaders."
-                                },
-                                {
-                                    "title": "Freshservice for Business Teams",
-                                    "summary": "Service management solution that extends IT capabilities to non-IT departments such as HR, Facilities, Finance, and Legal, allowing them to implement service management and workflow automation independently of existing ITSM implementations."
-                                },
-                                {
-                                    "title": "Freshservice for MSPs",
-                                    "summary": "Unified IT service desk solution tailored for Managed Service Providers, featuring multi-client management, client-specific configurations, secure data segregation, and streamlined service delivery across multiple customers."
-                                },
-                                {
-                                    "title": "Device42",
-                                    "summary": "Advanced IT discovery and dependency mapping platform providing capabilities for asset and inventory management, application dependency mapping, compliance management, data center infrastructure management, and software license management."
-                                },
-                                {
-                                    "title": "FireHydrant",
-                                    "summary": "Modern incident management platform that enables engineering and operations teams to manage the full incident lifecycle from initial alerting through post-incident review, unifying alert ingestion, on-call scheduling, and automated runbooks in a single system."
-                                }
-                            ],
-                            "sources": "4-6"
-                        },
-                        {
-                            "product_area": "Sales and Marketing Automation Software",
-                            "details": [
-                                {
-                                    "title": "Freshsales",
-                                    "summary": "AI-powered sales CRM that helps businesses enhance productivity and drive revenue growth with personalized engagement, accurate forecasting, and intelligent workflows to improve sales performance and deliver exceptional customer experiences."
-                                },
-                                {
-                                    "title": "Freshsales Suite",
-                                    "summary": "Comprehensive CRM solution that unites sales and marketing around the customer with an integrated platform, providing a 360° view of customers to deliver seamless engagement and close deals faster through unified sales and marketing teams."
-                                },
-                                {
-                                    "title": "Freshmarketer",
-                                    "summary": "Marketing automation platform designed to help businesses attract, nurture, convert, and retain customers across multiple channels including email, SMS, WhatsApp, and social media with AI-driven campaign creation, advanced segmentation, and real-time automated journeys."
-                                }
-                            ],
-                            "sources": "1,7-8"
-                        },
-                        {
-                            "product_area": "AI and Platform Services",
-                            "details": [
-                                {
-                                    "title": "Freddy AI",
-                                    "summary": "Comprehensive AI suite that includes AI Agents for autonomous support actions, AI Copilots for workflow guidance and acceleration, and AI Insights for proactive insights and conversational analysis, embedded across all Freshworks products to assist, automate, and analyze service workflows."
-                                },
-                                {
-                                    "title": "Freshworks Platform",
-                                    "summary": "AI-powered, enterprise-grade foundation that unifies customer experience and employee experience product lines, providing common data, workflow, analytics, AI tools, and administration services with developer framework, SDKs, and marketplace integrations."
-                                }
-                            ],
-                            "sources": "3,7,9"
-                        },
-                        {
-                            "product_area": "Professional Services and Support",
-                            "details": [
-                                {
-                                    "title": "Managed Services",
-                                    "summary": "Professional service offering where Freshworks product experts handle system administration with monthly buckets of hours for configuration, best practice sharing, and training to support customers throughout their journey."
-                                },
-                                {
-                                    "title": "Premium Support",
-                                    "summary": "Personalized support service providing 24/7 dedicated assistance from Freshworks product experts to back customer and employee service platforms from implementation onwards."
-                                },
-                                {
-                                    "title": "Optimization Services",
-                                    "summary": "Expert consultation service where Freshworks specialists work with customer teams to analyze existing configurations, design improvements, and build enhanced solutions for better performance."
-                                },
-                                {
-                                    "title": "Health Assessment",
-                                    "summary": "Comprehensive review service of existing Freshworks setups to help customers understand their current state and proactively identify areas for improvement and optimization."
-                                },
-                                {
-                                    "title": "Admin Coaching",
-                                    "summary": "Expert-led interactive training service tailored to business needs to strengthen customer product knowledge and administrative capabilities."
-                                }
-                            ],
-                            "sources": "10"
-                        }
-                    ]
-                },
-                "product_launches": {
-                    "product_launches_and_initiatives": {
-                        "released_products": [
-                            {
-                                "date": "02-Apr-2026",
-                                "initiative": "Freshservice ITAM Continuous Discovery",
-                                "sources": [
-                                    {
-                                        "url": "https://www.stocktitan.net/news/FRSH/freshworks-expands-it-asset-management-capabilities-by-adding-vcinaolubd9y.html",
-                                        "title": "Freshworks Adds Continuous Discovery to Freshservice",
-                                        "publisher": "Stocktitan",
-                                        "publishedDate": "2026-04-03"
-                                    }
-                                ],
-                                "summary": [
-                                    "Discovery: Introduces **continuous discovery** across hybrid IT environments.",
-                                    "Mapping: Integrates **dependency mapping** for real-time service insights.",
-                                    "Automation: Replaces static inventory with **automated discovery** for faster incident resolution."
-                                ]
-                            },
-                            {
-                                "date": "13-Nov-2025",
-                                "initiative": "Freshservice AI Enhancements",
-                                "sources": [
-                                    {
-                                        "url": "https://www.globenewswire.com/news-release/2025/11/13/3187256/0/en/Freshworks-Launches-AI-Powered-Capabilities-to-Elevate-the-Employee-Experience-and-Turn-Complexity-into-Growth.html",
-                                        "title": "Freshworks Launches AI-Powered Capabilities to Elevate the Employee Experience and Turn Complexity into Growth",
-                                        "publisher": "Globenewswire",
-                                        "publishedDate": "2025-11-13"
-                                    }
-                                ],
-                                "summary": [
-                                    "Self-service: Upgraded **Freddy AI Agents** for effortless resolutions.",
-                                    "Routing: Implements **Intelligent Routing** to accelerate ticket delivery.",
-                                    "Insights: Offers **Freddy AI Insights** for actionable service analytics."
-                                ]
-                            },
-                            {
-                                "date": "13-Nov-2025",
-                                "initiative": "Freshdesk AI Capabilities",
-                                "sources": [
-                                    {
-                                        "url": "https://www.globenewswire.com/news-release/2025/11/13/3187285/0/en/Freshworks-Launches-New-AI-Capabilities-to-Minimize-Customer-Service-Fragmentation-and-Deliver-Faster-More-Personal-Support.html",
-                                        "title": "Freshworks Launches New AI Capabilities to Minimize Customer Service Fragmentation and Deliver Faster, More Personal Support",
-                                        "publisher": "Globenewswire",
-                                        "publishedDate": "2025-11-13"
-                                    }
-                                ],
-                                "summary": [
-                                    "Command Center: Centralizes multi-channel support via a unified workspace.",
-                                    "Vertical Agents: Deploys **Vertical AI Agents** with prebuilt workflows.",
-                                    "Analytics: Provides real-time insights to proactively manage customer support."
-                                ]
-                            },
-                            {
-                                "date": "05-Nov-2025",
-                                "initiative": "Freshservice for Business Teams",
-                                "sources": [
-                                    {
-                                        "url": "https://www.quiverquant.com/news/Freshworks+Inc.+Launches+Freshservice+for+Business+Teams+as+Standalone+Solution+to+Enhance+Employee+Experience+Across+Non-IT+Departments",
-                                        "title": "Freshworks Inc. Launches Freshservice for Business Teams as Standalone Solution to Enhance Employee Experience Across Non-IT Departments",
-                                        "publisher": "Quiverquant",
-                                        "publishedDate": "2025-11-05"
-                                    }
-                                ],
-                                "summary": [
-                                    "Standalone: Launched as a **standalone solution** for non-IT departments.",
-                                    "Growth: Doubled ARR to **over $35 million** in annual recurring revenue.",
-                                    "Integration: Features **People-First AI** and prebuilt templates for seamless deployment."
-                                ]
-                            },
-                            {
-                                "date": "30-Jun-2025",
-                                "initiative": "Freshservice Journeys",
-                                "sources": [
-                                    {
-                                        "url": "https://siliconangle.com/2025/06/30/freshworks-launches-freshservice-journeys-streamline-employee-service-workflows/",
-                                        "title": "Freshworks launches Freshservice Journeys to streamline employee service workflows",
-                                        "publisher": "SiliconANGLE",
-                                        "publishedDate": "2025-06-30"
-                                    }
-                                ],
-                                "summary": [
-                                    "No-code: Enables **no-code workflow** creation for employee lifecycle events.",
-                                    "Automation: Streamlines processes like **onboarding** and offboarding.",
-                                    "Collaboration: Enhances **cross-department coordination** for unified service delivery."
-                                ]
-                            },
-                            {
-                                "date": "11-Jun-2025",
-                                "initiative": "Freddy Agentic AI Platform",
-                                "sources": [
-                                    {
-                                        "url": "https://finance.yahoo.com/news/freshworks-advances-agentic-ai-platform-090000072.html",
-                                        "title": "Freshworks Advances its Agentic AI Platform To Uncomplicate Service Software For Companies Big and Small",
-                                        "publisher": "Yahoo Finance",
-                                        "publishedDate": "2025-06-16"
-                                    }
-                                ],
-                                "summary": [
-                                    "Autonomous: Introduces **agentic AI agents** that resolve service requests.",
-                                    "Agent Studio: Unveils a **no-code builder** to create custom AI agents.",
-                                    "Efficiency: Achieves **up to 70% ticket deflection** and boosts operational productivity."
-                                ]
-                            }
-                        ],
-                        "future_announcements": []
-                    }
-                },
-                "strategic_initiatives": {
-                    "strategic_moves": [
-                        {
-                            "Area": "Awards and recognitions",
-                            "Details": [
-                                {
-                                    "point": "**Freshworks received awards for its excellent gamification features** in Freshservice, motivating teams with trophies and awards for completing duties within its platform.",
-                                    "sources": [
-                                        {
-                                            "url": "https://tech.co/asset-tracking/freshservice-review",
-                                            "title": "Freshservice Review: Features, Pros and Cons",
-                                            "publisher": "tech.co",
-                                            "publishedDate": "2025-01-02"
-                                        }
-                                    ]
-                                },
-                                {
-                                    "point": "**Freshservice scores an overall 4.6/5 rating for innovation, effectiveness, and customer satisfaction**, distinguishing itself in IT asset-tracking and team management tools.",
-                                    "sources": [
-                                        {
-                                            "url": "https://tech.co/asset-tracking/freshservice-review",
-                                            "title": "Freshservice Review: Features, Pros and Cons",
-                                            "publisher": "tech.co",
-                                            "publishedDate": "2025-01-02"
-                                        }
-                                    ]
-                                }
-                            ]
-                        },
-                        {
-                            "Area": "Office expansion",
-                            "Details": [
-                                {
-                                    "point": "**Freshworks expands into South Africa**, showcasing its commitment to the African market through targeted investments in **marketing, sales, and partner networks** to grow further in the region.",
-                                    "sources": [
-                                        {
-                                            "url": "https://www.connectingafrica.com/cloud-networking/freshworks-targets-expansion-in-south-africa",
-                                            "title": "Freshworks Targets Expansion in South Africa",
-                                            "publisher": "Connecting Africa",
-                                            "publishedDate": "2024-10-22"
-                                        }
-                                    ]
-                                },
-                                {
-                                    "point": "**Freshworks bolsters its presence in Japan** by collaborating with OrangeOne, rolling out its **entire Freshworks product suite** and enhancing its customer base, including notable clients like **LINE MAN** and **JAC Recruitment**.",
-                                    "sources": [
-                                        {
-                                            "url": "https://www.enterprisetimes.co.uk/2019/06/10/freshworks-targets-japan-with-orangeone/",
-                                            "title": "Freshworks targets Japan with OrangeOne -",
-                                            "publisher": "Enterprise Times",
-                                            "publishedDate": "2019-06-10"
-                                        }
-                                    ]
-                                },
-                                {
-                                    "point": "Freshworks establishes its **ASEAN regional headquarters in Singapore**, with **Government support from Singapore Economic Development Board (EDB)**, enhancing its local ecosystem and improving service for partners and customers.",
-                                    "sources": [
-                                        {
-                                            "url": "https://www.enterprisetimes.co.uk/2019/03/22/freshworks-opens-up-in-singapore/",
-                                            "title": "Freshworks opens up in Singapore -",
-                                            "publisher": "Enterprise Times",
-                                            "publishedDate": "2019-03-22"
-                                        }
-                                    ]
-                                }
-                            ]
-                        },
-                        {
-                            "Area": "Hiring",
-                            "Details": [
-                                {
-                                    "point": "**Freshworks actively hiring** in **engineering** and **Go-To-Market** roles worldwide despite cutting **13%** of its workforce earlier to streamline operations.",
-                                    "sources": [
-                                        {
-                                            "url": "https://www.thehindubusinessline.com/info-tech/we-do-not-see-a-pause-in-hiring-shelton-rego-vp-of-india-business-freshworks/article69609716.ece",
-                                            "title": "We do not see a pause in hiring: Shelton Rego, VP of India Business, Freshworks",
-                                            "publisher": "BusinessLine",
-                                            "publishedDate": "2025-05-31"
-                                        }
-                                    ]
-                                },
-                                {
-                                    "point": "Freshworks listed **multiple roles** in **analytics**, **data science**, and **software engineering**, including positions for **Senior Data Scientist**, **Cloud Infrastructure Engineer**, and **Machine Learning Engineer** across **Chennai** and **Bangalore**.",
-                                    "sources": [
-                                        {
-                                            "url": "https://analyticsindiamag.com/ai-hiring/jobs-roundup-these-analytics-openings-at-freshworks-may-help-you-land-a-role-with-the-saas-giant/",
-                                            "title": "[Jobs Roundup] These Analytics Openings At Freshworks May Help You Land A Role With The SaaS Giant",
-                                            "publisher": "Analytics India Magazine",
-                                            "publishedDate": "2021-09-23"
-                                        }
-                                    ]
-                                }
-                            ]
-                        },
-                        {
-                            "Area": "Layoffs",
-                            "Details": [
-                                {
-                                    "point": "**Freshworks laid off 13% of workforce (660 employees)** in alignment with strategic goals centered around **AI, Employee Experience (EX), and Customer Experience (CX)** to streamline operations globally.",
-                                    "sources": [
-                                        {
-                                            "url": "https://www.hrkatha.com/news/freshworks-to-lay-off-13-of-workforce/",
-                                            "title": "Freshworks to lay off 13% of workforce",
-                                            "publisher": "HR Katha",
-                                            "publishedDate": "2024-11-25"
-                                        },
-                                        {
-                                            "url": "https://www.dqindia.com/news/freshworks-layoffs-impact-on-employees-and-the-companys-future-7563455",
-                                            "title": "Freshworks Layoffs: Impact on employees and the company's future",
-                                            "publisher": "DQ",
-                                            "publishedDate": "2024-11-08"
-                                        }
-                                    ]
-                                },
-                                {
-                                    "point": "CEO Dennis Woodside stressed these layoffs were vital for aligning the workforce with **changing priorities** and improving **operational efficiency** amid the competitive SaaS landscape.",
-                                    "sources": [
-                                        {
-                                            "url": "https://yourstory.com/2025/01/startup-news-and-updates-daily-roundup-january-9-2025",
-                                            "title": "Startup news and updates: Daily roundup (January 9, 2025)",
-                                            "publisher": "yourstory.com",
-                                            "publishedDate": "2025-01-09"
-                                        },
-                                        {
-                                            "url": "https://www.hrkatha.com/news/freshworks-to-lay-off-13-of-workforce/",
-                                            "title": "Freshworks to lay off 13% of workforce",
-                                            "publisher": "HR Katha",
-                                            "publishedDate": "2024-11-25"
-                                        }
-                                    ]
-                                },
-                                {
-                                    "point": "The layoffs impacted **approximately 16% in the US** and **12% in India**. Europe, Australia, and other regions underwent evaluations and consultations regarding workforce reductions.",
-                                    "sources": [
-                                        {
-                                            "url": "https://www.thehindubusinessline.com/incoming/freshworks-actively-hiring-globally-for-senior-roles-after-laying-off-500-employees-focusing-on-enterprise-customers-and-acquisitions/article68923706.ece",
-                                            "title": "Freshworks said the decision to lay off its people impacted less than 500 people, approximately 12 per cent of its India workforce",
-                                            "publisher": "BusinessLine",
-                                            "publishedDate": "2024-11-28"
-                                        },
-                                        {
-                                            "url": "https://www.hrkatha.com/news/freshworks-to-lay-off-13-of-workforce/",
-                                            "title": "Freshworks to lay off 13% of workforce",
-                                            "publisher": "HR Katha",
-                                            "publishedDate": "2024-11-25"
-                                        }
-                                    ]
-                                },
-                                {
-                                    "point": "Freshworks anticipates spending **$11-$13 million in Q4 2024** on expenses related to separation benefits and employee compensation.",
-                                    "sources": [
-                                        {
-                                            "url": "https://www.dqindia.com/news/freshworks-layoffs-impact-on-employees-and-the-companys-future-7563455",
-                                            "title": "Freshworks Layoffs: Impact on employees and the company's future",
-                                            "publisher": "DQ",
-                                            "publishedDate": "2024-11-08"
-                                        }
-                                    ]
-                                },
-                                {
-                                    "point": "Despite layoffs, Freshworks achieved **22% revenue growth to $186.6 million**, paired with a **$400 million stock buyback**, raising controversy about ethical business practices.",
-                                    "sources": [
-                                        {
-                                            "url": "https://www.tice.news/tice-trending/sridhar-vembu-criticises-corporate-greed-and-layoffs-at-freshworks-7567201",
-                                            "title": "Sridhar Vembu Criticises Corporate Greed and Layoffs at Freshworks",
-                                            "publisher": "TICE News",
-                                            "publishedDate": "2024-11-09"
-                                        },
-                                        {
-                                            "url": "https://www.dqindia.com/news/freshworks-layoffs-impact-on-employees-and-the-companys-future-7563455",
-                                            "title": "Freshworks Layoffs: Impact on employees and the company's future",
-                                            "publisher": "DQ",
-                                            "publishedDate": "2024-11-08"
-                                        }
-                                    ]
-                                },
-                                {
-                                    "point": "Sridhar Vembu criticized Freshworks’ layoffs as prioritizing **shareholders** over employees, contrasting companies like **Nvidia and AMD** that succeeded through long-term talent retention.",
-                                    "sources": [
-                                        {
-                                            "url": "https://www.tice.news/tice-trending/sridhar-vembu-criticises-corporate-greed-and-layoffs-at-freshworks-7567201",
-                                            "title": "Sridhar Vembu Criticises Corporate Greed and Layoffs at Freshworks",
-                                            "publisher": "TICE News",
-                                            "publishedDate": "2024-11-09"
-                                        },
-                                        {
-                                            "url": "https://www.timesnownews.com/business-economy/industry/zohos-sridhar-vembu-slams-freshworks-layoffs-defends-real-capitalism-dont-lecture-me-on-socialism-article-115103602",
-                                            "title": "Zoho's Sridhar Vembu Slams Freshworks Layoffs, Defends 'Real' Capitalism: 'Don’t Lecture Me on Socialism'",
-                                            "publisher": "Times Now",
-                                            "publishedDate": "2024-11-09"
-                                        }
-                                    ]
-                                },
-                                {
-                                    "point": "Freshworks cited the layoffs as necessary to focus on enterprise customers and shift from the SMB space in India, highlighting changes in **business strategy**.",
-                                    "sources": [
-                                        {
-                                            "url": "https://www.thehindubusinessline.com/incoming/freshworks-actively-hiring-globally-for-senior-roles-after-laying-off-500-employees-focusing-on-enterprise-customers-and-acquisitions/article68923706.ece",
-                                            "title": "Freshworks said the decision to lay off its people impacted less than 500 people, approximately 12 per cent of its India workforce",
-                                            "publisher": "BusinessLine",
-                                            "publishedDate": "2024-11-28"
-                                        }
-                                    ]
-                                }
-                            ]
-                        }
-                    ]
-                }
-            },
-            "meta": {
-                "report_id": 1008952,
-                "title": "Freshworks - API Insights",
-                "user": "saish.kapadi@wokelo.ai",
-                "dt_createdon": "2026-04-06 07:16:56"
-            }
-        },
-        "intercom": {
-            "firmographics": {
-                "name": "Intercom",
-                "website": "https://www.intercom.com/",
-                "location": "San Francisco, United States",
-                "founded": 2011,
-                "type": "private",
-                "operating_status": "Operating",
-                "ticker": null
-            },
-            "CP enrichment": {
-                "products_and_services": {
-                    "product_overview": {
-                        "source": [
-                            {
-                                "id": 1,
-                                "title": "Intercom Additional Product Terms",
-                                "url": "https://www.intercom.com/legal/terms-and-policies/additional-product-terms",
-                                "publisher": "",
-                                "date": ""
-                            },
-                            {
-                                "id": 2,
-                                "title": "Intercom # Customer support, when and where they need it [Fin](https://fin.ai) * [Contact sales](/c...",
-                                "url": "https://www.intercom.com/helpdesk/help-center",
-                                "publisher": "",
-                                "date": ""
-                            },
-                            {
-                                "id": 3,
-                                "title": "Terms and Policies | Intercom",
-                                "url": "https://www.intercom.com/legal/terms-and-policies",
-                                "publisher": "",
-                                "date": ""
-                            },
-                            {
-                                "id": 4,
-                                "title": "Bessemer Venture Partners How Intercom navigated the AI paradigm shift",
-                                "url": "https://www.bvp.com/atlas/how-intercom-navigated-the-ai-paradigm-shift",
-                                "publisher": "",
-                                "date": ""
-                            },
-                            {
-                                "id": 5,
-                                "title": "The Intercom Blog Why Intercom is the best choice for customer service",
-                                "url": "https://www.intercom.com/why-choose-intercom",
-                                "publisher": "",
-                                "date": ""
-                            },
-                            {
-                                "id": 6,
-                                "title": "Sourced from Wokelo Synthesis",
-                                "url": "",
-                                "publisher": "",
-                                "date": ""
-                            },
-                            {
-                                "id": 7,
-                                "title": "The Intercom Blog 8 Benefits of Live Chat to Strengthen your Customer Service",
-                                "url": "https://www.intercom.com/learning-center/benefits-of-live-chat",
-                                "publisher": "",
-                                "date": ""
-                            },
-                            {
-                                "id": 8,
-                                "title": "The Intercom Blog TagPlus streamlines its operations and powers support at scale with Intercom",
-                                "url": "https://www.intercom.com/customers/tagplus",
-                                "publisher": "",
-                                "date": ""
-                            },
-                            {
-                                "id": 9,
-                                "title": "Intercom # Increase agent efficiency by 31% with Copilot blankblankblankblankblank # Increase agen...",
-                                "url": "https://www.intercom.com/helpdesk/copilot",
-                                "publisher": "",
-                                "date": ""
-                            },
-                            {
-                                "id": 10,
-                                "title": "Intercom # Maximize productivity with an AI-enhanced Inbox [Fin](https://fin.ai) * [Contact sales](...",
-                                "url": "https://www.intercom.com/helpdesk/inbox",
-                                "publisher": "",
-                                "date": ""
-                            },
-                            {
-                                "id": 11,
-                                "title": "Intercom # Centralize your content for AI and human support [Fin](https://fin.ai) * [Contact sales]...",
-                                "url": "https://www.intercom.com/helpdesk/knowledge-hub",
-                                "publisher": "",
-                                "date": ""
-                            },
-                            {
-                                "id": 12,
-                                "title": "Data Processing Agreement | Intercom",
-                                "url": "https://www.intercom.com/legal/data-processing-agreement",
-                                "publisher": "",
-                                "date": ""
-                            },
-                            {
-                                "id": 13,
-                                "title": "The Intercom Blog AI-powered reporting & Analytics for customer support teams",
-                                "url": "https://www.intercom.com/helpdesk/reporting",
-                                "publisher": "",
-                                "date": ""
-                            },
-                            {
-                                "id": 14,
-                                "title": "Intercom | The only helpdesk designed for the AI Agent era",
-                                "url": "https://www.intercom.com/",
-                                "publisher": "",
-                                "date": ""
-                            },
-                            {
-                                "id": 15,
-                                "title": "2026-01-01 Fin ROI Calculator | See the impact Fin can have on your business",
-                                "url": "https://www.intercom.com/pricing/fin-roi",
-                                "publisher": "",
-                                "date": ""
-                            }
-                        ],
-                        "summary": "**Overview of Products and Services**\n\n**Intercom Messenger**: An application that facilitates seamless customer communication across multiple platforms, including websites and apps, using features like live chat, email, and social media integration. It includes advanced options such as omnichannel messaging, self-serve apps, support in 45 languages, and multi-brand support capabilities. [1-3]\n\n**Fin AI Agent**: A generative AI-powered virtual assistant that handles complex customer queries with real-time efficiency. It integrates with third-party systems to deliver actions and support while maintaining conversational flow, assisting with self-service options, and enhancing query resolution rates. [4-7]\n\n**Help Center**: A customizable, multilingual self-service portal that allows customers to access articles, manage tickets, and interact with support directly. It features intelligent content management and targeting, automated recommendations, and seamless article delivery across messaging platforms. [2,8]\n\n**Copilot**: A personal AI assistant for support agents that suggests responses, summarizes conversation histories, and retrieves content from internal and external databases to optimize service efficiency. [9-10]\n\n**Knowledge Hub**: A centralized platform for creating, managing, and optimizing support content across diverse channels, including public articles, FAQs, and internal documentation. It supports integration with third-party tools for streamlined content accessibility and management. [8,11-12]\n\n**Reporting & Analytics**: Offers pre-built and custom reporting capabilities for tracking customer service metrics such as response times, customer satisfaction, and operational efficiency through real-time data. [13]\n\n**Omnichannel Support**: Provides unified management of customer communications across tools such as WhatsApp, SMS, phone calls, emails, and social media platforms, enhancing user engagement and customer support. [14]\n\n**Live Chat**: Enables real-time chat functionalities, powered by automation and AI, for direct interactions with support teams, complemented by integrated conversational history management. [7,15]",
-                        "screenshot_url": "https://files.test.wokelo.ai/notebook/1008953/assets/a8377b41-fc70-4bdf-b198-b13470400a8e/e44c8c951c207d44c7911e02da3677e1.png"
-                    },
-                    "products_and_services": [
-                        {
-                            "product_area": "AI-Powered Customer Service Solutions",
-                            "details": [
-                                {
-                                    "title": "Fin AI Agent",
-                                    "summary": "Fin is a GPT-4-powered AI Agent that provides real-time customer support by answering questions and taking actions across third-party systems. It achieves resolution rates of 50.8% to 67% and can ask clarifying questions to maintain conversational flow."
-                                },
-                                {
-                                    "title": "Copilot for Support Agents",
-                                    "summary": "Copilot is an AI assistant that helps support agents by providing instant answers from conversation history, knowledge bases, and training materials. It increases agent efficiency by 31% by reducing time spent searching for information."
-                                },
-                                {
-                                    "title": "Custom Bots",
-                                    "summary": "Automated conversational bots that can be configured to handle routine inquiries, guide customers through processes, and provide initial support before escalating to human agents when needed."
-                                },
-                                {
-                                    "title": "Workflows",
-                                    "summary": "No-code automation tools that allow businesses to create automated sequences for routing conversations, managing SLAs, sending follow-ups, and configuring escalation triggers without engineering support."
-                                }
-                            ],
-                            "sources": "1-3"
-                        },
-                        {
-                            "product_area": "Customer Communication Platforms",
-                            "details": [
-                                {
-                                    "title": "Intercom Messenger",
-                                    "summary": "A customizable live chat widget that can be embedded in websites and apps to provide real-time customer support across multiple channels including web, mobile, and in-app messaging."
-                                },
-                                {
-                                    "title": "Help Center",
-                                    "summary": "A knowledge base solution that allows businesses to create, organize, and publish self-service articles and documentation. It supports 45 languages and can be fully customized to match brand identity."
-                                },
-                                {
-                                    "title": "Omnichannel Support",
-                                    "summary": "Unified communication platform that consolidates customer interactions from email, chat, phone, WhatsApp, SMS, Facebook, Instagram, and other channels into a single workspace for consistent support experiences."
-                                },
-                                {
-                                    "title": "Intercom Phone",
-                                    "summary": "Voice calling solution that enables phone calls, video calls, and screen sharing directly within the platform for more effective customer issue resolution and support."
-                                }
-                            ],
-                            "sources": "4-6"
-                        },
-                        {
-                            "product_area": "Customer Service Management Tools",
-                            "details": [
-                                {
-                                    "title": "Shared Inbox",
-                                    "summary": "AI-enhanced collaborative workspace where support teams can manage all customer conversations, with features like team assignment rules, priority management, and real-time collaboration tools."
-                                },
-                                {
-                                    "title": "Ticketing System",
-                                    "summary": "Streamlined ticket management that allows conversion of conversations to tickets with one click, supports customer tickets, back-office tickets, and tracker tickets for managing issues affecting multiple customers."
-                                },
-                                {
-                                    "title": "Knowledge Hub",
-                                    "summary": "Centralized content management system that allows teams to create, organize, and optimize all support content sources including internal articles, public help center articles, and imported content from external platforms."
-                                },
-                                {
-                                    "title": "Reporting and Analytics",
-                                    "summary": "Comprehensive reporting tools with 12 pre-built reports, customizable dashboards, real-time performance metrics, and AI-powered insights to track support team performance and customer satisfaction."
-                                }
-                            ],
-                            "sources": "7-9"
-                        },
-                        {
-                            "product_area": "Proactive Customer Engagement Solutions",
-                            "details": [
-                                {
-                                    "title": "Outbound Messaging",
-                                    "summary": "Proactive communication tools that allow businesses to send targeted messages, product tours, banners, and notifications to customers based on behavioral triggers and custom attributes."
-                                },
-                                {
-                                    "title": "Product Tours and Onboarding",
-                                    "summary": "Interactive guided experiences that help customers get up to speed with products through checklists, tooltips, and step-by-step walkthroughs without contacting support."
-                                },
-                                {
-                                    "title": "Customer Engagement Campaigns",
-                                    "summary": "Targeted messaging sequences that can be built using a no-code visual builder to engage customers at the right moment based on live behavioral data and product usage patterns."
-                                }
-                            ],
-                            "sources": "1,3"
-                        }
-                    ]
-                },
-                "product_launches": {
-                    "product_launches_and_initiatives": {
-                        "released_products": [
-                            {
-                                "date": "01-Mar-2025",
-                                "initiative": "Fin Voice",
-                                "sources": [
-                                    {
-                                        "url": "https://www.destinationcrm.com/Articles/ReadArticle.aspx?ArticleID=168613",
-                                        "title": "Intercom Updates AI in Its Spring 25 Release",
-                                        "publisher": "CRM Magazine",
-                                        "publishedDate": "2025-03-20"
-                                    }
-                                ],
-                                "summary": [
-                                    "**Voice Support**: Fin Voice answers calls instantly with active listening and natural responses."
-                                ]
-                            },
-                            {
-                                "date": "01-Mar-2025",
-                                "initiative": "FinFin Vision",
-                                "sources": [
-                                    {
-                                        "url": "https://www.destinationcrm.com/Articles/ReadArticle.aspx?ArticleID=168613",
-                                        "title": "Intercom Updates AI in Its Spring 25 Release",
-                                        "publisher": "CRM Magazine",
-                                        "publishedDate": "2025-03-20"
-                                    }
-                                ],
-                                "summary": [
-                                    "**Image/Text Recognition**: FinFin Vision reads and understands screenshots, invoices, and error messages."
-                                ]
-                            },
-                            {
-                                "date": "01-Mar-2025",
-                                "initiative": "AI Inbox Translation",
-                                "sources": [
-                                    {
-                                        "url": "https://www.destinationcrm.com/Articles/ReadArticle.aspx?ArticleID=168613",
-                                        "title": "Intercom Updates AI in Its Spring 25 Release",
-                                        "publisher": "CRM Magazine",
-                                        "publishedDate": "2025-03-20"
-                                    }
-                                ],
-                                "summary": [
-                                    "**Instant Translation**: AI Inbox Translation converts messages in real-time into **45 languages** for seamless support."
-                                ]
-                            },
-                            {
-                                "date": "01-Mar-2025",
-                                "initiative": "Fin for Platforms",
-                                "sources": [
-                                    {
-                                        "url": "https://www.destinationcrm.com/Articles/ReadArticle.aspx?ArticleID=168613",
-                                        "title": "Intercom Updates AI in Its Spring 25 Release",
-                                        "publisher": "CRM Magazine",
-                                        "publishedDate": "2025-03-20"
-                                    }
-                                ],
-                                "summary": [
-                                    "**Platform Integration**: Fin for Platforms delivers AI-powered support by integrating with **Zendesk**, **Salesforce**, and custom help desks."
-                                ]
-                            },
-                            {
-                                "date": "01-Mar-2025",
-                                "initiative": "Fin Guidance",
-                                "sources": [
-                                    {
-                                        "url": "https://www.destinationcrm.com/Articles/ReadArticle.aspx?ArticleID=168613",
-                                        "title": "Intercom Updates AI in Its Spring 25 Release",
-                                        "publisher": "CRM Magazine",
-                                        "publishedDate": "2025-03-20"
-                                    }
-                                ],
-                                "summary": [
-                                    "**Guidance Training**: Fin Guidance lets users train Fin in minutes using plain language and a one-click **Improve AI** feature."
-                                ]
-                            },
-                            {
-                                "date": "01-Mar-2025",
-                                "initiative": "Fin Tasks",
-                                "sources": [
-                                    {
-                                        "url": "https://www.destinationcrm.com/Articles/ReadArticle.aspx?ArticleID=168613",
-                                        "title": "Intercom Updates AI in Its Spring 25 Release",
-                                        "publisher": "CRM Magazine",
-                                        "publishedDate": "2025-03-20"
-                                    }
-                                ],
-                                "summary": [
-                                    "**Task Automation**: Fin Tasks automates specific processes like refunds, ID verification, and appointment rescheduling."
-                                ]
-                            },
-                            {
-                                "date": "01-Mar-2025",
-                                "initiative": "Fin over API",
-                                "sources": [
-                                    {
-                                        "url": "https://www.destinationcrm.com/Articles/ReadArticle.aspx?ArticleID=168613",
-                                        "title": "Intercom Updates AI in Its Spring 25 Release",
-                                        "publisher": "CRM Magazine",
-                                        "publishedDate": "2025-03-20"
-                                    }
-                                ],
-                                "summary": [
-                                    "**API Integration**: Fin over API brings Fin into any platform, enabling AI-powered support across custom search experiences, community forums, and internal help systems."
-                                ]
-                            }
-                        ],
-                        "future_announcements": []
-                    }
-                },
-                "strategic_initiatives": {
-                    "strategic_moves": [
-                        {
-                            "Area": "Awards and recognitions",
-                            "Details": [
-                                {
-                                    "point": "**Intercom recognized** in Software Advice's **FrontRunners list** for its **live chat software excellence**, praised for features like live chat capability and mobile optimization.",
-                                    "sources": [
-                                        {
-                                            "url": "https://www.softwareadvice.com/crm/intercom-profile/",
-                                            "title": "Intercom 2025: Benefits, Features & Pricing",
-                                            "publisher": "Software Advice",
-                                            "publishedDate": "2025-05-20"
-                                        }
-                                    ]
-                                }
-                            ]
-                        }
-                    ]
-                }
-            },
-            "meta": {
-                "report_id": 1008953,
-                "title": "Intercom - API Insights",
-                "user": "saish.kapadi@wokelo.ai",
-                "dt_createdon": "2026-04-06 07:16:56"
-            }
-        }
-    }
+  "request_id": "c2ad9d34-f432-4b9b-b5a2-46fbd124db5f",
+  "status": "PENDING"
 }
 ```
 
-## Best practices
+| Field | Type | Description |
+| --- | --- | --- |
+| `request_id` | string (UUID) | Unique identifier for this request. Use with the [Request Status](/supporting-apis-doc#request-status) endpoint to poll for completion. This is a UUID string — not an integer `report_id`. The two are not interchangeable. |
+| `status` | string | Initial status, always `"PENDING"` on submission. |
 
-- **Request only needed sections:** Each section adds processing time. Request only what you need for faster results.
-- **Batch companies:** Send multiple companies in one request rather than making separate calls. This is more efficient.
-- **Use permalinks when possible:** Permalinks (e.g., "stripe") resolve faster than URLs. Use Company Search to find them.
-- **Custom fields add latency:** Each custom field requires AI inference. Limit to 3-5 custom fields per request.
-- **Validate company identifiers:** Use the Company Search API to verify a company exists before enriching.
+### Status polling response
+
+Poll `GET /api/enterprise/request/status/?request_id={request_id}`. Status values:
+
+| Status value | Meaning |
+| --- | --- |
+| `"PENDING"` | Request is queued, waiting to start. |
+| `"PROCESSING"` | Analysis is in progress. |
+| `"COMPLETED"` | All sections for all companies are ready. The full `result` is embedded in this response. |
+| `"FAILED"` | Request failed. Retry the submission. |
+
+### Completed result structure
+
+When status is `"COMPLETED"`, the polling response includes a `result` object. The result is a **dict keyed by company identifier** — one entry per company submitted in the `companies` array:
+
+```json
+{
+  "request_id": "...",
+  "status": "COMPLETED",
+  "result": {
+    "zendesk": {
+      "firmographics": { ... },
+      "CP enrichment": { ... },
+      "meta": { ... }
+    },
+    "freshworks": {
+      "firmographics": { ... },
+      "CP enrichment": { ... },
+      "meta": { ... }
+    }
+  }
+}
+```
+
+**The result key matches the identifier you submitted.** If you sent `"https://tesla.com"`, the result key is `"https://tesla.com"`. If you sent `"tesla"`, the result key is `"tesla"`. Use the same identifier to look up each company's data.
+
+### Per-company object structure
+
+Each company object contains three top-level keys:
+
+**`firmographics`**
+
+A lean identity card for the company. No financials — for financial data use Peer Comparison or Company Research.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `name` | string | Company display name. |
+| `website` | string | Canonical website URL. |
+| `location` | string | City and country of headquarters. |
+| `founded` | integer | Year the company was founded. |
+| `type` | string | Ownership structure: `"public"`, `"private"`, `"startup"`. |
+| `operating_status` | string | Current status: `"Operating"`, `"Acquired"`, `"IPO"`, or similar. |
+| `ticker` | string or null | Stock ticker (e.g. `"NASDAQ:FRSH"`). `null` for private companies. |
+
+**`CP enrichment`**
+
+A dict containing your requested sections. Each section key maps to a section-specific data structure (see section schemas below).
+
+**`meta`**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `report_id` | integer | Internal Wokelo report identifier for this enrichment run. Different from `request_id`. |
+| `title` | string | Auto-generated report title (e.g. `"Zendesk - API Insights"`). |
+| `user` | string | Email address of the user associated with the API token. |
+| `dt_createdon` | string | Datetime the report was created, in `YYYY-MM-DD HH:MM:SS` format (UTC). |
+
+### Section-level response schemas
+
+**`products_and_services`**
+
+```json
+{
+  "products_and_services": {
+    "product_overview": {
+      "source": [ { "id": 1, "title": "...", "url": "...", "publisher": "", "date": "" } ],
+      "summary": "<markdown narrative with source brackets>",
+      "screenshot_url": "<URL to product homepage screenshot>"
+    },
+    "products_and_services": [
+      {
+        "product_area": "Customer Service AI Solutions",
+        "details": [
+          { "title": "AI Agents", "summary": "Autonomous bots that resolve..." }
+        ],
+        "sources": "1-3"
+      }
+    ]
+  }
+}
+```
+
+The `sources` field on each product area item is a **string range** (e.g. `"1-3"`, `"4-6"`) referencing IDs in the `product_overview.source` array — not a standalone citations array.
+
+**`product_launches`**
+
+```json
+{
+  "product_launches": {
+    "product_launches_and_initiatives": {
+      "released_products": [
+        {
+          "date": "26-Mar-2025",
+          "initiative": "Resolution Platform",
+          "sources": [
+            { "url": "...", "title": "...", "publisher": "...", "publishedDate": "2025-03-26" }
+          ],
+          "summary": [
+            "AI Integration: **AI-powered resolution** platform with autonomous agents.",
+            "Outcome Focus: Designed to deliver **faster resolutions**."
+          ]
+        }
+      ],
+      "future_announcements": [
+        {
+          "date": "31-Aug-2027",
+          "initiative": "Sell Discontinuation",
+          "sources": [ { ... } ],
+          "summary": [ "Product Exit: Shutting down **Zendesk Sell** on **Aug 31, 2027**." ]
+        }
+      ]
+    }
+  }
+}
+```
+
+`summary` inside each launch is an **array of strings** (bullet points), not a single string. `sources` here is an array of citation objects (not the string-range pattern used in `products_and_services`).
+
+**`strategic_initiatives`**
+
+```json
+{
+  "strategic_initiatives": {
+    "strategic_moves": [
+      {
+        "Area": "Layoffs",
+        "Details": [
+          {
+            "point": "**Freshworks laid off 13% of workforce** (660 employees)...",
+            "sources": [ { "url": "...", "title": "...", "publisher": "...", "publishedDate": "..." } ]
+          }
+        ]
+      },
+      {
+        "Area": "Office expansion",
+        "Details": [ { "point": "...", "sources": [ ... ] } ]
+      }
+    ]
+  }
+}
+```
+
+`strategic_moves` is an array of area objects. `Area` is a string label (e.g. `"Layoffs"`, `"Hiring"`, `"Office expansion"`, `"Awards and recognitions"`). `Details` is an array of sourced bullet-point objects.
+
+<Info>
+  The `sources` field schema differs between sections. In `products_and_services` items, `sources` is a string range like `"1-3"`. In `product_launches` and `strategic_initiatives`, `sources` is an array of citation objects with `url`, `title`, `publisher`, and `publishedDate`. Always check the type before iterating.
+</Info>
+
+---
+
+## 6. Examples
+
+### Product intelligence on multiple companies before IC
+
+Request product portfolio and launch data for three competitors simultaneously.
+
+<CodeGroup>
+
+```bash cURL
+curl --location 'https://api.wokelo.ai/api/enterprise/company/enrich/' \
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "companies": ["zendesk", "freshworks", "intercom"],
+    "sections": ["products_and_services", "product_launches", "strategic_initiatives"]
+  }'
+```
+
+```python Python
+import requests, time
+
+API_KEY = "<YOUR_API_TOKEN>"
+HEADERS = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
+
+# Submit
+submit = requests.post(
+    "https://api.wokelo.ai/api/enterprise/company/enrich/",
+    headers=HEADERS,
+    json={
+        "companies": ["zendesk", "freshworks", "intercom"],
+        "sections": [
+            "products_and_services",
+            "product_launches",
+            "strategic_initiatives"
+        ]
+    }
+)
+request_id = submit.json()["request_id"]
+print(f"Submitted. request_id: {request_id}")
+
+# Poll
+while True:
+    r = requests.get(
+        "https://api.wokelo.ai/api/enterprise/request/status/",
+        headers={"Authorization": f"Bearer {API_KEY}"},
+        params={"request_id": request_id}
+    )
+    data = r.json()
+    status = data.get("status")
+    print(f"Status: {status}")
+    if status == "COMPLETED":
+        result = data["result"]
+        break
+    if status == "FAILED":
+        raise Exception("Request failed")
+    time.sleep(10)
+
+# Process each company
+for company_key, company_data in result.items():
+    firm = company_data["firmographics"]
+    enrichment = company_data["CP enrichment"]
+
+    print(f"\n{'='*60}")
+    print(f"{firm['name']} ({firm['type']} | {firm['operating_status']})")
+    print('='*60)
+
+    # Product overview
+    if "products_and_services" in enrichment:
+        summary = enrichment["products_and_services"]["product_overview"]["summary"]
+        print(f"\nProducts:\n{summary[:400]}...")
+
+    # Recent launches
+    if "product_launches" in enrichment:
+        launches = enrichment["product_launches"]["product_launches_and_initiatives"]["released_products"]
+        print(f"\nRecent launches ({len(launches)}):")
+        for launch in launches[:3]:
+            print(f"  [{launch['date']}] {launch['initiative']}")
+            for bullet in launch["summary"][:1]:
+                print(f"    • {bullet}")
+```
+
+</CodeGroup>
+
+**Sample submission response:**
+
+```json
+{
+  "request_id": "c2ad9d34-f432-4b9b-b5a2-46fbd124db5f",
+  "status": "PENDING"
+}
+```
+
+### Strategic initiative monitoring — layoffs and hiring signals
+
+Track workforce and strategic moves across a watchlist to surface adverse or growth signals.
+
+```python
+import requests, time
+from collections import defaultdict
+
+API_KEY = "<YOUR_API_TOKEN>"
+HEADERS = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
+
+WATCHLIST = ["zendesk", "freshworks", "salesforce", "hubspot", "pipedrive"]
+
+submit = requests.post(
+    "https://api.wokelo.ai/api/enterprise/company/enrich/",
+    headers=HEADERS,
+    json={
+        "companies": WATCHLIST,
+        "sections":  ["strategic_initiatives"]
+    }
+)
+request_id = submit.json()["request_id"]
+
+# Poll
+while True:
+    r = requests.get(
+        "https://api.wokelo.ai/api/enterprise/request/status/",
+        headers={"Authorization": f"Bearer {API_KEY}"},
+        params={"request_id": request_id}
+    )
+    data = r.json()
+    if data["status"] == "COMPLETED":
+        result = data["result"]
+        break
+    if data["status"] == "FAILED":
+        raise Exception("Request failed")
+    time.sleep(10)
+
+ADVERSE_AREAS = {"Layoffs", "Workforce Reductions", "Office Closures"}
+GROWTH_AREAS  = {"Hiring", "Office expansion", "Awards and recognitions"}
+
+print("=== Adverse Signals ===")
+for company_key, company_data in result.items():
+    name = company_data["firmographics"]["name"]
+    moves = company_data["CP enrichment"].get("strategic_initiatives", {}).get("strategic_moves", [])
+    for move in moves:
+        if move["Area"] in ADVERSE_AREAS:
+            print(f"\n[{name}] {move['Area']}")
+            for detail in move["Details"][:2]:
+                print(f"  • {detail['point'][:200]}...")
+
+print("\n=== Growth Signals ===")
+for company_key, company_data in result.items():
+    name = company_data["firmographics"]["name"]
+    moves = company_data["CP enrichment"].get("strategic_initiatives", {}).get("strategic_moves", [])
+    for move in moves:
+        if move["Area"] in GROWTH_AREAS:
+            print(f"\n[{name}] {move['Area']}")
+            for detail in move["Details"][:1]:
+                print(f"  • {detail['point'][:200]}...")
+```
+
+### Product launch timeline comparison
+
+Extract and compare product launch timelines across a competitive set.
+
+```python
+from datetime import datetime
+
+submit = requests.post(
+    "https://api.wokelo.ai/api/enterprise/company/enrich/",
+    headers=HEADERS,
+    json={
+        "companies": ["zendesk", "freshworks", "intercom"],
+        "sections":  ["product_launches"]
+    }
+)
+request_id = submit.json()["request_id"]
+
+# Poll (abbreviated — use the poll helper from Quick Start)
+result = poll_until_complete(request_id, API_KEY)
+
+# Flatten all launches into a single timeline
+all_launches = []
+for company_key, company_data in result.items():
+    name = company_data["firmographics"]["name"]
+    launches = (
+        company_data["CP enrichment"]
+        .get("product_launches", {})
+        .get("product_launches_and_initiatives", {})
+        .get("released_products", [])
+    )
+    for launch in launches:
+        all_launches.append({
+            "company": name,
+            "date":    launch["date"],
+            "initiative": launch["initiative"],
+            "bullets": launch["summary"]
+        })
+
+# Sort most recent first
+def parse_date(d):
+    try:
+        return datetime.strptime(d, "%d-%b-%Y")
+    except ValueError:
+        return datetime.min
+
+all_launches.sort(key=lambda x: parse_date(x["date"]), reverse=True)
+
+print("Unified Product Launch Timeline\n" + "="*60)
+for launch in all_launches[:20]:
+    print(f"[{launch['date']}] {launch['company']} — {launch['initiative']}")
+    for bullet in launch["bullets"][:1]:
+        print(f"  • {bullet}")
+```
+
+### Leadership due diligence
+
+Request `management_profiles` for an acquisition target to surface executive backgrounds.
+
+```python
+submit = requests.post(
+    "https://api.wokelo.ai/api/enterprise/company/enrich/",
+    headers=HEADERS,
+    json={
+        "companies": ["https://www.airbase.com"],
+        "sections":  ["management_profiles", "key_customers", "partnerships"]
+    }
+)
+request_id = submit.json()["request_id"]
+result = poll_until_complete(request_id, API_KEY)
+
+company_data = result["https://www.airbase.com"]
+enrichment   = company_data["CP enrichment"]
+
+print(f"Target: {company_data['firmographics']['name']}")
+print(f"Status: {company_data['firmographics']['operating_status']}\n")
+
+if "management_profiles" in enrichment:
+    print("=== Leadership ===")
+    # Navigate section-specific structure
+    for key, val in enrichment["management_profiles"].items():
+        if isinstance(val, dict):
+            print(str(val)[:500])
+```
+
+### Employee sentiment sweep across a portfolio
+
+Monitor workplace health signals across portfolio companies.
+
+```python
+submit = requests.post(
+    "https://api.wokelo.ai/api/enterprise/company/enrich/",
+    headers=HEADERS,
+    json={
+        "companies": ["salesforce", "hubspot", "zendesk", "freshworks"],
+        "sections":  ["employee_sentiment", "product_sentiment"]
+    }
+)
+request_id = submit.json()["request_id"]
+result = poll_until_complete(request_id, API_KEY)
+
+for company_key, company_data in result.items():
+    name       = company_data["firmographics"]["name"]
+    enrichment = company_data["CP enrichment"]
+    print(f"\n{name}")
+    for section in ["employee_sentiment", "product_sentiment"]:
+        if section in enrichment:
+            # Navigate to summary — structure varies; iterate to find it
+            for sub_key, sub_val in enrichment[section].items():
+                if isinstance(sub_val, dict) and "summary" in sub_val:
+                    print(f"  [{section}] {sub_val['summary'][:200]}...")
+```
+
+### Batch enrichment across a large watchlist
+
+For large watchlists, batch companies into groups and run requests concurrently.
+
+```python
+import requests, time, concurrent.futures
+
+API_KEY  = "<YOUR_API_TOKEN>"
+HEADERS  = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
+
+WATCHLIST = [
+    "salesforce", "hubspot", "pipedrive", "zoho", "freshworks",
+    "zendesk", "intercom", "servicenow", "atlassian", "jira-software"
+]
+
+def submit_batch(companies, sections):
+    r = requests.post(
+        "https://api.wokelo.ai/api/enterprise/company/enrich/",
+        headers=HEADERS,
+        json={"companies": companies, "sections": sections}
+    )
+    return r.json()["request_id"]
+
+def poll_until_done(request_id, interval=10, timeout=600):
+    elapsed = 0
+    while elapsed < timeout:
+        r = requests.get(
+            "https://api.wokelo.ai/api/enterprise/request/status/",
+            headers={"Authorization": f"Bearer {API_KEY}"},
+            params={"request_id": request_id}
+        )
+        data = r.json()
+        if data["status"] == "COMPLETED":
+            return data["result"]
+        if data["status"] == "FAILED":
+            return None
+        time.sleep(interval)
+        elapsed += interval
+    return None
+
+SECTIONS = ["products_and_services", "strategic_initiatives"]
+BATCH_SIZE = 5
+
+# Split into batches
+batches = [WATCHLIST[i:i+BATCH_SIZE] for i in range(0, len(WATCHLIST), BATCH_SIZE)]
+
+# Submit all batches concurrently
+with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+    futures = {pool.submit(submit_batch, batch, SECTIONS): batch for batch in batches}
+    jobs = []
+    for f in concurrent.futures.as_completed(futures):
+        request_id = f.result()
+        jobs.append(request_id)
+        print(f"Submitted batch → {request_id}")
+
+# Collect all results
+all_results = {}
+for request_id in jobs:
+    result = poll_until_done(request_id)
+    if result:
+        all_results.update(result)
+        print(f"Collected batch from {request_id}: {list(result.keys())}")
+
+print(f"\nTotal companies enriched: {len(all_results)}")
+```
+
+### JavaScript / Node.js
+
+```javascript
+const fetch = require("node-fetch");
+
+async function enrichCompanies(companies, sections) {
+  // Submit
+  const submitRes = await fetch(
+    "https://api.wokelo.ai/api/enterprise/company/enrich/",
+    {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.WOKELO_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ companies, sections })
+    }
+  );
+  const { request_id } = await submitRes.json();
+  console.log(`Submitted. request_id: ${request_id}`);
+
+  // Poll
+  while (true) {
+    await new Promise(r => setTimeout(r, 10000));
+    const statusRes = await fetch(
+      `https://api.wokelo.ai/api/enterprise/request/status/?request_id=${request_id}`,
+      { headers: { "Authorization": `Bearer ${process.env.WOKELO_API_KEY}` } }
+    );
+    const data = await statusRes.json();
+    console.log(`Status: ${data.status}`);
+    if (data.status === "COMPLETED") return data.result;
+    if (data.status === "FAILED")    throw new Error(`Request ${request_id} failed`);
+  }
+}
+
+// Example: product intelligence on three CX platforms
+enrichCompanies(
+  ["zendesk", "freshworks", "intercom"],
+  ["products_and_services", "product_launches"]
+).then(result => {
+  for (const [companyKey, data] of Object.entries(result)) {
+    console.log(`\n${data.firmographics.name}`);
+    const launches = data["CP enrichment"]
+      ?.product_launches
+      ?.product_launches_and_initiatives
+      ?.released_products ?? [];
+    console.log(`  Recent launches: ${launches.length}`);
+    launches.slice(0, 2).forEach(l => console.log(`  [${l.date}] ${l.initiative}`));
+  }
+});
+```
+
+---
+
+## 7. Error Handling
+
+The API uses standard HTTP status codes. The submission endpoint returns a `202` on success and synchronous errors for invalid requests. Processing errors appear as `"FAILED"` when polling.
+
+| Status | Meaning | Cause & Resolution |
+| --- | --- | --- |
+| `202 Accepted` | Request accepted | `request_id` and `"PENDING"` status returned. Proceed to polling. |
+| `400 Bad Request` | Invalid parameters | Missing `companies`, empty `companies` array, invalid `sections` value, or unrecognised company identifier. Check the `detail` field. |
+| `401 Unauthorized` | Auth failed | The `Authorization` header is missing or contains an invalid token. Verify your key in **Settings → API Keys**. |
+| `403 Forbidden` | Insufficient access | Your plan does not include access to this endpoint or the requested sections. Contact [support@wokelo.ai](mailto:support@wokelo.ai). |
+| `429 Too Many Requests` | Rate limit exceeded | Implement exponential back-off. The response includes a `Retry-After` header. |
+| `500 Internal Server Error` | Server error | Retry after a brief delay. If the issue persists, contact [support@wokelo.ai](mailto:support@wokelo.ai). |
+
+**Handling a `"FAILED"` request status:**
+
+```python
+r = requests.get(
+    "https://api.wokelo.ai/api/enterprise/request/status/",
+    headers={"Authorization": f"Bearer {API_KEY}"},
+    params={"request_id": request_id}
+)
+if r.json().get("status") == "FAILED":
+    print(f"Request {request_id} failed. Resubmitting...")
+    resubmit = requests.post(
+        "https://api.wokelo.ai/api/enterprise/company/enrich/",
+        headers=HEADERS,
+        json={"companies": ["zendesk"], "sections": ["products_and_services"]}
+    )
+    print(f"New request_id: {resubmit.json()['request_id']}")
+```
+
+**Retry with exponential back-off:**
+
+```python
+import time, requests
+
+def submit_with_retry(body, api_key, max_retries=3):
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    for attempt in range(max_retries):
+        try:
+            r = requests.post(
+                "https://api.wokelo.ai/api/enterprise/company/enrich/",
+                headers=headers, json=body, timeout=30
+            )
+            if r.status_code == 429:
+                time.sleep(2 ** attempt)
+                continue
+            r.raise_for_status()
+            return r.json()["request_id"]
+        except requests.exceptions.Timeout:
+            if attempt == max_retries - 1:
+                raise
+            time.sleep(1)
+    raise Exception(f"Submission failed after {max_retries} attempts")
+```
+
+---
+
+## 8. Best Practices
+
+**Request only the sections you need — each section adds processing time**
+
+Unlike Workflow APIs that produce a fixed full report, this API generates only the sections you explicitly request. A focused two-section request (e.g. `products_and_services` \+ `product_launches`) completes significantly faster than all nine:
+
+```python
+# Fast pre-IC check — two sections
+json={"companies": ["zendesk"], "sections": ["products_and_services", "product_launches"]}
+
+# Full intelligence sweep — all nine sections, expect longer processing
+json={"companies": ["zendesk"], "sections": [
+    "products_and_services", "product_launches", "strategic_initiatives",
+    "partnerships", "business_model", "key_customers",
+    "management_profiles", "employee_sentiment", "product_sentiment"
+]}
+```
+
+**Use permalinks over website URLs for faster resolution**
+
+Permalinks (e.g. `"zendesk"`, `"stripe"`) resolve faster and more reliably than website URLs, particularly for companies with complex domain structures. Use the [Company Search API](/supporting-apis-doc#company-search) to look up a company's permalink when you only have its name:
+
+```python
+search = requests.get(
+    "https://api.wokelo.ai/api/enterprise/company/search",
+    headers=HEADERS,
+    params={"query": "Zendesk", "search_by": "name"}
+)
+permalink = search.json()["data"][0]["permalink"]   # "zendesk"
+```
+
+**Batch companies into a single request rather than making separate calls**
+
+This is the most important efficiency pattern for this API. Sending five companies in one `companies` array is significantly faster than five separate requests, because companies are processed in parallel on Wokelo's infrastructure:
+
+```python
+# ❌ Inefficient — five separate round-trips
+for company in ["zendesk", "freshworks", "intercom", "servicenow", "atlassian"]:
+    submit_request([company], sections)
+
+# ✅ Efficient — one request, five companies processed in parallel
+submit_request(["zendesk", "freshworks", "intercom", "servicenow", "atlassian"], sections)
+```
+
+**Result keys match the identifier you submitted — use it consistently**
+
+If you submit `"https://tesla.com"`, the result key is `"https://tesla.com"`. If you submit `"tesla"`, the key is `"tesla"`. Mixing identifier formats in the same request (some URLs, some permalinks) produces result keys in the format you used. Be consistent within a request to simplify downstream processing:
+
+```python
+# ❌ Mixed formats — inconsistent result keys
+companies=["https://zendesk.com", "freshworks", "https://intercom.com"]
+
+# ✅ Consistent — all permalinks, all result keys are permalinks
+companies=["zendesk", "freshworks", "intercom"]
+```
+
+**`sources` schema differs between sections — check type before iterating**
+
+In `products_and_services`, the `sources` field on each product area item is a **string range** (e.g. `"1-3"`) referencing the `product_overview.source` array by ID. In `product_launches` and `strategic_initiatives`, `sources` is an **array of citation objects**. Always check the type before iterating:
+
+```python
+sources = product_area.get("sources", "")
+
+# products_and_services — string range
+if isinstance(sources, str):
+    print(f"Source IDs: {sources}")   # e.g. "1-3"
+
+# product_launches / strategic_initiatives — array of citation objects
+elif isinstance(sources, list):
+    for cite in sources:
+        print(f"  {cite['title']} ({cite['publishedDate']})")
+```
+
+**`product_launches.summary` is an array of strings, not a single string**
+
+Each launch object's `summary` field is a list of bullet-point strings, not a single narrative string. Iterate it rather than printing directly:
+
+```python
+# ❌ TypeError — summary is a list, not a string
+print(launch["summary"][:200])
+
+# ✅ Correct
+for bullet in launch["summary"]:
+    print(f"  • {bullet}")
+```
+
+**`request_id` is a UUID string — use the correct polling endpoint**
+
+This API returns `request_id` (UUID string). The Workflow APIs return `report_id` (integer). They use completely different polling endpoints and cannot be swapped:
+
+```python
+# ❌ Wrong endpoint for this API
+requests.get(".../api/assets/get_notebook_status/", params={"report_id": request_id})
+
+# ✅ Correct endpoint for Company Deep Intelligence
+requests.get(".../api/enterprise/request/status/", params={"request_id": request_id})
+```
+
+**Understand when to use Company Deep Intelligence vs Company Research**
+
+Both APIs generate company intelligence, but they serve different needs. Company Deep Intelligence is **section-selective and multi-company** — ideal for focused sweeps across watchlists where you need specific intelligence types quickly, with results returned in the polling response. Company Research always generates a **fixed five-section deep-dive report for one company** through the Workflow infrastructure and supports PDF/DOCX/PPT export. Use Company Deep Intelligence for flexible pipeline enrichment and competitive sweeps; use Company Research when you need a complete formatted deliverable for a single company.
+
+---
+
+## 9. Related APIs
+
+<CardGroup cols={3}>
+  <Card title="Industry Deep Intelligence" icon="chart-line" href="/industry-deep-intelligence-doc">
+    The industry-level equivalent — section-selective async intelligence on any sector or market, using the same request\_id pattern.
+  </Card>
+
+  <Card title="Company Research" icon="building" href="/company-research-doc">
+    Fixed five-section deep-dive for a single company with PDF/DOCX/PPT export — use when you need a complete formatted deliverable.
+  </Card>
+
+  <Card title="Company Instant Enrichment" icon="bolt" href="/company-instant-enrichment-doc">
+    Synchronous firmographic data — returns raw structured fields instantly. Use for lightweight data needs where AI narratives aren't required.
+  </Card>
+
+  <Card title="Company News Monitoring" icon="newspaper" href="/company-news-monitoring-doc">
+    Real-time news for any company — synchronous, no polling. Complements Company Deep Intelligence for current event context.
+  </Card>
+
+  <Card title="Peer Comparison" icon="scale-balanced" href="/peer-comparison-doc">
+    Side-by-side benchmarking of 2–5 companies with financial data, feature matrices, and business model comparison — async Workflow API.
+  </Card>
+
+  <Card title="Supporting APIs" icon="wrench" href="/supporting-apis-doc">
+    Request Status and Company Search — both used alongside Company Deep Intelligence in the async workflow.
+  </Card>
+</CardGroup>

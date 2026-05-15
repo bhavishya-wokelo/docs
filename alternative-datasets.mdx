@@ -1,0 +1,743 @@
+---
+title: "Alternative Datasets"
+description: "Access proprietary alternative datasets on any company — G2 product reviews with star distributions and individual review text, and Glassdoor employee reviews with aggregate sentiment ratings and individual review records — returned synchronously with flexible pagination."
+---
+
+## 1. Overview
+
+The Alternative Datasets APIs provide access to two proprietary third-party data sources that are not captured in standard firmographic or financial databases: **G2 product reviews** and **Glassdoor employee reviews**. Both are synchronous GET endpoints that return paginated data immediately in the HTTP response.
+
+**Two endpoints, two data sources:**
+
+|  | Product Reviews | Employee Reviews |
+| --- | --- | --- |
+| **Endpoint** | `GET /api/enterprise/company/product-reviews/` | `GET /api/enterprise/company/employee-reviews/` |
+| **Source** | G2 (software product reviews) | Glassdoor (employee workplace reviews) |
+| **Response pattern** | Synchronous — data returned immediately | Synchronous — data returned immediately |
+| **What you get** | Overall rating, star distribution, individual review text | Aggregate sentiment ratings across 8 workplace dimensions, individual review records |
+| **Use case** | Product due diligence, competitive positioning, customer sentiment | Talent health monitoring, cultural diligence, management assessment |
+
+**Common use cases:**
+
+- **Pre-IC product due diligence** — pull G2 product reviews for a target SaaS company and its top 3 competitors to compare customer satisfaction, identify recurring complaints, and surface NPS signals before a diligence sprint
+- **Competitive product benchmarking** — compare star distributions and review counts across a set of competitors to quantify perceived product quality at scale
+- **Management assessment in CDD** — use Glassdoor's CEO approval rating, senior management score, and business outlook as quantitative proxies for leadership quality and workforce confidence
+- **Talent and culture diligence** — track `culture_and_values_rating`, `work_life_balance_rating`, and `recommend_to_friend_rating` over time to detect cultural deterioration or post-acquisition integration signals
+- **Portfolio health monitoring** — run both endpoints quarterly across a portfolio to surface early warning signals in customer perception or employee sentiment before they become widely reported
+- **Customer voice analysis** — use individual product review text as input to an LLM pipeline for theme extraction, sentiment classification, and feature gap analysis
+
+<Info>
+  Both APIs are synchronous. Results are returned directly in the HTTP response — no job submission or polling required.
+</Info>
+
+---
+
+## 2. Quick Start
+
+**Product Reviews — get G2 reviews for a company**
+
+<CodeGroup>
+
+```bash cURL
+curl --location 'https://api.wokelo.ai/api/enterprise/company/product-reviews/?company=salesforce&limit=30&offset=0' \
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json'
+```
+
+```python Python
+import requests
+
+response = requests.get(
+    "https://api.wokelo.ai/api/enterprise/company/product-reviews/",
+    headers={"Authorization": "Bearer <YOUR_API_TOKEN>"},
+    params={
+        "company": "salesforce",
+        "limit":   30,
+        "offset":  0
+    }
+)
+data = response.json()["data"]
+print(f"{data['product_name']}: {data['rating']} / 5.0 ({sum(data['star_distribution'].values())} reviews)")
+```
+
+</CodeGroup>
+
+**Employee Reviews — get Glassdoor overview and reviews for a company**
+
+```python
+import requests
+
+response = requests.get(
+    "https://api.wokelo.ai/api/enterprise/company/employee-reviews/",
+    headers={"Authorization": "Bearer <YOUR_API_TOKEN>"},
+    params={
+        "company": "salesforce",
+        "limit":   50,
+        "offset":  0
+    }
+)
+data = response.json()["data"]
+overview = data["overview"]
+print(f"Overall rating: {overview['rating']} / 5.0")
+print(f"CEO approval: {overview['ceo_rating'] * 100:.0f}%")
+print(f"Would recommend: {overview['recommend_to_friend_rating'] * 100:.0f}%")
+```
+
+---
+
+## 3. Authentication
+
+All requests must include a **Bearer token** in the `Authorization` HTTP header.
+
+```text
+Authorization: Bearer <YOUR_API_TOKEN>
+```
+
+API tokens are issued from your Wokelo account. Navigate to **Settings → API Keys** in the Wokelo dashboard to generate or rotate a key. Contact [support@wokelo.ai](mailto:support@wokelo.ai) if you do not yet have API access.
+
+<Warning>
+  Never expose your token in client-side code, browser requests, or public repositories. A missing or invalid token returns `401 Unauthorized`. A valid token without sufficient plan permissions returns `403 Forbidden`.
+</Warning>
+
+---
+
+## 4. Request Reference
+
+### Product Reviews
+
+**Endpoint**
+
+```text
+GET https://api.wokelo.ai/api/enterprise/company/product-reviews/
+```
+
+All parameters are passed as URL query parameters.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `company` | string | **Required** | Permalink of the company whose G2 product reviews to fetch (e.g. `"salesforce"`, `"hubspot"`). Use the [Company Search API](/supporting-apis-doc#company-search) to look up a permalink by company name. |
+| `limit` | integer | Optional | Maximum number of individual review records to return. Default `100`. |
+| `offset` | integer | Optional | Number of review records to skip before returning results. Default `0`. Use with `limit` for pagination. |
+
+**Full request example:**
+
+<CodeGroup>
+
+```bash cURL
+curl --location 'https://api.wokelo.ai/api/enterprise/company/product-reviews/?company=hubspot&limit=30&offset=0' \
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json'
+```
+
+```python Python
+import requests
+
+response = requests.get(
+    "https://api.wokelo.ai/api/enterprise/company/product-reviews/",
+    headers={"Authorization": "Bearer <YOUR_API_TOKEN>"},
+    params={
+        "company": "hubspot",
+        "limit":   30,
+        "offset":  0
+    }
+)
+print(response.json())
+```
+
+</CodeGroup>
+
+### Employee Reviews
+
+**Endpoint**
+
+```text
+GET https://api.wokelo.ai/api/enterprise/company/employee-reviews/
+```
+
+All parameters are passed as URL query parameters.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `company` | string | **Required** | Permalink of the company whose Glassdoor employee reviews to fetch (e.g. `"salesforce"`, `"zendesk"`). Use the [Company Search API](/supporting-apis-doc#company-search) to look up a permalink by name. |
+| `limit` | integer | Optional | Maximum number of individual review records to return. Default `100`. |
+| `offset` | integer | Optional | Number of review records to skip before returning results. Default `0`. Use with `limit` for pagination. |
+
+**Full request example:**
+
+<CodeGroup>
+
+```bash cURL
+curl --location 'https://api.wokelo.ai/api/enterprise/company/employee-reviews/?company=salesforce&limit=100&offset=0' \
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json'
+```
+
+```python Python
+import requests
+
+response = requests.get(
+    "https://api.wokelo.ai/api/enterprise/company/employee-reviews/",
+    headers={"Authorization": "Bearer <YOUR_API_TOKEN>"},
+    params={
+        "company": "salesforce",
+        "limit":   100,
+        "offset":  0
+    }
+)
+print(response.json())
+```
+
+</CodeGroup>
+
+---
+
+## 5. Response
+
+### Product Reviews response
+
+```json
+{
+  "status": "success",
+  "data": {
+    "company": "salesforce",
+    "product_name": "Slack",
+    "rating": 4.5,
+    "star_distribution": {
+      "1": 128,
+      "2": 270,
+      "3": 1239,
+      "4": 7083,
+      "5": 25056
+    },
+    "reviews": [
+      {
+        "review_id": 10674077,
+        "review_title": "Easy to use enterprise communication platform"
+      }
+    ]
+  }
+}
+```
+
+**Top-level response fields:**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `status` | string | `"success"` when data was returned successfully. |
+| `data` | object | The product reviews object for the requested company. |
+
+**`data` object fields:**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `company` | string | The company permalink that was queried. |
+| `product_name` | string | Name of the primary product indexed on G2 for this company (e.g. `"Slack"`, `"HubSpot Marketing Hub"`). |
+| `rating` | float | Overall G2 rating on a 1.0–5.0 scale (e.g. `4.5`). |
+| `star_distribution` | object | Count of reviews per star rating. Keys are `"1"` through `"5"` (strings); values are integers. The total across all keys equals the total review count. |
+| `reviews` | object\[\] | Array of individual review records, up to `limit` entries. Each object contains at minimum `review_id` (integer) and `review_title` (string). May contain additional fields including review body text, reviewer role, date, and helpfulness votes depending on data availability. |
+
+<Info>
+  The `star_distribution` keys are **strings** (`"1"`, `"2"`, etc.), not integers. When iterating or sorting, cast to int: `sorted(star_distribution.keys(), key=int)`. The total review count is `sum(star_distribution.values())`.
+</Info>
+
+### Employee Reviews response
+
+```json
+{
+  "status": "success",
+  "data": {
+    "company": "salesforce",
+    "overview": {
+      "rating": 4.1,
+      "business_outlook_rating": 0.71,
+      "ceo_rating": 0.82,
+      "recommend_to_friend_rating": 0.8,
+      "compensation_and_benefits_rating": 4.4,
+      "culture_and_values_rating": 4.0,
+      "diversity_and_inclusion_rating": 4.2,
+      "senior_management_rating": 3.6,
+      "work_life_balance_rating": 3.9
+    },
+    "reviews": [ { ... } ]
+  }
+}
+```
+
+**Top-level response fields:**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `status` | string | `"success"` when data was returned successfully. |
+| `data` | object | The employee reviews object for the requested company. |
+
+**`data` object fields:**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `company` | string | The company permalink that was queried. |
+| `overview` | object | Aggregate rating summary across all Glassdoor reviews (see below). |
+| `reviews` | object\[\] | Array of individual employee review records, up to `limit` entries. |
+
+**`overview` fields — two different scales:**
+
+<Warning>
+  The `overview` object mixes two different scales. `business_outlook_rating`, `ceo_rating`, and `recommend_to_friend_rating` are **approval ratios between 0.0 and 1.0** (e.g. `0.82` = 82% approval). All other rating fields (`rating`, `compensation_and_benefits_rating`, `culture_and_values_rating`, etc.) are **scores on a 1.0–5.0 scale**. Never display these raw without applying the correct scale — multiplying a ratio field by 5 to fit a star display will produce incorrect results.
+</Warning>
+
+| Field | Scale | Description |
+| --- | --- | --- |
+| `rating` | 1.0–5.0 | Overall Glassdoor score — the primary summary metric. |
+| `business_outlook_rating` | 0.0–1.0 | Share of employees with a positive 6-month business outlook. |
+| `ceo_rating` | 0.0–1.0 | CEO approval rate — share of employees who approve of the CEO. |
+| `recommend_to_friend_rating` | 0.0–1.0 | Share of employees who would recommend the company to a friend. |
+| `compensation_and_benefits_rating` | 1.0–5.0 | Employee satisfaction with pay and benefits. |
+| `culture_and_values_rating` | 1.0–5.0 | Employee satisfaction with company culture and stated values. |
+| `diversity_and_inclusion_rating` | 1.0–5.0 | Employee satisfaction with DEI practices. |
+| `senior_management_rating` | 1.0–5.0 | Employee satisfaction with senior leadership. |
+| `work_life_balance_rating` | 1.0–5.0 | Employee satisfaction with work-life balance. |
+
+---
+
+## 6. Examples
+
+### Competitive product sentiment sweep
+
+Fetch G2 ratings for a set of competing SaaS products and compare overall scores and star distributions.
+
+<CodeGroup>
+
+```bash cURL
+curl --location 'https://api.wokelo.ai/api/enterprise/company/product-reviews/?company=hubspot&limit=500&offset=0' \
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>'
+```
+
+```python Python
+import requests
+
+HEADERS = {"Authorization": "Bearer <YOUR_API_TOKEN>"}
+COMPETITORS = ["salesforce", "hubspot", "pipedrive", "zoho", "freshworks"]
+
+def get_product_rating(company):
+    r = requests.get(
+        "https://api.wokelo.ai/api/enterprise/company/product-reviews/",
+        headers=HEADERS,
+        params={"company": company, "limit": 1}   # limit=1 to get overview fast
+    )
+    d = r.json().get("data", {})
+    total = sum(d.get("star_distribution", {}).values())
+    return {
+        "company":      company,
+        "product_name": d.get("product_name", "—"),
+        "rating":       d.get("rating"),
+        "total_reviews": total,
+        "5_star_pct":   round(d["star_distribution"].get("5", 0) / total * 100, 1) if total > 0 else 0
+    }
+
+results = [get_product_rating(c) for c in COMPETITORS]
+results.sort(key=lambda x: x["rating"] or 0, reverse=True)
+
+print(f"{'Company':<15} {'Product':<30} {'Rating':<8} {'Reviews':<10} {'5-star %'}")
+print("-" * 80)
+for r in results:
+    print(
+        f"{r['company']:<15} "
+        f"{r['product_name']:<30} "
+        f"{r['rating']:<8} "
+        f"{r['total_reviews']:<10} "
+        f"{r['5_star_pct']}%"
+    )
+```
+
+</CodeGroup>
+
+**Sample response (product reviews — Salesforce/Slack):**
+
+```json
+{
+  "status": "success",
+  "data": {
+    "company": "salesforce",
+    "product_name": "Slack",
+    "rating": 4.5,
+    "star_distribution": {
+      "1": 128,
+      "2": 270,
+      "3": 1239,
+      "4": 7083,
+      "5": 25056
+    },
+    "reviews": [
+      {
+        "review_id": 10674077,
+        "review_title": "Easy to use enterprise communication platform"
+      }
+    ]
+  }
+}
+```
+
+### Paginating through all product reviews for LLM analysis
+
+Retrieve the full review corpus for downstream theme extraction or sentiment analysis.
+
+```python
+import requests
+
+HEADERS = {"Authorization": "Bearer <YOUR_API_TOKEN>"}
+
+def get_all_product_reviews(company, page_size=200):
+    all_reviews = []
+    offset = 0
+
+    while True:
+        r = requests.get(
+            "https://api.wokelo.ai/api/enterprise/company/product-reviews/",
+            headers=HEADERS,
+            params={"company": company, "limit": page_size, "offset": offset}
+        )
+        data = r.json().get("data", {})
+
+        if offset == 0:
+            # Capture overview from first page
+            print(f"{data.get('product_name')}: {data.get('rating')}/5.0")
+            total_available = sum(data.get("star_distribution", {}).values())
+            print(f"Total reviews available: {total_available}")
+
+        batch = data.get("reviews", [])
+        if not batch:
+            break
+
+        all_reviews.extend(batch)
+        print(f"  Fetched {len(all_reviews)} reviews...")
+        offset += page_size
+
+    return all_reviews
+
+reviews = get_all_product_reviews("hubspot")
+print(f"\nTotal retrieved: {len(reviews)} reviews")
+
+# Feed review titles to LLM for theme analysis
+review_titles = [r["review_title"] for r in reviews if r.get("review_title")]
+print(f"Review titles for analysis: {len(review_titles)}")
+```
+
+### Employee sentiment benchmark — portfolio health check
+
+Compare Glassdoor ratings across a portfolio of companies to surface cultural warning signals.
+
+```python
+import requests
+
+HEADERS = {"Authorization": "Bearer <YOUR_API_TOKEN>"}
+PORTFOLIO = ["zendesk", "freshworks", "salesforce", "hubspot", "intercom"]
+
+def get_employee_overview(company):
+    r = requests.get(
+        "https://api.wokelo.ai/api/enterprise/company/employee-reviews/",
+        headers=HEADERS,
+        params={"company": company, "limit": 1}
+    )
+    overview = r.json().get("data", {}).get("overview", {})
+    return {"company": company, **overview}
+
+results = [get_employee_overview(c) for c in PORTFOLIO]
+
+# Sort by overall rating
+results.sort(key=lambda x: x.get("rating", 0), reverse=True)
+
+print(f"{'Company':<15} {'Rating':<8} {'CEO %':<8} {'Recommend %':<14} {'Culture':<10} {'Sr Mgmt'}")
+print("-" * 75)
+for r in results:
+    print(
+        f"{r['company']:<15} "
+        f"{r.get('rating', '—'):<8} "
+        f"{round(r.get('ceo_rating', 0) * 100):<8} "
+        f"{round(r.get('recommend_to_friend_rating', 0) * 100):<14} "
+        f"{r.get('culture_and_values_rating', '—'):<10} "
+        f"{r.get('senior_management_rating', '—')}"
+    )
+```
+
+**Sample response (employee reviews — Salesforce):**
+
+```json
+{
+  "status": "success",
+  "data": {
+    "company": "salesforce",
+    "overview": {
+      "rating": 4.1,
+      "business_outlook_rating": 0.71,
+      "ceo_rating": 0.82,
+      "recommend_to_friend_rating": 0.8,
+      "compensation_and_benefits_rating": 4.4,
+      "culture_and_values_rating": 4.0,
+      "diversity_and_inclusion_rating": 4.2,
+      "senior_management_rating": 3.6,
+      "work_life_balance_rating": 3.9
+    },
+    "reviews": []
+  }
+}
+```
+
+### Combined product \+ employee sweep before IC meeting
+
+Pull both data sources for a target company in two parallel calls to get a fast 360-degree view.
+
+```python
+import requests, concurrent.futures
+
+HEADERS = {"Authorization": "Bearer <YOUR_API_TOKEN>"}
+TARGET   = "zendesk"
+
+def get_product_reviews(company):
+    r = requests.get(
+        "https://api.wokelo.ai/api/enterprise/company/product-reviews/",
+        headers=HEADERS,
+        params={"company": company, "limit": 50}
+    )
+    return r.json().get("data", {})
+
+def get_employee_reviews(company):
+    r = requests.get(
+        "https://api.wokelo.ai/api/enterprise/company/employee-reviews/",
+        headers=HEADERS,
+        params={"company": company, "limit": 50}
+    )
+    return r.json().get("data", {})
+
+# Fetch both in parallel
+with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+    product_future  = pool.submit(get_product_reviews,  TARGET)
+    employee_future = pool.submit(get_employee_reviews, TARGET)
+    product_data    = product_future.result()
+    employee_data   = employee_future.result()
+
+# Product summary
+prod_total = sum(product_data.get("star_distribution", {}).values())
+print(f"Product: {product_data.get('product_name')} | {product_data.get('rating')}/5.0 ({prod_total} reviews)")
+
+star_dist = product_data.get("star_distribution", {})
+for star in sorted(star_dist.keys(), key=int, reverse=True):
+    count = star_dist[star]
+    pct   = round(count / prod_total * 100, 1) if prod_total > 0 else 0
+    bar   = "█" * int(pct / 2)
+    print(f"  {star}★  {bar} {pct}% ({count})")
+
+# Employee summary
+ov = employee_data.get("overview", {})
+print(f"\nEmployees: {ov.get('rating')}/5.0 overall")
+print(f"  CEO approval:   {round(ov.get('ceo_rating', 0) * 100)}%")
+print(f"  Would recommend:{round(ov.get('recommend_to_friend_rating', 0) * 100)}%")
+print(f"  Culture:        {ov.get('culture_and_values_rating')}/5.0")
+print(f"  Sr Management:  {ov.get('senior_management_rating')}/5.0")
+print(f"  Work-life:      {ov.get('work_life_balance_rating')}/5.0")
+print(f"  Compensation:   {ov.get('compensation_and_benefits_rating')}/5.0")
+```
+
+### JavaScript / Node.js — both endpoints
+
+```javascript
+const fetch = require("node-fetch");
+
+const API_KEY = process.env.WOKELO_API_KEY;
+
+async function getProductReviews(company, limit = 100, offset = 0) {
+  const params = new URLSearchParams({ company, limit, offset });
+  const res = await fetch(
+    `https://api.wokelo.ai/api/enterprise/company/product-reviews/?${params}`,
+    { headers: { "Authorization": `Bearer ${API_KEY}` } }
+  );
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  return (await res.json()).data;
+}
+
+async function getEmployeeReviews(company, limit = 100, offset = 0) {
+  const params = new URLSearchParams({ company, limit, offset });
+  const res = await fetch(
+    `https://api.wokelo.ai/api/enterprise/company/employee-reviews/?${params}`,
+    { headers: { "Authorization": `Bearer ${API_KEY}` } }
+  );
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  return (await res.json()).data;
+}
+
+// Example: pre-IC snapshot
+Promise.all([
+  getProductReviews("hubspot", 1),
+  getEmployeeReviews("hubspot", 1)
+]).then(([product, employee]) => {
+  console.log(`Product: ${product.product_name} — ${product.rating}/5.0`);
+  const ov = employee.overview;
+  console.log(`Employees: ${ov.rating}/5.0 | CEO ${Math.round(ov.ceo_rating * 100)}% | Recommend ${Math.round(ov.recommend_to_friend_rating * 100)}%`);
+});
+```
+
+---
+
+## 7. Error Handling
+
+Both APIs use standard HTTP status codes and return errors synchronously.
+
+| Status | Meaning | Cause & Resolution |
+| --- | --- | --- |
+| `200 OK` | Success | Data returned successfully. |
+| `400 Bad Request` | Invalid parameters | Missing `company` parameter or invalid value. Check the `detail` field. |
+| `401 Unauthorized` | Auth failed | The `Authorization` header is missing or contains an invalid token. Verify your key in **Settings → API Keys**. |
+| `403 Forbidden` | Insufficient access | Your plan does not include access to this endpoint. Contact [support@wokelo.ai](mailto:support@wokelo.ai). |
+| `404 Not Found` | Company not found | The permalink could not be resolved, or no review data exists for this company. Verify the permalink using the [Company Search API](/supporting-apis-doc#company-search). |
+| `429 Too Many Requests` | Rate limit exceeded | Implement exponential back-off. The response includes a `Retry-After` header. |
+| `500 Internal Server Error` | Server error | Retry after a brief delay. If the issue persists, contact [support@wokelo.ai](mailto:support@wokelo.ai). |
+
+**Retry logic with exponential back-off:**
+
+```python
+import time, requests
+
+def fetch_with_retry(endpoint, params, api_key, max_retries=3):
+    headers = {"Authorization": f"Bearer {api_key}"}
+    for attempt in range(max_retries):
+        try:
+            r = requests.get(endpoint, headers=headers, params=params, timeout=30)
+            if r.status_code == 429:
+                time.sleep(2 ** attempt)
+                continue
+            r.raise_for_status()
+            return r.json()
+        except requests.exceptions.Timeout:
+            if attempt == max_retries - 1:
+                raise
+            time.sleep(1)
+    raise Exception(f"Failed after {max_retries} attempts")
+```
+
+---
+
+## 8. Best Practices
+
+**Use permalinks, not company names or URLs**
+
+Both endpoints accept only the `company` permalink as an identifier — not a display name or website URL. Use the [Company Search API](/supporting-apis-doc#company-search) to resolve a name to its permalink before querying:
+
+```python
+search = requests.get(
+    "https://api.wokelo.ai/api/enterprise/company/search",
+    headers=HEADERS,
+    params={"query": "HubSpot", "search_by": "name"}
+)
+permalink = search.json()["data"][0]["permalink"]   # "hubspot"
+```
+
+**`star_distribution` keys are strings — sort and access accordingly**
+
+The five keys in `star_distribution` are string values `"1"` through `"5"`, not integers. When iterating in order or computing a weighted average, cast to int explicitly:
+
+```python
+dist = data["star_distribution"]
+
+# ❌ Dict order and string comparison may not sort numerically
+for star, count in dist.items():
+    print(star, count)
+
+# ✅ Sort numerically
+for star in sorted(dist.keys(), key=int):
+    print(f"{star}★: {dist[star]}")
+
+# Weighted average (should match data["rating"])
+total = sum(dist.values())
+weighted = sum(int(star) * count for star, count in dist.items()) / total
+```
+
+**Employee review `overview` uses two different scales — display them correctly**
+
+Three fields (`business_outlook_rating`, `ceo_rating`, `recommend_to_friend_rating`) are approval ratios between 0.0 and 1.0. The remaining five rating fields are on a 1.0–5.0 scale. Multiply ratio fields by 100 to display as percentages; never multiply by 5:
+
+```python
+ov = data["overview"]
+
+# ❌ Incorrect — treating a ratio as a star score
+print(f"CEO: {ov['ceo_rating']}/5.0")      # Shows "0.82/5.0" — wrong
+
+# ✅ Correct — display ratio as percentage, star fields as scores
+print(f"CEO approval: {ov['ceo_rating'] * 100:.0f}%")          # "82%"
+print(f"Culture: {ov['culture_and_values_rating']}/5.0")        # "4.0/5.0"
+```
+
+**Fetch overview without individual reviews by setting `limit=1`**
+
+When you only need aggregate metrics (overall rating, star distribution, Glassdoor overview scores), set `limit=1` to return a minimal review payload. The `overview` and `star_distribution` aggregate fields are always present regardless of `limit`:
+
+```python
+# Fast overview-only calls
+product_summary  = requests.get(product_reviews_url,  headers=HEADERS, params={"company": c, "limit": 1})
+employee_summary = requests.get(employee_reviews_url, headers=HEADERS, params={"company": c, "limit": 1})
+```
+
+**Paginate correctly for full-corpus review pulls**
+
+Both endpoints return up to `limit` reviews per call (default 100). When building a full review corpus for LLM or NLP processing, paginate using `offset` and stop when the returned `reviews` array is empty:
+
+```python
+all_reviews, offset = [], 0
+while True:
+    r = requests.get(endpoint, headers=HEADERS, params={"company": c, "limit": 200, "offset": offset})
+    batch = r.json()["data"].get("reviews", [])
+    if not batch:
+        break
+    all_reviews.extend(batch)
+    offset += 200
+```
+
+**Run both endpoints in parallel for pre-IC snapshots**
+
+Both are synchronous and independent — fire them concurrently with `concurrent.futures.ThreadPoolExecutor` or `asyncio` to halve the total latency when you need both product and employee data:
+
+```python
+with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+    pf = pool.submit(get_product_reviews,  company)
+    ef = pool.submit(get_employee_reviews, company)
+    product_data, employee_data = pf.result(), ef.result()
+```
+
+**Guard against missing companies — not all companies have review data**
+
+G2 and Glassdoor coverage is concentrated in software and technology companies. For companies in industrial, financial, or other non-software sectors, review data may be absent. A `404` response or an empty `reviews` array with `null` rating fields indicates no data is indexed for that company:
+
+```python
+rating = data.get("rating")
+if rating is None:
+    print(f"No G2 data available for {company}")
+else:
+    print(f"Rating: {rating}/5.0")
+```
+
+---
+
+## 9. Related APIs
+
+<CardGroup cols={3}>
+  <Card title="Company Instant Enrichment" icon="bolt" href="/company-instant-enrichment-doc">
+    Structured firmographic, funding, and financial data from Wokelo's native database — synchronous, results within seconds.
+  </Card>
+
+  <Card title="Company Deep Intelligence" icon="brain" href="/company-deep-intelligence-doc">
+    AI-synthesised product portfolio, strategic initiative, and sentiment analysis — includes `employee_sentiment` and `product_sentiment` sections that complement raw review data.
+  </Card>
+
+  <Card title="Company News Monitoring" icon="newspaper" href="/company-news-monitoring-doc">
+    Real-time news feed for any company — synchronous, source-cited. Use alongside review data to combine sentiment signals with current event context.
+  </Card>
+
+  <Card title="Company Research" icon="building" href="/company-research-doc">
+    Full async intelligence report for a single company with product insights, transaction highlights, and executive summary — PDF/DOCX/PPT export.
+  </Card>
+
+  <Card title="Peer Comparison" icon="scale-balanced" href="/peer-comparison-doc">
+    Side-by-side competitive benchmarking including product feature matrices and business model analysis — use after review data to add structured competitive context.
+  </Card>
+
+  <Card title="Supporting APIs" icon="wrench" href="/supporting-apis-doc">
+    Company Search — used to resolve company names to permalinks before querying either review endpoint.
+  </Card>
+</CardGroup>

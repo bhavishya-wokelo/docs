@@ -1,0 +1,780 @@
+---
+title: "Company Filings and Transcripts"
+description: "Access SEC filings (10-K, 10-Q, 8-K, and more) and earnings call transcripts for public companies — returned synchronously with full document content and flexible filtering by form type and date range."
+---
+
+## 1. Overview
+
+The Company Filings and Transcripts APIs provide direct access to two categories of primary source regulatory and investor relations data for public companies: **SEC filings** via EDGAR, and **earnings call transcripts**. Both are synchronous GET endpoints that return data immediately in the HTTP response.
+
+**Two endpoints, two data sources:**
+
+|  | Company Filings | Earnings Transcripts |
+| --- | --- | --- |
+| **Endpoint** | `GET /api/enterprise/company/filings/` | `GET /api/enterprise/company/earnings-transcripts/` |
+| **Source** | SEC EDGAR (US public companies) | Earnings call transcripts |
+| **Response pattern** | Synchronous — data returned immediately | Synchronous — data returned immediately |
+| **What you get** | Filing metadata \+ full raw HTML document content for 10-K, 10-Q, 8-K, DEF 14A, S-1, and other SEC forms | Full earnings call transcript with speaker-separated sections, Q&A, and prepared remarks |
+| **Coverage** | US-listed public companies only | Public companies with earnings calls |
+| **Use case** | Financial diligence, regulatory monitoring, LLM-powered document analysis | Management tone analysis, guidance extraction, analyst Q&A mining |
+
+**Common use cases:**
+
+- **10-K annual report extraction** — pull the full 10-K filing for a public target and feed `filingData` into an LLM pipeline for automated risk factor extraction, segment revenue parsing, or MD&A summarisation
+- **Material event monitoring** — query 8-K filings on a rolling basis to surface significant corporate events (earnings pre-announcements, M&A disclosures, leadership changes, regulatory actions) as they are filed
+- **Earnings call analysis** — retrieve the full earnings transcript, extract management prepared remarks and CFO guidance, and run sentiment and keyword analysis across consecutive quarters
+- **Pre-IC public company diligence** — pull recent 10-K and 10-Q filings alongside the last two earnings transcripts to build a comprehensive financial and strategic context package before an investment committee meeting
+- **Proxy statement review** — retrieve DEF 14A filings to analyse executive compensation structures, board composition, and shareholder voting matters
+- **Regulatory filing tracking** — monitor S-1, S-4, or 424B filings for companies in a coverage universe approaching IPO or conducting secondary offerings
+
+<Info>
+  Both APIs are synchronous. Results are returned directly in the HTTP response — no job submission or polling required. Both APIs cover **public companies only**. Private company filings and transcripts are not available.
+</Info>
+
+---
+
+## 2. Quick Start
+
+**Company Filings — get the most recent 10-K for Tesla**
+
+<CodeGroup>
+
+```bash cURL
+curl --location 'https://api.wokelo.ai/api/enterprise/company/filings/?company=TSLA&form_type=10-K&limit=1' \
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json'
+```
+
+```python Python
+import requests
+
+response = requests.get(
+    "https://api.wokelo.ai/api/enterprise/company/filings/",
+    headers={"Authorization": "Bearer <YOUR_API_TOKEN>"},
+    params={
+        "company":   "TSLA",
+        "form_type": "10-K",
+        "limit":     1
+    }
+)
+filings = response.json()["data"]
+filing  = filings[0]
+print(f"{filing['title']} — filed {filing['filedDate'][:10]}")
+print(f"Report URL: {filing['reportUrl']}")
+# Access full HTML: filing["filingData"]
+```
+
+</CodeGroup>
+
+**Earnings Transcripts — get recent earnings calls for Apple**
+
+```python
+import requests
+
+response = requests.get(
+    "https://api.wokelo.ai/api/enterprise/company/earnings-transcripts/",
+    headers={"Authorization": "Bearer <YOUR_API_TOKEN>"},
+    params={
+        "company": "AAPL",
+        "limit":   4
+    }
+)
+transcripts = response.json()["data"]
+for t in transcripts:
+    print(f"{t.get('title', 'Earnings Call')} — {t.get('date', '')}")
+```
+
+---
+
+## 3. Authentication
+
+All requests must include a **Bearer token** in the `Authorization` HTTP header.
+
+```text
+Authorization: Bearer <YOUR_API_TOKEN>
+```
+
+API tokens are issued from your Wokelo account. Navigate to **Settings → API Keys** in the Wokelo dashboard to generate or rotate a key. Contact [support@wokelo.ai](mailto:support@wokelo.ai) if you do not yet have API access.
+
+<Warning>
+  Never expose your token in client-side code, browser requests, or public repositories. A missing or invalid token returns `401 Unauthorized`. A valid token without sufficient plan permissions returns `403 Forbidden`.
+</Warning>
+
+---
+
+## 4. Request Reference
+
+### Company Filings
+
+**Endpoint**
+
+```text
+GET https://api.wokelo.ai/api/enterprise/company/filings/
+```
+
+All parameters are passed as URL query parameters.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `company` | string | **Required** | Ticker symbol of the public company (e.g. `"TSLA"`, `"AAPL"`, `"MSFT"`). Unlike most other Wokelo APIs, this endpoint uses the **stock ticker**, not a Wokelo permalink. |
+| `form_type` | string | Optional | SEC form type to filter by. If omitted, returns filings across all form types. See the supported form types table below. Examples: `"10-K"`, `"10-Q"`, `"8-K"`. |
+| `limit` | integer | Optional | Maximum number of filing records to return. Default `10`. |
+| `offset` | integer | Optional | Number of records to skip before returning results. Default `0`. Use with `limit` for pagination. |
+
+**Supported form types:**
+
+| `form_type` value | Description |
+| --- | --- |
+| `10-K` | Annual report — audited full-year financials, risk factors, MD&A |
+| `10-Q` | Quarterly report — unaudited quarterly financials and updates |
+| `8-K` | Current report — material events (earnings, M&A, leadership changes, regulatory actions) |
+| `DEF 14A` | Proxy statement — executive compensation, board composition, shareholder votes |
+| `S-1` | IPO registration statement — business description, financials, risk factors |
+| `S-4` | Business combination registration — used for M&A and merger filings |
+| `424B4` | Prospectus supplement — used in secondary offerings and follow-ons |
+| `SC 13G` | Passive investor disclosure (\>5% ownership) |
+| `SC 13D` | Active investor disclosure (\>5% ownership with intent to influence) |
+
+<Info>
+  The `form_type` parameter is case-sensitive. Pass `"10-K"` not `"10k"` or `"10K"`. Omit `form_type` entirely to retrieve all available filing types for the company.
+</Info>
+
+**Full request example:**
+
+<CodeGroup>
+
+```bash cURL
+curl --location 'https://api.wokelo.ai/api/enterprise/company/filings/?company=TSLA&form_type=10-K&limit=5&offset=0' \
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json'
+```
+
+```python Python
+import requests
+
+response = requests.get(
+    "https://api.wokelo.ai/api/enterprise/company/filings/",
+    headers={"Authorization": "Bearer <YOUR_API_TOKEN>"},
+    params={
+        "company":   "TSLA",
+        "form_type": "10-K",
+        "limit":     5,
+        "offset":    0
+    }
+)
+print(response.json())
+```
+
+</CodeGroup>
+
+### Earnings Transcripts
+
+**Endpoint**
+
+```text
+GET https://api.wokelo.ai/api/enterprise/company/earnings-transcripts/
+```
+
+All parameters are passed as URL query parameters.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `company` | string | **Required** | Ticker symbol or company permalink (e.g. `"AAPL"`, `"MSFT"`, `"tesla-motors"`). |
+| `limit` | integer | Optional | Maximum number of transcript records to return. Default `10`. |
+| `offset` | integer | Optional | Number of records to skip before returning results. Default `0`. Use with `limit` for pagination. |
+
+**Full request example:**
+
+<CodeGroup>
+
+```bash cURL
+curl --location 'https://api.wokelo.ai/api/enterprise/company/earnings-transcripts/?company=AAPL&limit=4&offset=0' \
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json'
+```
+
+```python Python
+import requests
+
+response = requests.get(
+    "https://api.wokelo.ai/api/enterprise/company/earnings-transcripts/",
+    headers={"Authorization": "Bearer <YOUR_API_TOKEN>"},
+    params={
+        "company": "AAPL",
+        "limit":   4,
+        "offset":  0
+    }
+)
+print(response.json())
+```
+
+</CodeGroup>
+
+---
+
+## 5. Response
+
+### Company Filings response
+
+```json
+{
+  "status": "success",
+  "data": [
+    {
+      "title": "TSLA 10-K January 2023",
+      "symbol": "TSLA",
+      "form": "10-K",
+      "filedDate": "2023-01-31 00:00:00",
+      "acceptedDate": "2023-01-31 02:29:15",
+      "reportUrl": "https://www.sec.gov/Archives/edgar/data/1318605/000095017023001409/tsla-20221231.htm",
+      "filingUrl": "https://www.sec.gov/Archives/edgar/data/1318605/000095017023001409/0000950170-23-001409-index.html",
+      "filingData": "<html>... full raw iXBRL/HTML content of the filing ...</html>"
+    }
+  ]
+}
+```
+
+**Top-level response fields:**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `status` | string | `"success"` when data was returned successfully. |
+| `data` | object\[\] | Array of filing objects, ordered most recent first. |
+
+**Per-filing object fields:**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `title` | string | Human-readable title of the filing (e.g. `"TSLA 10-K January 2023"`). |
+| `symbol` | string | Ticker symbol of the company (e.g. `"TSLA"`). |
+| `form` | string | SEC form type (e.g. `"10-K"`, `"10-Q"`, `"8-K"`). |
+| `filedDate` | string | Date and time the filing was submitted to SEC EDGAR (`YYYY-MM-DD HH:MM:SS`). |
+| `acceptedDate` | string | Date and time the filing was accepted by SEC EDGAR (`YYYY-MM-DD HH:MM:SS`). |
+| `reportUrl` | string | Direct URL to the primary filing document on SEC EDGAR (e.g. the `.htm` file). Use this to link users to the source document. |
+| `filingUrl` | string | URL to the SEC EDGAR index page for the complete filing submission, which lists all associated files (exhibits, XBRL data, etc.). |
+| `filingData` | string | Full raw HTML content of the filing document as fetched from `reportUrl`. For annual and quarterly reports, this is the complete iXBRL-tagged document and can be hundreds of kilobytes to several megabytes. |
+
+<Warning>
+  The `filingData` field contains the **full raw HTML** of the SEC filing document, including inline XBRL tags (`<ix:nonnumeric>`, `<ix:nonfraction>`, etc.). For 10-K and 10-Q filings, this can be several megabytes of content. Do not render this in a UI directly. Strip HTML tags and XBRL markup before passing to an LLM or displaying to users. Avoid requesting multiple large filings (10-K, 10-Q) at the same time without accounting for response size.
+</Warning>
+
+### Earnings Transcripts response
+
+```json
+{
+  "status": "success",
+  "data": [
+    {
+      "title": "Apple Q1 FY2025 Earnings Call",
+      "symbol": "AAPL",
+      "date": "2025-01-30",
+      "quarter": "Q1",
+      "year": 2025,
+      "content": {
+        "prepared_remarks": [
+          {
+            "speaker": "Tim Cook",
+            "role": "CEO",
+            "text": "Good afternoon, everyone. Thank you for joining us..."
+          }
+        ],
+        "qa_session": [
+          {
+            "speaker": "Analyst Name",
+            "firm": "Goldman Sachs",
+            "question": "Tim, can you speak to the trajectory of services revenue...",
+            "answer": {
+              "speaker": "Luca Maestri",
+              "role": "CFO",
+              "text": "Sure, thank you for the question. Services revenue grew..."
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
+```
+
+**Top-level response fields:**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `status` | string | `"success"` when data was returned successfully. |
+| `data` | object\[\] | Array of transcript objects, ordered most recent first. |
+
+**Per-transcript object fields:**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `title` | string | Human-readable title of the earnings call (e.g. `"Apple Q1 FY2025 Earnings Call"`). |
+| `symbol` | string | Ticker symbol of the company. |
+| `date` | string | Date of the earnings call (`YYYY-MM-DD`). |
+| `quarter` | string | Fiscal quarter (e.g. `"Q1"`, `"Q2"`, `"Q3"`, `"Q4"`). |
+| `year` | integer | Fiscal year (e.g. `2025`). |
+| `content` | object | The full transcript, split into `prepared_remarks` and `qa_session` arrays (see below). |
+
+**`content.prepared_remarks` — array of speaker objects:**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `speaker` | string | Name of the speaker (e.g. `"Tim Cook"`, `"Luca Maestri"`). |
+| `role` | string | Title or role of the speaker (e.g. `"CEO"`, `"CFO"`, `"Operator"`). |
+| `text` | string | Full text of this speaker's prepared remarks. |
+
+**`content.qa_session` — array of Q&A exchange objects:**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `speaker` | string | Name of the analyst or questioner. |
+| `firm` | string | Analyst's firm (e.g. `"Goldman Sachs"`, `"Morgan Stanley"`). |
+| `question` | string | Full text of the analyst's question. |
+| `answer` | object | Management response, with `speaker` (name), `role` (title), and `text` (full response). |
+
+<Info>
+  The exact structure of the `content` object may vary slightly by company and transcript provider. Always access `prepared_remarks` and `qa_session` via `.get()` with defaults, and check for the presence of `speaker`, `role`, and `text` fields on each item before accessing them. Some transcripts may use a flat `sections` array rather than the split structure above.
+</Info>
+
+---
+
+## 6. Examples
+
+### Pulling the most recent 10-K for LLM analysis
+
+Retrieve the latest annual report for a company and strip the HTML for processing.
+
+<CodeGroup>
+
+```bash cURL
+curl --location 'https://api.wokelo.ai/api/enterprise/company/filings/?company=TSLA&form_type=10-K&limit=1' \
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>'
+```
+
+```python Python
+import requests, re
+
+HEADERS = {"Authorization": "Bearer <YOUR_API_TOKEN>"}
+
+response = requests.get(
+    "https://api.wokelo.ai/api/enterprise/company/filings/",
+    headers=HEADERS,
+    params={"company": "TSLA", "form_type": "10-K", "limit": 1}
+)
+
+data     = response.json()["data"]
+filing   = data[0]
+
+print(f"Filing: {filing['title']}")
+print(f"Filed:  {filing['filedDate'][:10]}")
+print(f"Source: {filing['reportUrl']}")
+
+# Strip HTML and XBRL tags for LLM processing
+raw_html = filing.get("filingData", "")
+clean_text = re.sub(r"<[^>]+>", " ", raw_html)       # remove all tags
+clean_text = re.sub(r"\s+", " ", clean_text).strip()  # normalise whitespace
+word_count = len(clean_text.split())
+
+print(f"\nDocument length: {len(raw_html):,} chars raw | {word_count:,} words cleaned")
+print(f"\nFirst 500 chars:\n{clean_text[:500]}")
+
+# Pass clean_text to your LLM pipeline
+```
+
+</CodeGroup>
+
+**Sample response (filings — TSLA 10-K):**
+
+```json
+{
+  "status": "success",
+  "data": [
+    {
+      "title": "TSLA 10-K January 2023",
+      "symbol": "TSLA",
+      "form": "10-K",
+      "filedDate": "2023-01-31 00:00:00",
+      "acceptedDate": "2023-01-31 02:29:15",
+      "reportUrl": "https://www.sec.gov/Archives/edgar/data/1318605/000095017023001409/tsla-20221231.htm",
+      "filingUrl": "https://www.sec.gov/Archives/edgar/data/1318605/000095017023001409/0000950170-23-001409-index.html",
+      "filingData": "<html>... full iXBRL document ...</html>"
+    }
+  ]
+}
+```
+
+### Monitoring 8-K material event filings
+
+Pull the most recent 8-K filings to surface material corporate events for a watchlist of public companies.
+
+```python
+import requests
+from datetime import datetime
+
+HEADERS  = {"Authorization": "Bearer <YOUR_API_TOKEN>"}
+WATCHLIST = ["TSLA", "AAPL", "MSFT", "NVDA", "GOOGL"]
+
+events = []
+for ticker in WATCHLIST:
+    r = requests.get(
+        "https://api.wokelo.ai/api/enterprise/company/filings/",
+        headers=HEADERS,
+        params={"company": ticker, "form_type": "8-K", "limit": 5}
+    )
+    for filing in r.json().get("data", []):
+        events.append({
+            "ticker":    ticker,
+            "title":     filing["title"],
+            "filed":     filing["filedDate"][:10],
+            "reportUrl": filing["reportUrl"]
+        })
+
+# Sort by most recently filed
+events.sort(key=lambda x: x["filed"], reverse=True)
+
+print(f"Recent 8-K Material Events\n{'='*60}")
+for e in events[:15]:
+    print(f"[{e['filed']}] {e['ticker']}  {e['title']}")
+    print(f"   {e['reportUrl']}")
+```
+
+### Last four earnings calls — management tone analysis
+
+Retrieve four consecutive quarterly transcripts and extract prepared remarks for tone and guidance analysis.
+
+```python
+import requests
+
+HEADERS = {"Authorization": "Bearer <YOUR_API_TOKEN>"}
+
+response = requests.get(
+    "https://api.wokelo.ai/api/enterprise/company/earnings-transcripts/",
+    headers=HEADERS,
+    params={"company": "AAPL", "limit": 4}
+)
+
+transcripts = response.json().get("data", [])
+print(f"Retrieved {len(transcripts)} transcripts\n")
+
+for transcript in transcripts:
+    quarter = transcript.get("quarter", "")
+    year    = transcript.get("year", "")
+    date    = transcript.get("date", "")
+
+    print(f"{'='*60}")
+    print(f"{transcript.get('title', f'{quarter} {year}')} — {date}")
+    print('='*60)
+
+    content = transcript.get("content", {})
+
+    # Prepared remarks — CEO and CFO
+    remarks = content.get("prepared_remarks", [])
+    for remark in remarks:
+        role = remark.get("role", "")
+        if role in ("CEO", "CFO"):
+            name = remark.get("speaker", role)
+            text = remark.get("text", "")
+            print(f"\n{name} ({role}) — first 400 chars:")
+            print(f"  {text[:400]}...")
+
+    # Q&A exchanges
+    qa = content.get("qa_session", [])
+    print(f"\nQ&A session: {len(qa)} exchanges")
+    if qa:
+        first = qa[0]
+        print(f"  First question from: {first.get('speaker')} ({first.get('firm', '—')})")
+        print(f"  {first.get('question', '')[:200]}...")
+```
+
+### Pre-IC diligence package — filings and transcripts combined
+
+Pull the most recent 10-K, last two 10-Q filings, and last two earnings transcripts for a target company in parallel.
+
+```python
+import requests, concurrent.futures, re
+
+HEADERS = {"Authorization": "Bearer <YOUR_API_TOKEN>"}
+TICKER  = "MSFT"
+
+def get_filings(form_type, limit):
+    r = requests.get(
+        "https://api.wokelo.ai/api/enterprise/company/filings/",
+        headers=HEADERS,
+        params={"company": TICKER, "form_type": form_type, "limit": limit}
+    )
+    return form_type, r.json().get("data", [])
+
+def get_transcripts(limit):
+    r = requests.get(
+        "https://api.wokelo.ai/api/enterprise/company/earnings-transcripts/",
+        headers=HEADERS,
+        params={"company": TICKER, "limit": limit}
+    )
+    return r.json().get("data", [])
+
+def strip_html(html):
+    text = re.sub(r"<[^>]+>", " ", html)
+    return re.sub(r"\s+", " ", text).strip()
+
+# Fetch all in parallel
+with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
+    f_10k = pool.submit(get_filings, "10-K", 1)
+    f_10q = pool.submit(get_filings, "10-Q", 2)
+    f_tr  = pool.submit(get_transcripts, 2)
+
+    _, annual   = f_10k.result()
+    _, quarterlies = f_10q.result()
+    transcripts    = f_tr.result()
+
+print(f"Diligence Package: {TICKER}\n{'='*50}")
+
+# Annual report
+if annual:
+    a = annual[0]
+    print(f"\n10-K: {a['title']} ({a['filedDate'][:10]})")
+    text = strip_html(a.get("filingData", ""))
+    print(f"  Document: {len(text.split()):,} words | {a['reportUrl']}")
+
+# Quarterly reports
+print(f"\n10-Q filings ({len(quarterlies)}):")
+for q in quarterlies:
+    text = strip_html(q.get("filingData", ""))
+    print(f"  {q['title']} ({q['filedDate'][:10]}) — {len(text.split()):,} words")
+
+# Earnings transcripts
+print(f"\nEarnings calls ({len(transcripts)}):")
+for t in transcripts:
+    q_label = f"{t.get('quarter', '')} {t.get('year', '')}"
+    remarks = t.get("content", {}).get("prepared_remarks", [])
+    qa_count = len(t.get("content", {}).get("qa_session", []))
+    print(f"  {t.get('title', q_label)} ({t.get('date', '—')}) — {len(remarks)} speakers, {qa_count} Q&A")
+```
+
+### Paginating through all available filings for a company
+
+```python
+import requests
+
+HEADERS = {"Authorization": "Bearer <YOUR_API_TOKEN>"}
+
+all_filings, offset = [], 0
+page_size = 20
+
+while True:
+    r = requests.get(
+        "https://api.wokelo.ai/api/enterprise/company/filings/",
+        headers=HEADERS,
+        params={
+            "company":   "AAPL",
+            "form_type": "10-Q",
+            "limit":     page_size,
+            "offset":    offset
+        }
+    )
+    batch = r.json().get("data", [])
+    if not batch:
+        break
+    all_filings.extend(batch)
+    print(f"Fetched {len(all_filings)} filings...")
+    offset += page_size
+
+print(f"\nTotal 10-Q filings: {len(all_filings)}")
+for f in all_filings:
+    print(f"  {f['filedDate'][:10]}  {f['title']}")
+```
+
+### JavaScript / Node.js — filings and transcripts
+
+```javascript
+const fetch = require("node-fetch");
+
+const API_KEY = process.env.WOKELO_API_KEY;
+
+async function getFilings(ticker, formType, limit = 5) {
+  const params = new URLSearchParams({ company: ticker, limit });
+  if (formType) params.append("form_type", formType);
+
+  const res = await fetch(
+    `https://api.wokelo.ai/api/enterprise/company/filings/?${params}`,
+    { headers: { "Authorization": `Bearer ${API_KEY}` } }
+  );
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  return (await res.json()).data;
+}
+
+async function getTranscripts(company, limit = 4) {
+  const params = new URLSearchParams({ company, limit });
+  const res = await fetch(
+    `https://api.wokelo.ai/api/enterprise/company/earnings-transcripts/?${params}`,
+    { headers: { "Authorization": `Bearer ${API_KEY}` } }
+  );
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  return (await res.json()).data;
+}
+
+// Example: recent 10-K and earnings calls for Microsoft
+Promise.all([
+  getFilings("MSFT", "10-K", 1),
+  getTranscripts("MSFT", 2)
+]).then(([filings, transcripts]) => {
+  if (filings.length) {
+    console.log(`Latest 10-K: ${filings[0].title} (${filings[0].filedDate.slice(0,10)})`);
+    console.log(`  URL: ${filings[0].reportUrl}`);
+  }
+  transcripts.forEach(t => {
+    const qaCount = t.content?.qa_session?.length ?? 0;
+    console.log(`${t.title} — ${t.date} (${qaCount} Q&A exchanges)`);
+  });
+});
+```
+
+---
+
+## 7. Error Handling
+
+Both APIs use standard HTTP status codes and return errors synchronously.
+
+| Status | Meaning | Cause & Resolution |
+| --- | --- | --- |
+| `200 OK` | Success | Data returned in response body. |
+| `400 Bad Request` | Invalid parameters | Missing `company` parameter, invalid `form_type` value, or malformed query. Check the `detail` field. |
+| `401 Unauthorized` | Auth failed | The `Authorization` header is missing or contains an invalid token. Verify your key in **Settings → API Keys**. |
+| `403 Forbidden` | Insufficient access | Your plan does not include access to this endpoint. Contact [support@wokelo.ai](mailto:support@wokelo.ai). |
+| `404 Not Found` | Company not found | The ticker symbol could not be resolved, or no filings / transcripts exist for this company. Verify the ticker is a US-listed public company. |
+| `429 Too Many Requests` | Rate limit exceeded | Implement exponential back-off. The response includes a `Retry-After` header. |
+| `500 Internal Server Error` | Server error | Retry after a brief delay. If the issue persists, contact [support@wokelo.ai](mailto:support@wokelo.ai). |
+
+**Retry logic with exponential back-off:**
+
+```python
+import time, requests
+
+def fetch_with_retry(endpoint, params, api_key, max_retries=3):
+    headers = {"Authorization": f"Bearer {api_key}"}
+    for attempt in range(max_retries):
+        try:
+            r = requests.get(endpoint, headers=headers, params=params, timeout=60)
+            if r.status_code == 429:
+                time.sleep(2 ** attempt)
+                continue
+            r.raise_for_status()
+            return r.json()
+        except requests.exceptions.Timeout:
+            if attempt == max_retries - 1:
+                raise
+            time.sleep(2)
+    raise Exception(f"Failed after {max_retries} attempts")
+```
+
+<Info>
+  Use a longer `timeout` (60s or more) when requesting 10-K or 10-Q filings. The `filingData` field can be several megabytes, and network transfer time for large documents may exceed the default 30-second timeout used in other Wokelo API calls.
+</Info>
+
+---
+
+## 8. Best Practices
+
+**Use ticker symbols, not permalinks, for the Company Filings API**
+
+Unlike all other Wokelo APIs, the Company Filings endpoint identifies companies by their **stock ticker** (e.g. `"TSLA"`, `"AAPL"`) rather than a Wokelo/Crunchbase permalink. Passing a permalink like `"tesla-motors"` will not resolve correctly and may return a `404`. The ticker must be a US exchange-listed symbol:
+
+```python
+# ❌ Won't work for Filings API
+params["company"] = "tesla-motors"
+
+# ✅ Correct for Filings API
+params["company"] = "TSLA"
+```
+
+**Always strip HTML from `filingData` before processing**
+
+The `filingData` field contains raw iXBRL-tagged HTML — the full SEC filing document as fetched from EDGAR. It includes inline XBRL namespace declarations, `<ix:>` tagged elements, JavaScript snippets, and thousands of `<div>`, `<span>`, and `<table>` tags. Pass it through an HTML stripper before any text processing, embedding, or LLM ingestion:
+
+```python
+import re
+
+def strip_filing_html(html):
+    # Remove all HTML tags (including XBRL ix: elements)
+    text = re.sub(r"<[^>]+>", " ", html)
+    # Collapse whitespace
+    return re.sub(r"\s+", " ", text).strip()
+
+clean = strip_filing_html(filing["filingData"])
+```
+
+**Set a high `timeout` when fetching 10-K and 10-Q filings**
+
+Annual and quarterly reports can return several megabytes in the `filingData` field. Use a timeout of at least 60 seconds for requests that include these form types to avoid premature connection closure:
+
+```python
+requests.get(url, headers=headers, params=params, timeout=60)
+```
+
+**Filter by `form_type` to reduce response size and processing time**
+
+Omitting `form_type` returns all available filing types, which may include dozens of proxy filings, XBRL data updates, and exhibits. For most use cases, filter to the specific form type you need:
+
+```python
+# ❌ Returns all filing types — high volume, large filingData payloads
+params = {"company": "AAPL"}
+
+# ✅ Return only the specific form type you need
+params = {"company": "AAPL", "form_type": "10-K"}
+```
+
+**Request `limit=1` when you only need the most recent filing**
+
+The default `limit` is `10`. If you only need the most recent 10-K or earnings call, set `limit=1` to minimise response size and processing time — particularly important for filings where each `filingData` can be large:
+
+```python
+# Get only the most recent 10-K
+params = {"company": "TSLA", "form_type": "10-K", "limit": 1}
+```
+
+**Access transcript content defensively — structure may vary**
+
+Earnings transcript structure can vary by provider and company. Access `prepared_remarks` and `qa_session` using `.get()` with defaults, and check for field presence before accessing nested keys:
+
+```python
+content  = transcript.get("content", {})
+remarks  = content.get("prepared_remarks", [])
+qa       = content.get("qa_session", [])
+
+for item in qa:
+    question = item.get("question", "")
+    answer   = item.get("answer", {})
+    response_text = answer.get("text", "") if isinstance(answer, dict) else ""
+```
+
+**These APIs are for public companies only**
+
+Both endpoints cover SEC-reporting US-listed public companies exclusively. Attempting to query a private company, a non-US listed company, or an unrecognised ticker will return a `404` or an empty `data` array. For private company intelligence, use [Company Deep Intelligence](/company-deep-intelligence-doc) or [Company Research](/company-research-doc) instead.
+
+---
+
+## 9. Related APIs
+
+<CardGroup cols={3}>
+  <Card title="Company Instant Enrichment" icon="bolt" href="/company-instant-enrichment-doc">
+    Structured firmographic, funding, and public company financial data — includes `public_company_financials` section with revenue, margins, and multiples.
+  </Card>
+
+  <Card title="Company Research" icon="building" href="/company-research-doc">
+    Full async intelligence report including transaction highlights and executive summary — combines public and proprietary sources in a formatted deliverable.
+  </Card>
+
+  <Card title="Company Deep Intelligence" icon="brain" href="/company-deep-intelligence-doc">
+    AI-synthesised product, strategy, and sentiment analysis — the right choice for private companies where SEC filings and transcripts are not available.
+  </Card>
+
+  <Card title="Company News Monitoring" icon="newspaper" href="/company-news-monitoring-doc">
+    Real-time news feed for any company — synchronous, source-cited. Use alongside filings to add current event context to regulatory disclosures.
+  </Card>
+
+  <Card title="Alternative Datasets" icon="chart-bar" href="/alternative-datasets-doc">
+    G2 product reviews and Glassdoor employee reviews — complements filings and transcripts with external signal data for comprehensive diligence packages.
+  </Card>
+
+  <Card title="Supporting APIs" icon="wrench" href="/supporting-apis-doc">
+    Company Search — use to resolve company names to permalinks when switching between filing-based (ticker) and Wokelo-based (permalink) APIs.
+  </Card>
+</CardGroup>

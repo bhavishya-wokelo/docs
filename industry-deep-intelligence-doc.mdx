@@ -1,389 +1,888 @@
+## 1. Overview
+
+The Industry Deep Intelligence API generates structured, source-cited intelligence on any industry or sector. Unlike the Industry Research Workflow (which always produces a fixed five-section report via an async job system), this API lets you **select exactly which sections you need** — requesting only market sizing, or only M&A activity, or any combination of the ten available section types — and returns results through a lightweight async polling loop.
+
+This is an **asynchronous POST API** — submitting a request returns a `request_id` (a UUID string) and an initial `"PENDING"` status immediately. You then poll the [Request Status](/supporting-apis-doc#request-status) endpoint with that `request_id` until the status becomes `"COMPLETED"`, at which point the full result is embedded directly in the status response.
+
+**The two-step workflow:**
+
+```text
+Step 1: POST /api/enterprise/industry/enrich/      → returns request_id + status: "PENDING"
+Step 2: GET  /api/enterprise/request/status/       → poll until status = "COMPLETED"; result embedded in response
+```
+
+<Info>
+  This API uses a **different async pattern from the Workflow APIs** (Company Research, Industry Research, Peer Comparison, Custom Workflow). Those APIs use `report_id` (integer) with separate submission and download steps. This API uses `request_id` (UUID string) and embeds the completed result directly in the status polling response — no separate download call is needed.
+</Info>
+
+**The ten available sections:**
+
+| Section | What you get |
+| --- | --- |
+| `market_size` | TAM/SAM estimates from multiple tier-1 publishers, with a multi-source chart showing CAGR ranges and projected end values |
+| `quant_insights` | Quantitative data points: growth rates, adoption metrics, cost benchmarks, and other measurable market signals |
+| `trends_and_innovations` | Technology trends, innovation waves, disruption signals, and named company examples — source-cited markdown narrative |
+| `transactions_mna` | M&A deal flow: acquirers, targets, deal values, and strategic rationale |
+| `transactions_fundraising` | VC/PE activity: rounds, valuations, key investors, and sector heatmap |
+| `transactions_ipo` | IPO exits: companies, valuations, tickers, and listing dates |
+| `partnerships` | Strategic partnership mapping across the industry with key actors and deal structures |
+| `tier1_intelligence` | Curated insights sourced exclusively from McKinsey, BCG, Goldman Sachs, and equivalent tier-1 publishers |
+| `case_studies` | In-depth profiles of 3–4 key companies with strategy timelines and competitive positioning |
+| `industry_regulations` | Regulatory environment: active legislation, compliance requirements, enforcement trends, and jurisdictional differences |
+
+**Common use cases:**
+
+- **Market entry sizing** — request `market_size` \+ `quant_insights` for a new sector before committing diligence resources; get a multi-source CAGR range immediately
+- **Deal sourcing intelligence** — request `transactions_mna` \+ `transactions_fundraising` to surface active deal flow and recently funded companies in a space
+- **IC memo background research** — request `tier1_intelligence` \+ `trends_and_innovations` for a concise, credible sector context block with McKinsey/BCG sourcing
+- **Regulatory risk assessment** — request `industry_regulations` for a specific geography to map compliance requirements for a target sector
+- **Competitive case study analysis** — request `case_studies` to rapidly profile 3–4 key players in a market before a competitive diligence sprint
+- **Modular pipeline enrichment** — run specific sections on multiple sectors in parallel and stitch results into a unified research database
+
+<Info>
+  This API is asynchronous. Submit a request, then poll until `status = "COMPLETED"`. See [How Async APIs work](/how-async-apis-work) for a full explanation of the polling lifecycle.
+</Info>
+
 ---
-title: "Industry Deep Intelligence"
----
 
-On-demand custom intelligence on any industry.
+## 2. Quick Start
 
-## Quick start
-
-Generates comprehensive industry analysis covering market sizing, trends, transaction activity, partnerships, regulatory environment, and case studies.
-
-`POST  /api/enterprise/industry/enrich/`
-
-NOTE: This is a asynchronous API, which means it will return a request\_id in the response. You would be required to poll the status and then retrieve the results. Read more about async APIs [here](https://docs.wokelo.ai/how-async-apis-work).
-
-Start with a simple API request.
+**Step 1 — Submit a request**
 
 <CodeGroup>
 
-```json cURL expandable wrap
+```bash cURL
 curl --location 'https://api.wokelo.ai/api/enterprise/industry/enrich/' \
---header 'Authorization: Bearer Token' \
---header 'Content-Type: application/json' \
---data '{
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
     "topic": "Enterprise SaaS security",
     "sections": [
-        "market_size"
+      "market_size"
     ]
-}'
+  }'
 ```
 
-```json Python expandable wrap
+```python Python
 import requests
-import json
 
-url = "https://api.wokelo.ai/api/enterprise/industry/enrich/"
-
-payload = json.dumps({
-  "topic": "Enterprise SaaS security",
-  "sections": [
-    "market_size"
-  ]
-})
-headers = {
-  'Authorization': 'Bearer Token',
-  'Content-Type': 'application/json'
-}
-
-response = requests.request("POST", url, headers=headers, data=payload)
-
-print(response.text)
+response = requests.post(
+    "https://api.wokelo.ai/api/enterprise/industry/enrich/",
+    headers={
+        "Authorization": "Bearer <YOUR_API_TOKEN>",
+        "Content-Type": "application/json"
+    },
+    json={
+        "topic": "Enterprise SaaS security",
+        "sections": ["market_size"]
+    }
+)
+data = response.json()
+request_id = data["request_id"]
+print(f"Submitted. request_id: {request_id}  status: {data['status']}")
 ```
 
 </CodeGroup>
 
-## Request reference
+**Step 2 — Poll until completed and retrieve the result**
 
-A sample request containing all the parameters
+```python
+import time
+
+def poll_until_complete(request_id, api_key, poll_interval=10, timeout=600):
+    headers = {"Authorization": f"Bearer {api_key}"}
+    elapsed = 0
+    while elapsed < timeout:
+        r = requests.get(
+            "https://api.wokelo.ai/api/enterprise/request/status/",
+            headers=headers,
+            params={"request_id": request_id}
+        )
+        data = r.json()
+        status = data.get("status", "")
+        print(f"[{elapsed}s] Status: {status}")
+        if status == "COMPLETED":
+            return data["result"]    # result is embedded in the status response
+        if status == "FAILED":
+            raise Exception(f"Request {request_id} failed")
+        time.sleep(poll_interval)
+        elapsed += poll_interval
+    raise TimeoutError(f"Request {request_id} did not complete within {timeout}s")
+
+result = poll_until_complete(request_id, api_key="<YOUR_API_TOKEN>")
+print(f"Sections returned: {list(result.get('IP enrichment', {}).keys())}")
+```
+
+**Step 3 — Work with the result**
+
+```python
+enrichment = result["IP enrichment"]
+
+# Market size chart data
+if "market_size" in enrichment:
+    chart = enrichment["market_size"]["charts"]["market_size_chart"]
+    print(f"Market size projections ({chart['period_start_year']}–{chart['projection_year']}):")
+    for entry in chart["data"]:
+        start = entry["start_value"]["value"] * entry["start_value"]["multiplier"]
+        end   = entry["end_value"]["value"]   * entry["end_value"]["multiplier"]
+        print(f"  {entry['company']}: ${start/1e9:.1f}B → ${end/1e9:.1f}B (CAGR {entry['cagr']}%)")
+
+# Trends narrative
+if "trends_and_innovations" in enrichment:
+    trends = enrichment["trends_and_innovations"]["trend_and_innovations"]["summary"]
+    print(f"\nTrends summary ({len(trends.split())} words):")
+    print(trends[:500] + "...")
+```
+
+---
+
+## 3. Authentication
+
+All requests must include a **Bearer token** in the `Authorization` HTTP header.
+
+```text
+Authorization: Bearer <YOUR_API_TOKEN>
+```
+
+API tokens are issued from your Wokelo account. Navigate to **Settings → API Keys** in the Wokelo dashboard to generate or rotate a key. Contact [support@wokelo.ai](mailto:support@wokelo.ai) if you do not yet have API access.
+
+<Warning>
+  Never expose your token in client-side code, browser requests, or public repositories. A missing or invalid token returns `401 Unauthorized`. A valid token without sufficient plan permissions returns `403 Forbidden`.
+</Warning>
+
+---
+
+## 4. Request Reference
+
+**Endpoint**
+
+```text
+POST https://api.wokelo.ai/api/enterprise/industry/enrich/
+```
+
+All parameters are passed as JSON in the request body.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `topic` | string | **Required** | The industry, sector, or theme to analyse. Free-text — specificity directly determines report quality. Examples: `"Enterprise SaaS security"`, `"AI in drug discovery"`, `"Lithium-ion battery manufacturing"`. Also accepted as `"industry"` in some client implementations. |
+| `sections` | string\[\] | **Required** | Array of one or more section identifiers to include in the output. Request only what you need — each section adds processing time. See the supported sections table below. |
+| `parameters` | object | Optional | A nested object containing optional refinement filters. All child fields are optional. |
+| `parameters.keywords` | string\[\] | Optional | Focus keywords to narrow the analysis within the topic. Examples: `["zero trust", "SIEM"]`, `["drug discovery", "AlphaFold"]`. |
+| `parameters.geography` | string\[\] | Optional | Array of ISO 3166-1 alpha-3 country codes to scope the analysis geographically. Examples: `["USA"]`, `["GBR", "DEU", "FRA"]`. |
+| `parameters.definition` | string | Optional | A custom plain-English definition of the industry to guide AI analysis scope. Use this when the `topic` string alone is ambiguous. Example: `"B2B software focused on enterprise cybersecurity, excluding consumer antivirus products"`. |
+| `parameters.sample_companies` | string\[\] | Optional | Array of Wokelo/Crunchbase permalinks for representative companies in the industry. Helps ground the analysis in the correct competitive set. Examples: `["crowdstrike", "sentinelone", "palo-alto-networks"]`. |
+
+**Supported sections:**
+
+| Section value | Description |
+| --- | --- |
+| `market_size` | TAM/SAM/SOM estimates sourced from multiple tier-1 market research publishers. Returns a structured `market_size_chart` object with per-publisher CAGR, start value, end value, and projection year — plus a pre-rendered chart image URL. |
+| `quant_insights` | Quantitative data: growth rates, adoption metrics, cost benchmarks, and measurable market signals. |
+| `trends_and_innovations` | Technology trends, innovation waves, and disruption signals — markdown narrative with named company examples, fully source-cited. |
+| `transactions_mna` | M&A deal flow: acquirers, targets, deal values, and strategic rationale for key transactions in the space. |
+| `transactions_fundraising` | VC and PE activity: funding rounds, valuations, key investors, and a sector heatmap of capital flows. |
+| `transactions_ipo` | IPO exits: company names, valuations at listing, tickers, and listing dates. |
+| `partnerships` | Strategic partnership mapping across the industry — key actors, deal structures, and partnership types. |
+| `tier1_intelligence` | Curated insights drawn exclusively from McKinsey, BCG, Goldman Sachs, Bain, and equivalent tier-1 sources. |
+| `case_studies` | In-depth profiles of 3–4 key companies — strategy timelines, competitive positioning, and market role. |
+| `industry_regulations` | Regulatory environment: active legislation, compliance requirements, enforcement trends, and jurisdictional differences. |
+
+**Full request example:**
 
 <CodeGroup>
 
-```json cURL expandable wrap
+```bash cURL
 curl --location 'https://api.wokelo.ai/api/enterprise/industry/enrich/' \
---header 'Authorization: Bearer Token' \
---header 'Content-Type: application/json' \
---data '{
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
     "topic": "Enterprise SaaS security",
     "sections": [
-        "market_size",
-        "trends_and_innovations",
-        "transactions_mna"
+      "market_size",
+      "trends_and_innovations",
+      "transactions_mna"
     ],
     "parameters": {
-        "keywords": [
-            "zero trust",
-            "SIEM"
-        ],
-        "geography": [
-            "USA"
-        ],
-        "definition": "B2B software focused on enterprise cybersecurity",
-        "sample_companies": [
-            "crowdstrike",
-            "sentinel"
-        ]
+      "keywords": ["zero trust", "SIEM"],
+      "geography": ["USA"],
+      "definition": "B2B software focused on enterprise cybersecurity",
+      "sample_companies": ["crowdstrike", "sentinelone"]
     }
-}'
+  }'
 ```
 
-```json Python expandable wrap
+```python Python
 import requests
-import json
 
-url = "https://api.wokelo.ai/api/enterprise/industry/enrich/"
-
-payload = json.dumps({
-  "topic": "Enterprise SaaS security",
-  "sections": [
-    "market_size",
-    "trends_and_innovations",
-    "transactions_mna"
-  ],
-  "parameters": {
-    "keywords": [
-      "zero trust",
-      "SIEM"
-    ],
-    "geography": [
-      "USA"
-    ],
-    "definition": "B2B software focused on enterprise cybersecurity",
-    "sample_companies": [
-      "crowdstrike",
-      "sentinel"
-    ]
-  }
-})
-headers = {
-  'Authorization': 'Bearer Token',
-  'Content-Type': 'application/json'
-}
-
-response = requests.request("POST", url, headers=headers, data=payload)
-
-print(response.text)
-```
-
-</CodeGroup>
-
-### Supported sections
-
-| **Section Value** | **What You Get** |
-| :-- | :-- |
-| market\_size | TAM/SAM/SOM estimates with source citations from tier-1 publishers |
-| quant\_insights | Quantitative data: growth rates, adoption metrics, cost benchmarks |
-| trends\_and\_innovations | Technology trends, innovation waves, disruption signals |
-| transactions\_mna | M&A deal flow: acquirers, targets, deal values, strategic rationale |
-| transactions\_fundraising | VC/PE activity: rounds, valuations, key investors, sector heatmap |
-| transactions\_ipo | IPO exits: companies, valuations, tickers, listing dates |
-| partnerships | Strategic partnership mapping across the industry |
-| tier1\_intelligence | Curated insights from McKinsey, BCG, Goldman Sachs, etc. |
-| case\_studies | In-depth profiles of 3-4 key companies with strategy timelines |
-| industry\_regulations | Regulatory environment: active legislation, compliance requirements |
-
-Geography - list of 3 letter ISO country codes (Eg. \[”USA”, “GBR”\])
-
-Keywords : Focus keywords to narrow analysis (e.g., "zero trust", "SIEM")
-
-Industry Definition: Custom definition of the industry to guide AI analysis.
-
-## Examples
-
-For **AI in Drug Discovery** what is the total addressable market, what is the growth rate and what are some of the recent trends in this space.
-
-### Sample Request
-
-<CodeGroup>
-
-```json cURL expandable wrap
-curl --location 'https://api.wokelo.ai/api/enterprise/industry/enrich/' \
---header 'Authorization: Bearer Token' \
---header 'Content-Type: application/json' \
---data '{
-    "topic": "AI in drug discovery",
-    "sections": [
-        "market_size",
-        "trends_and_innovations"
-
-    ],
-    "parameters": {
-        "keywords": [
-            "drug discovery"
-        
+response = requests.post(
+    "https://api.wokelo.ai/api/enterprise/industry/enrich/",
+    headers={
+        "Authorization": "Bearer <YOUR_API_TOKEN>",
+        "Content-Type": "application/json"
+    },
+    json={
+        "topic": "Enterprise SaaS security",
+        "sections": [
+            "market_size",
+            "trends_and_innovations",
+            "transactions_mna"
         ],
-        "geography": [
-            "USA"
-        ]
-       
-    }
-}'
-```
-
-```json Python expandable wrap
-import requests
-import json
-
-url = "https://api.wokelo.ai/api/enterprise/industry/enrich/"
-
-payload = json.dumps({
-  "topic": "AI in drug discovery",
-  "sections": [
-    "market_size",
-    "trends_and_innovations"
-  ],
-  "parameters": {
-    "keywords": [
-      "drug discovery"
-    ],
-    "geography": [
-      "USA"
-    ]
-  }
-})
-headers = {
-  'Authorization': 'Bearer Token',
-  'Content-Type': 'application/json'
-}
-
-response = requests.request("POST", url, headers=headers, data=payload)
-
-print(response.text)
-```
-
-</CodeGroup>
-
-### Sample Response
-
-```json expandable wrap
-{
-    "request_id": "68555bdd-a11e-45df-97ab-a0cc6e6408a1",
-    "status": "COMPLETED",
-    "result": {
-        "IP enrichment": {
-            "market_size": {
-                "charts": {
-                    "market_size_chart": {
-                        "title": "Market Size Range",
-                        "projection_year": 2034,
-                        "period_start_year": 2024,
-                        "period_end_year": 2034,
-                        "data": [
-                            {
-                                "publisher": "Artificial Intelligence in Drug Discovery Market",
-                                "company": "Reports and Data",
-                                "currency": "USD",
-                                "cagr": "17.5",
-                                "end_year": 2034,
-                                "start_year": 2024,
-                                "start_value": {
-                                    "value": 2.5,
-                                    "multiplier": 1000000000
-                                },
-                                "end_value": {
-                                    "value": 12.5,
-                                    "multiplier": 1000000000
-                                },
-                                "estimated_value": {
-                                    "value": 12.5,
-                                    "multiplier": 1000000000
-                                }
-                            },
-                            {
-                                "publisher": "U.S. Artificial Intelligence (AI) In Drug Discovery Market",
-                                "company": "Precedenceresearch",
-                                "currency": "USD",
-                                "cagr": "10.3",
-                                "end_year": 2034,
-                                "start_year": 2025,
-                                "start_value": {
-                                    "value": 2.9,
-                                    "multiplier": 1000000000
-                                },
-                                "end_value": {
-                                    "value": 6.9,
-                                    "multiplier": 1000000000
-                                },
-                                "estimated_value": {
-                                    "value": 6.9,
-                                    "multiplier": 1000000000
-                                }
-                            },
-                            {
-                                "publisher": "AI in Drug Discovery Market",
-                                "company": "Cervicornconsulting",
-                                "currency": "USD",
-                                "cagr": "26.2",
-                                "end_year": 2034,
-                                "start_year": 2024,
-                                "start_value": {
-                                    "value": 2.0,
-                                    "multiplier": 1000000000
-                                },
-                                "end_value": {
-                                    "value": 20.3,
-                                    "multiplier": 1000000000
-                                },
-                                "estimated_value": {
-                                    "value": 20.3,
-                                    "multiplier": 1000000000
-                                }
-                            },
-                            {
-                                "publisher": "Artificial Intelligence for Drug Discovery and Development Market",
-                                "company": "Straitsresearch",
-                                "currency": "USD",
-                                "cagr": "29.9",
-                                "end_year": 2034,
-                                "start_year": 2025,
-                                "start_value": {
-                                    "value": 2.4,
-                                    "multiplier": 1000000000
-                                },
-                                "end_value": {
-                                    "value": 25.4,
-                                    "multiplier": 1000000000
-                                },
-                                "estimated_value": {
-                                    "value": 25.3,
-                                    "multiplier": 1000000000
-                                }
-                            }
-                        ],
-                        "source": "Wokelo generated chart, extracted ranges from publishers, projections calculated based on estimated growth rates",
-                        "note": "Note: CAGR and 2034 projections calculated based on market size ranges",
-                        "url": "https://files.test.wokelo.ai/notebook/1009016/assets/3867b6e3-d321-448f-ad60-fe52345519e0/market_size_chart.png"
-                    }
-                }
-            },
-            "trends_and_innovations": {
-                "trend_and_innovations": {
-                    "source": [
-                        {
-                            "id": 1,
-                            "title": "Yahoo AI in Life Sciences Market, 2026-2040 Industry Trends and Global Forecasts - IBM, IQVIA and Or...",
-                            "url": "https://finance.yahoo.com/news/ai-life-sciences-market-2026-093500956.html",
-                            "publisher": "",
-                            "date": ""
-                        },
-                        {
-                            "id": 2,
-                            "title": "Jnj 6 ways Johnson & Johnson is using AI to help advance healthcare",
-                            "url": "https://www.jnj.com/innovation/artificial-intelligence-in-healthcare",
-                            "publisher": "",
-                            "date": ""
-                        },
-                        {
-                            "id": 3,
-                            "title": "Yahoo AI-Driven Bioengineering Platforms Revolutionize Protein, Strain, and Drug Design with Multi-B...",
-                            "url": "https://finance.yahoo.com/news/ai-driven-bioengineering-platforms-revolutionize-101600710.html",
-                            "publisher": "",
-                            "date": ""
-                        },
-                        {
-                            "id": 4,
-                            "title": "orfonline.org Harnessing AI for Drug Discovery: The Race to Innovate and Govern",
-                            "url": "https://www.orfonline.org/expert-speak/harnessing-ai-for-drug-discovery-the-race-to-innovate-and-govern",
-                            "publisher": "",
-                            "date": ""
-                        },
-                        {
-                            "id": 5,
-                            "title": "Information Technology and Innovation Foundation America’s AI Action Plan: Implications for Biopharm...",
-                            "url": "https://itif.org/publications/2025/09/08/americas-ai-action-plan-implications-for-biopharmaceutical-innovation/",
-                            "publisher": "",
-                            "date": ""
-                        },
-                        {
-                            "id": 6,
-                            "title": "Klover Novartis AI Strategy: Analysis of AI Dominance",
-                            "url": "https://www.klover.ai/novartis-ai-strategy-analysis-of-ai-dominance/",
-                            "publisher": "",
-                            "date": ""
-                        },
-                        {
-                            "id": 7,
-                            "title": "Fortune The AI drug breakthrough is taking a long time to arrive for reasons that may have little to...",
-                            "url": "https://fortune.com/2025/09/12/the-ai-drug-breakthrough-is-taking-a-long-time-to-arrive-for-reasons-that-may-have-little-to-do-with-the-technologys-limits/",
-                            "publisher": "",
-                            "date": ""
-                        }
-                    ],
-                    "summary": "The USA is witnessing a transformative shift in **drug discovery** as **AI** technologies enable **virtual screening**, **predictive modeling**, and **de novo drug design**, while facilitating the development of **personalized medicines** through the analysis of vast and complex datasets  [1-2].\n\nAccelerated experimental timelines, where traditional multi-year processes are reduced significantly by leveraging **high-throughput methods** and data-driven approaches, underscore the innovative momentum in the sector  [3-4].\n\nNational initiatives, such as the White House’s action plan, emphasize the modernization of scientific workflows through automated, **cloud-enabled laboratories** to further streamline drug screening and discovery processes  [5].\n\n**Technological Advances in AI-Driven Drug Discovery**\n\nBreakthroughs including the prediction of **protein structures** by systems like **AlphaFold** and advancements in **mRNA vaccine research** highlight AI’s potential to revolutionize early-stage drug design and tailor treatments based on multi-omics data  [4].\n\nAdvanced AI methodologies are enabling the analysis of myriad digital data—from electronic health records to laboratory results—to uncover **genetic mutations** and inform the development of **targeted oncology treatments**  [2].\n\nInnovative applications, such as the use of AI for **predictive modeling** of efficacy and toxicity, are streamlining the process of filtering out promising drug candidates early in the discovery phase  [1].\n\n**Data-Driven Innovations and Lab Automation**\n\nThe integration of **automated, cloud-enabled laboratories** is a key trend where AI-driven high-throughput screening significantly accelerates drug discovery timelines and enhances accuracy  [5].\n\nEmerging **privacy-enhancing technologies** such as differential privacy and federated learning are enabling secure, large-scale sharing of genomic and clinical data, ensuring that AI models are trained on high-quality, diverse datasets  [5].\n\nThe creation of **focused research organizations** (FROs) that consolidate interdisciplinary expertise is fostering innovative approaches to map complex therapeutic targets and address large-scale drug discovery challenges  [5].\n\n**Corporate Strategies and AI Integration**\n\nMajor corporations have embraced multifaceted AI strategies; for instance, **Novartis** has integrated AI into its drug discovery process through strategic partnerships with **Isomorphic Labs (Alphabet)**, **Generate:Biomedicines**, and **Microsoft**, reflecting a broader industry trend towards deep digital integration  [6].\n\nThere is a growing movement among smaller U.S. companies to build proprietary AI-driven pipelines instead of exclusively partnering with large pharmaceutical companies, thereby fostering innovation from within **emerging biotech firms**  [7].\n\nPractical implementations of AI, such as analyzing surgical videos for enhanced operational efficiency and optimizing clinical trial recruitment through data analytics, illustrate how corporations are leveraging technology to refine various aspects of the drug development process  [2].\n\n**Challenges and Future Directions in AI-Driven Drug Discovery**\n\nDespite significant advancements, the sector continues to face a high failure rate, with nearly **90%** of drug candidates stalling in clinical trials, emphasizing the need for more refined and accurate AI predictive models  [4].\n\nInnovations have yet to consistently translate into approved market products, as illustrated by instances where AI-discovered compounds, such as those by **Recursion Pharmaceuticals**, have not culminated in market-approved drugs  [7].\n\nOngoing investment in both fundamental research and advanced data infrastructures is critical to sustaining the rapid pace of innovation and ensuring that AI continues to transform drug discovery in the USA  [5]."
-                }
-            }
-        },
-        "meta": {
-            "report_id": 1009016,
-            "title": "AI in drug discovery - API Insights",
-            "user": "saish.kapadi@wokelo.ai",
-            "dt_createdon": "2026-04-08 18:47:45"
+        "parameters": {
+            "keywords":        ["zero trust", "SIEM"],
+            "geography":       ["USA"],
+            "definition":      "B2B software focused on enterprise cybersecurity",
+            "sample_companies": ["crowdstrike", "sentinelone"]
         }
     }
+)
+print(response.json())
+# {"request_id": "c574254f-137d-40d5-84f1-ac8fa38b8aa7", "status": "PENDING"}
+```
+
+</CodeGroup>
+
+---
+
+## 5. Response
+
+### Submission response
+
+The initial POST returns a `202 Accepted` with two fields:
+
+```json
+{
+  "request_id": "c574254f-137d-40d5-84f1-ac8fa38b8aa7",
+  "status": "PENDING"
 }
 ```
 
-## Best practices
+| Field | Type | Description |
+| --- | --- | --- |
+| `request_id` | string (UUID) | Unique identifier for this request. Use it with the [Request Status](/supporting-apis-doc#request-status) endpoint to poll for completion. Note: this is a UUID string, not an integer `report_id` — the two identifiers are not interchangeable. |
+| `status` | string | Initial status, always `"PENDING"` on submission. |
 
-- **Be specific with industry topic:** Broad terms like "tech" or "finance" will yield generic outputs. Use precise names like "B2B SaaS for supply chain" or "lithium-ion battery manufacturing" to get sharper, more actionable reports.
-- **Use parameters.keywords**: add specific keywords that resonate with the industry topic you are researching.
-- **Request only needed sections:** Each section adds processing time. Request only what you need for faster results.
+### Status polling response
+
+Poll `GET /api/enterprise/request/status/?request_id={request_id}`. The status field progresses through the following values:
+
+| Status value | Meaning |
+| --- | --- |
+| `"PENDING"` | Request is queued, waiting to start. |
+| `"PROCESSING"` | Analysis is in progress. |
+| `"COMPLETED"` | All requested sections are ready. The full `result` is embedded in this response. |
+| `"FAILED"` | Request failed. Retry the submission. |
+
+### Completed result structure
+
+When status is `"COMPLETED"`, the polling response includes a `result` object. The result is structured as:
+
+```json
+{
+  "request_id": "...",
+  "status": "COMPLETED",
+  "result": {
+    "IP enrichment": {
+      "<section_name>": { ...section data... },
+      "<section_name>": { ...section data... }
+    },
+    "meta": {
+      "report_id": 1009016,
+      "title": "AI in drug discovery - API Insights",
+      "user": "user@example.com",
+      "dt_createdon": "2026-04-08 18:47:45"
+    }
+  }
+}
+```
+
+The top-level result key is always `"IP enrichment"`. Your requested sections appear as child keys of this object, keyed by the section name you submitted.
+
+### `meta` object
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `report_id` | integer | Internal Wokelo report identifier for this enrichment run. Different from `request_id`. |
+| `title` | string | Auto-generated report title based on `topic`. |
+| `user` | string | Email address of the user associated with the API token. |
+| `dt_createdon` | string | Datetime the report was created, in `YYYY-MM-DD HH:MM:SS` format (UTC). |
+
+### Section-level response schemas
+
+**`market_size`**
+
+```json
+{
+  "market_size": {
+    "charts": {
+      "market_size_chart": {
+        "title": "Market Size Range",
+        "projection_year": 2034,
+        "period_start_year": 2024,
+        "period_end_year": 2034,
+        "data": [
+          {
+            "publisher": "<report title>",
+            "company": "<research firm name>",
+            "currency": "USD",
+            "cagr": "17.5",
+            "end_year": 2034,
+            "start_year": 2024,
+            "start_value": { "value": 2.5, "multiplier": 1000000000 },
+            "end_value":   { "value": 12.5, "multiplier": 1000000000 },
+            "estimated_value": { "value": 12.5, "multiplier": 1000000000 }
+          }
+        ],
+        "source": "Wokelo generated chart, extracted ranges from publishers, projections calculated based on estimated growth rates",
+        "note": "Note: CAGR and end-year projections calculated based on market size ranges",
+        "url": "<pre-rendered chart image URL>"
+      }
+    }
+  }
+}
+```
+
+Each object in the `data` array represents one market research publisher's estimate. Values use the `{value, multiplier}` pattern — always multiply before presenting. `cagr` is a string (not a float) representing percentage.
+
+**`trends_and_innovations`**
+
+```json
+{
+  "trends_and_innovations": {
+    "trend_and_innovations": {
+      "source": [
+        { "id": 1, "title": "...", "url": "...", "publisher": "", "date": "" }
+      ],
+      "summary": "<markdown-formatted narrative with source brackets [1], [2-3], etc.>"
+    }
+  }
+}
+```
+
+The `summary` field is a full markdown narrative with bold topic headings, named company examples, quantified data points, and inline source brackets referencing the `source` array by `id`.
+
+**All other sections** (`quant_insights`, `transactions_mna`, `transactions_fundraising`, `transactions_ipo`, `partnerships`, `tier1_intelligence`, `case_studies`, `industry_regulations`) follow the same general pattern as `trends_and_innovations`: a named sub-object containing a `source` array and a `summary` markdown string. Some sections may additionally include structured `charts` objects similar to `market_size`.
+
+<Info>
+  Market size `start_value`, `end_value`, and `estimated_value` all use the `{value, multiplier}` encoding — the same pattern as Industry Research fundraising charts. Always compute `value × multiplier` to get the raw USD amount: `2.5 × 1,000,000,000 = $2.5B`. The `cagr` field is a string, not a float; parse with `float(entry["cagr"])` before arithmetic.
+</Info>
+
+---
+
+## 6. Examples
+
+### Market sizing for a new sector
+
+Request only `market_size` for a fast, focused market sizing check before committing broader diligence.
+
+<CodeGroup>
+
+```bash cURL
+curl --location 'https://api.wokelo.ai/api/enterprise/industry/enrich/' \
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "topic": "AI in drug discovery",
+    "sections": ["market_size", "quant_insights"],
+    "parameters": {
+      "keywords": ["drug discovery"],
+      "geography": ["USA"]
+    }
+  }'
+```
+
+```python Python
+import requests, time
+
+API_KEY = "<YOUR_API_TOKEN>"
+HEADERS = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
+
+# Submit
+submit = requests.post(
+    "https://api.wokelo.ai/api/enterprise/industry/enrich/",
+    headers=HEADERS,
+    json={
+        "topic":    "AI in drug discovery",
+        "sections": ["market_size", "quant_insights"],
+        "parameters": {
+            "keywords":  ["drug discovery"],
+            "geography": ["USA"]
+        }
+    }
+)
+request_id = submit.json()["request_id"]
+print(f"Submitted. request_id: {request_id}")
+
+# Poll
+while True:
+    r = requests.get(
+        "https://api.wokelo.ai/api/enterprise/request/status/",
+        headers={"Authorization": f"Bearer {API_KEY}"},
+        params={"request_id": request_id}
+    )
+    data = r.json()
+    status = data.get("status")
+    print(f"Status: {status}")
+    if status == "COMPLETED":
+        result = data["result"]
+        break
+    if status == "FAILED":
+        raise Exception("Request failed")
+    time.sleep(10)
+
+# Parse market size chart
+enrichment = result["IP enrichment"]
+chart = enrichment["market_size"]["charts"]["market_size_chart"]
+
+print(f"\nMarket size range ({chart['period_start_year']}–{chart['projection_year']}):\n")
+for entry in chart["data"]:
+    start_b = entry["start_value"]["value"] * entry["start_value"]["multiplier"] / 1e9
+    end_b   = entry["end_value"]["value"]   * entry["end_value"]["multiplier"]   / 1e9
+    cagr    = float(entry["cagr"])
+    print(f"  {entry['company']:<30} ${start_b:.1f}B → ${end_b:.1f}B  (CAGR {cagr:.1f}%)")
+```
+
+</CodeGroup>
+
+**Sample submission response:**
+
+```json
+{
+  "request_id": "68555bdd-a11e-45df-97ab-a0cc6e6408a1",
+  "status": "PENDING"
+}
+```
+
+### Deal flow intelligence — M&A and fundraising
+
+Request both transaction sections to surface active deal flow and recently funded companies for a target sector.
+
+```python
+import requests, time
+
+API_KEY = "<YOUR_API_TOKEN>"
+HEADERS = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
+
+submit = requests.post(
+    "https://api.wokelo.ai/api/enterprise/industry/enrich/",
+    headers=HEADERS,
+    json={
+        "topic":    "Warehouse robotics and automation",
+        "sections": ["transactions_mna", "transactions_fundraising"],
+        "parameters": {
+            "keywords":  ["autonomous mobile robots", "AMR", "ASRS"],
+            "geography": ["USA", "DEU", "JPN"],
+            "definition": "Automated warehouse systems including AMRs, ASRS, robotic picking, and WMS software"
+        }
+    }
+)
+request_id = submit.json()["request_id"]
+
+# Poll
+while True:
+    r = requests.get(
+        "https://api.wokelo.ai/api/enterprise/request/status/",
+        headers={"Authorization": f"Bearer {API_KEY}"},
+        params={"request_id": request_id}
+    )
+    data = r.json()
+    if data["status"] == "COMPLETED":
+        enrichment = data["result"]["IP enrichment"]
+        break
+    if data["status"] == "FAILED":
+        raise Exception("Request failed")
+    time.sleep(10)
+
+# Print summaries
+for section in ["transactions_mna", "transactions_fundraising"]:
+    if section in enrichment:
+        section_data = enrichment[section]
+        # Find the summary sub-key (key name varies by section)
+        for key, val in section_data.items():
+            if isinstance(val, dict) and "summary" in val:
+                print(f"\n{'='*60}")
+                print(f"  {section.upper()}")
+                print('='*60)
+                print(val["summary"][:600] + "...")
+```
+
+### IC memo background — tier-1 intelligence and trends
+
+Pull McKinsey/BCG-sourced insights and innovation trends for a sector in a single call for an IC memo background section.
+
+```python
+submit = requests.post(
+    "https://api.wokelo.ai/api/enterprise/industry/enrich/",
+    headers=HEADERS,
+    json={
+        "topic":    "B2B embedded finance",
+        "sections": ["tier1_intelligence", "trends_and_innovations"],
+        "parameters": {
+            "keywords":   ["embedded payments", "banking-as-a-service", "BaaS"],
+            "geography":  ["USA", "GBR"],
+            "definition": "Financial services capabilities embedded directly into non-financial B2B software platforms"
+        }
+    }
+)
+request_id = submit.json()["request_id"]
+```
+
+### Regulatory risk scan for a specific geography
+
+Scope `industry_regulations` to a single country to assess jurisdiction-specific compliance requirements.
+
+```python
+submit = requests.post(
+    "https://api.wokelo.ai/api/enterprise/industry/enrich/",
+    headers=HEADERS,
+    json={
+        "topic":    "Consumer data privacy software",
+        "sections": ["industry_regulations"],
+        "parameters": {
+            "geography":  ["DEU", "FRA", "NLD"],
+            "definition": "B2B SaaS tools for GDPR compliance, consent management, and data subject rights management"
+        }
+    }
+)
+request_id = submit.json()["request_id"]
+```
+
+### Full-section deep dive
+
+Request all ten sections for a comprehensive sector intelligence run.
+
+```python
+submit = requests.post(
+    "https://api.wokelo.ai/api/enterprise/industry/enrich/",
+    headers=HEADERS,
+    json={
+        "topic":    "GLP-1 obesity drug market",
+        "sections": [
+            "market_size",
+            "quant_insights",
+            "trends_and_innovations",
+            "transactions_mna",
+            "transactions_fundraising",
+            "transactions_ipo",
+            "partnerships",
+            "tier1_intelligence",
+            "case_studies",
+            "industry_regulations"
+        ],
+        "parameters": {
+            "keywords":         ["GLP-1", "semaglutide", "tirzepatide", "obesity"],
+            "geography":        ["USA"],
+            "sample_companies": ["novo-nordisk", "eli-lilly"]
+        }
+    }
+)
+request_id = submit.json()["request_id"]
+print(f"Full deep dive submitted. request_id: {request_id}")
+print("Note: 10 sections may take 3-5 minutes to complete.")
+```
+
+### Batch analysis across multiple sectors
+
+Run Industry Deep Intelligence on several sectors in parallel and collect all results.
+
+```python
+import requests, time, concurrent.futures
+
+API_KEY  = "<YOUR_API_TOKEN>"
+HEADERS  = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
+
+SECTORS = [
+    ("Warehouse robotics",  ["market_size", "transactions_mna"]),
+    ("GLP-1 obesity drugs", ["market_size", "trends_and_innovations"]),
+    ("B2B embedded finance", ["transactions_fundraising", "tier1_intelligence"]),
+]
+
+def submit_analysis(topic, sections):
+    r = requests.post(
+        "https://api.wokelo.ai/api/enterprise/industry/enrich/",
+        headers=HEADERS,
+        json={"topic": topic, "sections": sections}
+    )
+    return topic, r.json()["request_id"]
+
+def poll_until_done(request_id, interval=10, timeout=600):
+    elapsed = 0
+    while elapsed < timeout:
+        r = requests.get(
+            "https://api.wokelo.ai/api/enterprise/request/status/",
+            headers={"Authorization": f"Bearer {API_KEY}"},
+            params={"request_id": request_id}
+        )
+        data = r.json()
+        if data["status"] == "COMPLETED":
+            return data["result"]
+        if data["status"] == "FAILED":
+            return None
+        time.sleep(interval)
+        elapsed += interval
+    return None
+
+# Submit all concurrently
+with concurrent.futures.ThreadPoolExecutor(max_workers=5) as pool:
+    futures = {pool.submit(submit_analysis, t, s): t for t, s in SECTORS}
+    jobs = {}
+    for f in concurrent.futures.as_completed(futures):
+        topic, request_id = f.result()
+        jobs[topic] = request_id
+        print(f"Submitted: {topic} → {request_id}")
+
+# Collect
+results = {}
+for topic, request_id in jobs.items():
+    result = poll_until_done(request_id)
+    if result:
+        results[topic] = result["IP enrichment"]
+        print(f"Collected: {topic}")
+    else:
+        print(f"Failed: {topic}")
+
+print(f"\nCollected {len(results)} / {len(SECTORS)} sector analyses")
+```
+
+### JavaScript / Node.js
+
+```javascript
+const fetch = require("node-fetch");
+
+async function analyzeIndustry(topic, sections, parameters = {}) {
+  // Submit
+  const submitRes = await fetch(
+    "https://api.wokelo.ai/api/enterprise/industry/enrich/",
+    {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.WOKELO_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ topic, sections, parameters })
+    }
+  );
+  const { request_id } = await submitRes.json();
+  console.log(`Submitted. request_id: ${request_id}`);
+
+  // Poll
+  while (true) {
+    await new Promise(r => setTimeout(r, 10000));
+    const statusRes = await fetch(
+      `https://api.wokelo.ai/api/enterprise/request/status/?request_id=${request_id}`,
+      { headers: { "Authorization": `Bearer ${process.env.WOKELO_API_KEY}` } }
+    );
+    const data = await statusRes.json();
+    console.log(`Status: ${data.status}`);
+    if (data.status === "COMPLETED") return data.result["IP enrichment"];
+    if (data.status === "FAILED") throw new Error(`Request ${request_id} failed`);
+  }
+}
+
+// Example: market sizing for AI drug discovery
+analyzeIndustry(
+  "AI in drug discovery",
+  ["market_size", "trends_and_innovations"],
+  { keywords: ["drug discovery"], geography: ["USA"] }
+).then(enrichment => {
+  const chart = enrichment.market_size?.charts?.market_size_chart;
+  if (chart) {
+    console.log(`\nMarket projections to ${chart.projection_year}:`);
+    chart.data.forEach(e => {
+      const endB = (e.end_value.value * e.end_value.multiplier / 1e9).toFixed(1);
+      console.log(`  ${e.company}: $${endB}B by ${e.end_year} (CAGR ${e.cagr}%)`);
+    });
+  }
+});
+```
+
+---
+
+## 7. Error Handling
+
+The API uses standard HTTP status codes. The submission endpoint returns a `202` on success and synchronous errors for invalid requests. Processing errors appear as `"FAILED"` status when polling.
+
+| Status | Meaning | Cause & Resolution |
+| --- | --- | --- |
+| `202 Accepted` | Request accepted | `request_id` and `"PENDING"` status returned. Proceed to polling. |
+| `400 Bad Request` | Invalid parameters | Missing `topic`, invalid `sections` value, or malformed `parameters` object. Check the `detail` field and verify section names against the supported sections table. |
+| `401 Unauthorized` | Auth failed | The `Authorization` header is missing or contains an invalid token. Verify your key in **Settings → API Keys**. |
+| `403 Forbidden` | Insufficient access | Your plan does not include access to this endpoint or the requested sections. Contact [support@wokelo.ai](mailto:support@wokelo.ai). |
+| `429 Too Many Requests` | Rate limit exceeded | Implement exponential back-off. The response includes a `Retry-After` header. |
+| `500 Internal Server Error` | Server error | Retry after a brief delay. If the issue persists, contact [support@wokelo.ai](mailto:support@wokelo.ai). |
+
+**Handling a `"FAILED"` request status:**
+
+```python
+r = requests.get(
+    "https://api.wokelo.ai/api/enterprise/request/status/",
+    headers={"Authorization": f"Bearer {API_KEY}"},
+    params={"request_id": request_id}
+)
+if r.json().get("status") == "FAILED":
+    print(f"Request {request_id} failed. Resubmitting...")
+    resubmit = requests.post(
+        "https://api.wokelo.ai/api/enterprise/industry/enrich/",
+        headers=HEADERS,
+        json={"topic": "Enterprise SaaS security", "sections": ["market_size"]}
+    )
+    new_id = resubmit.json()["request_id"]
+    print(f"New request_id: {new_id}")
+```
+
+**Retry with exponential back-off:**
+
+```python
+import time, requests
+
+def submit_with_retry(body, api_key, max_retries=3):
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    for attempt in range(max_retries):
+        try:
+            r = requests.post(
+                "https://api.wokelo.ai/api/enterprise/industry/enrich/",
+                headers=headers, json=body, timeout=30
+            )
+            if r.status_code == 429:
+                time.sleep(2 ** attempt)
+                continue
+            r.raise_for_status()
+            return r.json()["request_id"]
+        except requests.exceptions.Timeout:
+            if attempt == max_retries - 1:
+                raise
+            time.sleep(1)
+    raise Exception(f"Submission failed after {max_retries} attempts")
+```
+
+---
+
+## 8. Best Practices
+
+**Request only the sections you need — each section adds processing time**
+
+Unlike Workflow APIs that always generate a fixed full report, this API lets you select precisely the sections relevant to your use case. A single-section `market_size` request completes significantly faster than a full ten-section run. For tight turnaround use cases (IC prep, quick market checks), request one to three sections maximum:
+
+```python
+# Fast market check — one section
+json={"topic": "GLP-1 obesity drugs", "sections": ["market_size"]}
+
+# Deal sourcing context — two sections
+json={"topic": "Warehouse robotics", "sections": ["transactions_mna", "transactions_fundraising"]}
+
+# Full deep dive — all sections, expect 3–5 minutes
+json={"topic": "Enterprise SaaS security", "sections": [
+    "market_size", "quant_insights", "trends_and_innovations",
+    "transactions_mna", "transactions_fundraising", "transactions_ipo",
+    "partnerships", "tier1_intelligence", "case_studies", "industry_regulations"
+]}
+```
+
+**Be specific in the `topic` string — it is the primary quality driver**
+
+The `topic` field is free-text and specificity directly determines how focused the output is. Vague topics produce generic, shallow results:
+
+```python
+# ❌ Too broad — generic output
+"topic": "technology"
+"topic": "finance"
+"topic": "healthcare"
+
+# ✅ Specific — sharp, actionable output
+"topic": "B2B SaaS for supply chain visibility"
+"topic": "Lithium-ion battery recycling and second-life markets"
+"topic": "AI-powered clinical trial recruitment software"
+```
+
+**Use `parameters.definition` to resolve ambiguity when the topic alone is insufficient**
+
+When your topic string could be interpreted in multiple ways, the `definition` parameter anchors the analysis to your intended scope. This is particularly useful for topics that span consumer and enterprise, or that sit at the intersection of multiple industries:
+
+```python
+"parameters": {
+    "definition": "B2B software focused on enterprise cybersecurity, "
+                  "excluding consumer antivirus and endpoint protection for SMBs"
+}
+```
+
+**`request_id` is a UUID string — it is not interchangeable with `report_id`**
+
+This API returns a UUID `request_id` (e.g. `"c574254f-137d-40d5-84f1-ac8fa38b8aa7"`). The Workflow APIs return an integer `report_id`. These use different polling endpoints and cannot be mixed:
+
+```python
+# ❌ Wrong polling endpoint for this API
+requests.get(".../api/assets/get_notebook_status/", params={"report_id": request_id})
+
+# ✅ Correct polling endpoint for Industry Deep Intelligence
+requests.get(".../api/enterprise/request/status/", params={"request_id": request_id})
+```
+
+**The result is embedded in the polling response — no separate download call**
+
+Unlike the Workflow APIs (which require a separate `POST /api/assets/download_report/` call after polling), this API embeds the full result in the status response when `status == "COMPLETED"`. Extract `data["result"]` directly from the poll response:
+
+```python
+# ✅ Correct — result is in the status response
+data = requests.get(".../api/enterprise/request/status/", params={"request_id": request_id}).json()
+if data["status"] == "COMPLETED":
+    result = data["result"]              # No separate download call needed
+    enrichment = result["IP enrichment"]
+```
+
+**Parse `market_size` chart values with the `{value, multiplier}` pattern**
+
+Each market size data point stores values as `{value, multiplier}` pairs rather than raw numbers. Always multiply before presenting, and note that `cagr` is a string not a float:
+
+```python
+for entry in chart["data"]:
+    start_usd = entry["start_value"]["value"] * entry["start_value"]["multiplier"]
+    end_usd   = entry["end_value"]["value"]   * entry["end_value"]["multiplier"]
+    cagr_pct  = float(entry["cagr"])          # parse string to float
+    print(f"${start_usd/1e9:.1f}B → ${end_usd/1e9:.1f}B  CAGR {cagr_pct:.1f}%")
+```
+
+**Use `parameters.sample_companies` to ground the analysis in your competitive set**
+
+Providing representative company permalinks in `sample_companies` guides the AI analysis toward the right competitive context, particularly for niche sectors where the topic string alone might be interpreted too broadly. Use permalinks (not website URLs) — find them via the [Company Search API](/supporting-apis-doc#company-search):
+
+```python
+"parameters": {
+    "sample_companies": ["crowdstrike", "sentinelone", "palo-alto-networks"]
+}
+```
+
+**Understand how this differs from Industry Research (Workflow API)**
+
+Industry Deep Intelligence and Industry Research both cover industry topics, but serve different needs. Industry Deep Intelligence offers **section-level selectivity** — request only what you need, get results in minutes through a lightweight polling loop. Industry Research always generates a **fixed five-section report** (Executive Summary, Key Insights, Overview, Trends, Select Transactions) through the Workflow API infrastructure and typically takes longer. Use Industry Deep Intelligence when you need specific sections quickly or want to compose your own multi-section pipeline; use Industry Research when you want a complete, formatted deliverable (PDF, DOCX, PPT) in one job.
+
+---
+
+## 9. Related APIs
+
+<CardGroup cols={3}>
+  <Card title="Industry Research" icon="chart-line" href="/industry-research-doc">
+    The async Workflow alternative — generates a fixed five-section industry report with PDF/DOCX/PPT export. Use when you need a complete formatted deliverable.
+  </Card>
+
+  <Card title="Company Deep Intelligence" icon="brain" href="/company-deep-intelligence-doc">
+    The company-level equivalent — section-selective deep intelligence on any specific company, using the same async request\_id pattern.
+  </Card>
+
+  <Card title="Industry News Monitoring" icon="newspaper" href="/industry-news-monitoring-doc">
+    Real-time news feed for any industry topic — synchronous, paginated, no polling required. Complements Industry Deep Intelligence for ongoing monitoring.
+  </Card>
+
+  <Card title="Market Map" icon="map" href="/market-map-doc">
+    Discover and map all companies competing in a specific market or product category — ideal to run alongside Industry Deep Intelligence for a competitive landscape.
+  </Card>
+
+  <Card title="Newsfeed" icon="rss" href="/newsfeed-doc">
+    Structured multi-industry news feed filtered by sentiment, geography, and event category — for recurring sector monitoring pipelines.
+  </Card>
+
+  <Card title="Supporting APIs" icon="wrench" href="/supporting-apis-doc">
+    Request Status and Company Search — both used alongside Industry Deep Intelligence in the async workflow.
+  </Card>
+</CardGroup>
