@@ -1,0 +1,298 @@
+---
+title: "Get Company Jobs"
+openapi: "GET /api/enterprise/company/jobs/"
+---
+
+## Overview
+
+The Get Company Jobs API fetches the currently listed job postings for a given company. Each posting includes the title, location, work arrangement, any disclosed salary metadata, and a `job_id`. Results are returned synchronously in the API response and paginated using `page` and `page_size`.
+
+To retrieve the full posting — complete description, structured requirements, and resolved metadata — pass the `job_id` from this response to the Get Job Details API.
+
+## Endpoint Details
+
+- **Method:** GET
+- **Endpoint:** `api/enterprise/company/jobs/`
+
+## Authentication requirements
+
+- Include a valid JWT token in your request header
+- If you don't have a token yet, you can get one from the `/auth/token/` endpoint first.
+
+## Request
+
+### Request Parameters
+
+#### Header Parameters
+
+<ParamField header="token" type="string" required>
+  JWT token obtained from the Authentication request
+</ParamField>
+
+### URL Parameters
+
+<ParamField query="company" type="string" required>
+  Company permalink or a valid company URL for which job postings need to be fetched (e.g., `tesla` or `https://www.tesla.com/`)
+</ParamField>
+
+<ParamField query="page" type="integer">
+  The page number to retrieve. Used together with `page_size` to paginate through results.
+
+  Default = 1
+</ParamField>
+
+<ParamField query="page_size" type="integer">
+  Number of job results to return per page.
+
+  Default = 50
+
+  Max value = 500
+</ParamField>
+
+## Response
+
+#### Successful Response Fields
+
+Returns a JSON object with the following structure:
+
+<ResponseField name="status" type="string">
+  `"success"` if the request was processed successfully.
+</ResponseField>
+
+<ResponseField name="data" type="array">
+  List of job postings for the requested page. Each object contains the fields below.
+
+  <Expandable title="Job object">
+    <ResponseField name="job_id" type="string">
+      Unique identifier for the posting. Pass this to the Get Job Details API to retrieve the full posting.
+    </ResponseField>
+
+    <ResponseField name="title" type="string">
+      Job title as listed.
+    </ResponseField>
+
+    <ResponseField name="url" type="string">
+      Canonical URL of the original job posting.
+    </ResponseField>
+
+    <ResponseField name="location" type="string">
+      Location of the role (city, region, country). May be empty for fully remote roles.
+    </ResponseField>
+
+    <ResponseField name="description" type="string">
+      Short description of the role when available. Often empty in the listing — use Get Job Details for the full text.
+    </ResponseField>
+
+    <ResponseField name="type" type="string">
+      Employment type (e.g. full-time, part-time, contract). Empty string when not specified.
+    </ResponseField>
+
+    <ResponseField name="remote_allow" type="boolean">
+      `true` when the role permits remote work.
+    </ResponseField>
+
+    <ResponseField name="salary_display" type="string">
+      Human-readable salary string as shown on the posting. Empty when not disclosed.
+    </ResponseField>
+
+    <ResponseField name="salary_details" type="object">
+      Structured salary breakdown when available. Empty object when not disclosed.
+    </ResponseField>
+
+    <ResponseField name="min_salary" type="number">
+      Lower bound of the salary range. `null` when not disclosed.
+    </ResponseField>
+
+    <ResponseField name="max_salary" type="number">
+      Upper bound of the salary range. `null` when not disclosed.
+    </ResponseField>
+
+    <ResponseField name="compensation_type" type="string">
+      Compensation basis (e.g. base salary, hourly). Empty string when not specified.
+    </ResponseField>
+
+    <ResponseField name="pay_period" type="string">
+      Pay period the salary refers to (e.g. yearly, hourly). Empty string when not specified.
+    </ResponseField>
+
+    <ResponseField name="currency_code" type="string">
+      ISO 4217 currency code of the salary figures (e.g. `USD`). Empty string when not disclosed.
+    </ResponseField>
+
+    <ResponseField name="job_functions" type="array">
+      Functional categories for the role. Empty array when not classified.
+    </ResponseField>
+
+    <ResponseField name="industries" type="array">
+      Industries associated with the role. Empty array when not classified.
+    </ResponseField>
+
+    <ResponseField name="experience_level" type="string">
+      Seniority/experience level (e.g. entry, mid, senior). Empty string when not specified.
+    </ResponseField>
+
+    <ResponseField name="skills" type="array">
+      Skills associated with the role. Empty array when not detected.
+    </ResponseField>
+
+    <ResponseField name="benefits" type="array">
+      Listed benefits. Empty array when none specified.
+    </ResponseField>
+
+    <ResponseField name="listed_at_date" type="string">
+      Date the posting was listed. `null` when not available.
+    </ResponseField>
+
+    <ResponseField name="original_listed_date" type="string">
+      Date the posting was originally listed. `null` when not available.
+    </ResponseField>
+
+    <ResponseField name="expire_at" type="string">
+      Expiry date of the posting. `null` when no expiry is set.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<RequestExample>
+
+```javascript JavaScript - Fetch
+const myHeaders = new Headers();
+myHeaders.append("Authorization", "Bearer Token");
+myHeaders.append("Content-Type", "application/json");
+
+const requestOptions = {
+  method: "GET",
+  headers: myHeaders,
+  redirect: "follow"
+};
+
+fetch("{{path}}/api/enterprise/company/jobs/?company=tesla&page=1&page_size=50", requestOptions)
+  .then((response) => response.text())
+  .then((result) => console.log(result))
+  .catch((error) => console.error(error));
+```
+
+```python Python
+import requests
+
+url = "{{path}}/api/enterprise/company/jobs/"
+
+headers = {
+    "Authorization": "Bearer Token",
+    "Content-Type": "application/json"
+}
+
+params = {
+    "company": "tesla",
+    "page": 1,
+    "page_size": 50
+}
+
+response = requests.get(url, headers=headers, params=params)
+print(response.json())
+```
+
+```bash cURL
+curl --location '{{path}}/api/enterprise/company/jobs/?company=tesla&page=1&page_size=50' \
+  --header 'Authorization: Bearer Token' \
+  --header 'Content-Type: application/json'
+```
+
+```go Go
+package main
+
+import (
+	"fmt"
+	"io"
+	"net/http"
+)
+
+func main() {
+	url := "{{path}}/api/enterprise/company/jobs/?company=tesla&page=1&page_size=50"
+
+	req, _ := http.NewRequest("GET", url, nil)
+	req.Header.Add("Authorization", "Bearer Token")
+	req.Header.Add("Content-Type", "application/json")
+
+	res, _ := http.DefaultClient.Do(req)
+	defer res.Body.Close()
+	body, _ := io.ReadAll(res.Body)
+	fmt.Println(string(body))
+}
+```
+
+```java Java
+OkHttpClient client = new OkHttpClient();
+
+Request request = new Request.Builder()
+  .url("{{path}}/api/enterprise/company/jobs/?company=tesla&page=1&page_size=50")
+  .get()
+  .addHeader("Authorization", "Bearer Token")
+  .addHeader("Content-Type", "application/json")
+  .build();
+
+Response response = client.newCall(request).execute();
+System.out.println(response.body().string());
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200
+{
+    "status": "success",
+    "data": [
+        {
+            "job_id": "4426093115",
+            "title": "大阪【自動運転テストドライバー】",
+            "url": "https://www.linkedin.com/jobs/view/4426093115",
+            "location": "Osaka, Osaka, Japan",
+            "description": "",
+            "type": "",
+            "remote_allow": true,
+            "salary_display": "",
+            "salary_details": {},
+            "min_salary": null,
+            "max_salary": null,
+            "compensation_type": "",
+            "pay_period": "",
+            "currency_code": "",
+            "job_functions": [],
+            "industries": [],
+            "experience_level": "",
+            "expire_at": null,
+            "listed_at_date": null,
+            "original_listed_date": null,
+            "skills": [],
+            "benefits": []
+        },
+        {
+            "job_id": "4426101005",
+            "title": "Service Advisor, Oakleigh",
+            "url": "https://www.linkedin.com/jobs/view/4426101005",
+            "location": "Oakleigh South, Victoria, Australia",
+            "description": "",
+            "type": "",
+            "remote_allow": true,
+            "salary_display": "",
+            "salary_details": {},
+            "min_salary": null,
+            "max_salary": null,
+            "compensation_type": "",
+            "pay_period": "",
+            "currency_code": "",
+            "job_functions": [],
+            "industries": [],
+            "experience_level": "",
+            "expire_at": null,
+            "listed_at_date": null,
+            "original_listed_date": null,
+            "skills": [],
+            "benefits": []
+        }
+    ]
+}
+```
+
+</ResponseExample>

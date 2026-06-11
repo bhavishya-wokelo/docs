@@ -43,7 +43,9 @@
               "company-filings-and-transcripts",
               "company-instant-enrichment-doc-batch",
               "company-deep-intelligence-doc",
-              "industry-deep-intelligence-doc"
+              "industry-deep-intelligence-doc",
+              "jobs",
+              "job-details"
             ]
           },
           {
@@ -138,7 +140,9 @@
               "product-reviews",
               "company-filings",
               "employee-reviews",
-              "earnings-transcripts"
+              "earnings-transcripts",
+              "jobs-1",
+              "job-details-1"
             ]
           },
           {
@@ -182,7 +186,8 @@
               "request-result",
               "get-report-status",
               "download-report",
-              "notebook-configuration"
+              "notebook-configuration",
+              "add-company"
             ]
           }
         ]

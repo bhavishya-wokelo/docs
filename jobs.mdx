@@ -1,0 +1,411 @@
+---
+title: "Get Company Jobs"
+description: "Fetch the latest open job postings for any company — including job title, location, work-type, salary metadata, and the job_id needed to retrieve full job details — returned synchronously with simple page-based pagination."
+---
+
+## 1. Overview
+
+The Get Company Jobs API returns the currently listed job postings for a given company. Results are returned synchronously in the HTTP response — no job polling required.
+
+This is a **synchronous GET API** — you pass a company identifier and optional pagination parameters as URL parameters, and receive a paginated array of job postings immediately.
+
+Each job in the response includes:
+
+- **Core posting details** — `title`, `location`, `url`, and a `description` when available
+- **Work arrangement** — `type` (e.g. full-time, contract) and a `remote_allow` flag
+- **Compensation metadata** — `salary_display`, `min_salary`, `max_salary`, `currency_code`, `pay_period`, and `compensation_type` when disclosed
+- **Classification** — `job_functions`, `industries`, `experience_level`, `skills`, and `benefits` when available
+- **Timing** — `listed_at_date`, `original_listed_date`, and `expire_at`
+- **`job_id`** — the identifier used to fetch the complete job posting via the Get Job Details API
+
+**Common use cases:**
+
+- **Hiring signal monitoring** — Track open headcount across a portfolio or competitor set to infer growth, geographic expansion, or strategic priorities
+- **Talent market mapping** — Pull all roles for a company to analyse function mix, seniority distribution, and locations
+- **Recruiting intelligence** — Surface remote-eligible or specific-function roles across a coverage universe
+
+<Info>
+  This API is synchronous. Results are returned directly in the HTTP response — no job submission or polling required. See [How Sync APIs work](/how-sync-apis-work).
+</Info>
+
+<Note>
+  This endpoint returns the job _listing_ with summary fields. To retrieve the full posting — complete description, structured requirements, and all metadata — pass the `job_id` from this response to the [Get Job Details API](/job-details-doc).
+</Note>
+
+---
+
+## 2. Quick Start
+
+**Step 1 — Make a simple request**
+
+<CodeGroup>
+
+```bash cURL
+curl --location 'https://api.wokelo.ai/api/enterprise/company/jobs/?company=tesla' \
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json'
+```
+
+```python Python
+import requests
+
+response = requests.get(
+    "https://api.wokelo.ai/api/enterprise/company/jobs/",
+    headers={
+        "Authorization": "Bearer <YOUR_API_TOKEN>",
+        "Content-Type": "application/json"
+    },
+    params={
+        "company": "tesla"
+    }
+)
+data = response.json()
+print(f"Retrieved {len(data['data'])} jobs")
+```
+
+</CodeGroup>
+
+**Step 2 — Control pagination**
+
+```python
+response = requests.get(
+    "https://api.wokelo.ai/api/enterprise/company/jobs/",
+    headers={"Authorization": "Bearer <YOUR_API_TOKEN>"},
+    params={
+        "company": "tesla",
+        "page": 1,
+        "page_size": 100
+    }
+)
+jobs = response.json()["data"]
+```
+
+**Step 3 — Work with the jobs**
+
+```python
+for job in jobs:
+    remote = "Remote OK" if job["remote_allow"] else "On-site"
+    print(f"{job['title']} — {job['location']} [{remote}]")
+    print(f"  job_id: {job['job_id']} | {job['url']}")
+    print()
+```
+
+---
+
+## 3. Authentication
+
+All requests must include a **Bearer token** in the `Authorization` HTTP header. No other authentication method is supported.
+
+```text
+Authorization: Bearer <YOUR_API_TOKEN>
+```
+
+API tokens are issued from your Wokelo account. Navigate to **Account Details → API Credentials** in the Wokelo dashboard to get your client id and client secret. Contact [support@wokelo.ai](mailto:support@wokelo.ai) if you do not yet have API access.
+
+<Warning>
+  Never expose your token in client-side code, browser requests, or public repositories. A missing or invalid token returns `401 Unauthorized`. A valid token without sufficient plan permissions returns `403 Forbidden`.
+</Warning>
+
+---
+
+## 4. Request Reference
+
+**Endpoint**
+
+```text
+GET https://api.wokelo.ai/api/enterprise/company/jobs/
+```
+
+All parameters are passed as URL query parameters.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `company` | string | **Required** | Company permalink (e.g. `"tesla"`) or a full company URL (e.g. `"https://www.tesla.com/"`). Use the [Company Search API](/supporting-apis-doc) to resolve a name to its permalink. |
+| `page` | integer | Optional | The page number to retrieve. Used together with `page_size` to paginate through results. Defaults to `1`. |
+| `page_size` | integer | Optional | Number of job results per page. Default `50`, maximum `500`. |
+
+**Full request example:**
+
+<CodeGroup>
+
+```bash cURL
+curl --location 'https://api.wokelo.ai/api/enterprise/company/jobs/?company=tesla&page=1&page_size=100' \
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json'
+```
+
+```python Python
+import requests
+
+response = requests.get(
+    "https://api.wokelo.ai/api/enterprise/company/jobs/",
+    headers={
+        "Authorization": "Bearer <YOUR_API_TOKEN>",
+        "Content-Type": "application/json"
+    },
+    params={
+        "company": "tesla",
+        "page": 1,
+        "page_size": 100
+    }
+)
+print(response.json())
+```
+
+</CodeGroup>
+
+---
+
+## 5. Response
+
+### Response structure
+
+```json
+{
+  "status": "success",
+  "data": [ ...job objects... ]
+}
+```
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `status` | string | `"success"` when the request was processed successfully. |
+| `data` | array | Array of job posting objects for the requested page. |
+
+### Job object fields
+
+Each object in the `data` array contains the following fields:
+
+**Core posting details**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `job_id` | string | Unique identifier for the posting. **Pass this to the Get Job Details API to retrieve the full posting.** |
+| `title` | string | Job title as listed. |
+| `url` | string | Canonical URL of the original job posting. |
+| `location` | string | Location of the role (city, region, country). May be empty for fully remote roles. |
+| `description` | string | Short description of the role when available. Often empty in the listing — use Get Job Details for full text. |
+| `type` | string | Employment type (e.g. full-time, part-time, contract). Empty string when not specified. |
+| `remote_allow` | boolean | `true` when the role permits remote work. |
+
+**Compensation metadata**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `salary_display` | string | Human-readable salary string as shown on the posting. Empty when not disclosed. |
+| `salary_details` | object | Structured salary breakdown when available. Empty object when not disclosed. |
+| `min_salary` | number | Lower bound of the salary range. `null` when not disclosed. |
+| `max_salary` | number | Upper bound of the salary range. `null` when not disclosed. |
+| `compensation_type` | string | Compensation basis (e.g. base salary, hourly). Empty string when not specified. |
+| `pay_period` | string | Pay period the salary refers to (e.g. yearly, hourly). Empty string when not specified. |
+| `currency_code` | string | ISO 4217 currency code of the salary figures (e.g. `"USD"`). Empty string when not disclosed. |
+
+**Classification & timing**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `job_functions` | string\[\] | Functional categories for the role. Empty array when not classified. |
+| `industries` | string\[\] | Industries associated with the role. Empty array when not classified. |
+| `experience_level` | string | Seniority/experience level (e.g. entry, mid, senior). Empty string when not specified. |
+| `skills` | string\[\] | Skills associated with the role. Empty array when not detected. |
+| `benefits` | string\[\] | Listed benefits. Empty array when none specified. |
+| `listed_at_date` | string | Date the posting was listed. `null` when not available. |
+| `original_listed_date` | string | Date the posting was originally listed. `null` when not available. |
+| `expire_at` | string | Expiry date of the posting. `null` when no expiry is set. |
+
+### Sample response
+
+```json
+{
+    "status": "success",
+    "data": [
+        {
+            "job_id": "4426093115",
+            "title": "大阪【自動運転テストドライバー】",
+            "url": "https://www.linkedin.com/jobs/view/4426093115",
+            "location": "Osaka, Osaka, Japan",
+            "description": "",
+            "type": "",
+            "remote_allow": true,
+            "salary_display": "",
+            "salary_details": {},
+            "min_salary": null,
+            "max_salary": null,
+            "compensation_type": "",
+            "pay_period": "",
+            "currency_code": "",
+            "job_functions": [],
+            "industries": [],
+            "experience_level": "",
+            "expire_at": null,
+            "listed_at_date": null,
+            "original_listed_date": null,
+            "skills": [],
+            "benefits": []
+        },
+        {
+            "job_id": "4426101005",
+            "title": "Service Advisor, Oakleigh",
+            "url": "https://www.linkedin.com/jobs/view/4426101005",
+            "location": "Oakleigh South, Victoria, Australia",
+            "description": "",
+            "type": "",
+            "remote_allow": true,
+            "salary_display": "",
+            "salary_details": {},
+            "min_salary": null,
+            "max_salary": null,
+            "compensation_type": "",
+            "pay_period": "",
+            "currency_code": "",
+            "job_functions": [],
+            "industries": [],
+            "experience_level": "",
+            "expire_at": null,
+            "listed_at_date": null,
+            "original_listed_date": null,
+            "skills": [],
+            "benefits": []
+        }
+    ]
+}
+```
+
+### Notes on empty fields
+
+Many fields can be empty strings, empty arrays, empty objects, or `null` in valid responses. Compensation fields (`min_salary`, `max_salary`, `salary_display`), classification fields (`job_functions`, `industries`, `skills`, `experience_level`), and timing fields (`listed_at_date`, `expire_at`) are frequently unpopulated in the listing view — the source posting may not disclose them, or they are only resolved when you fetch the full posting via the Get Job Details API. Always guard against empty/`null` values before using these fields.
+
+---
+
+## 6. Examples
+
+### Hiring signal monitoring — paginate through all open roles
+
+Retrieve every open posting for a company by paginating until a page returns fewer results than `page_size`, then summarise by location and remote-eligibility.
+
+```python
+import requests
+from collections import Counter
+
+HEADERS = {"Authorization": "Bearer <YOUR_API_TOKEN>"}
+PAGE_SIZE = 200
+
+all_jobs = []
+page = 1
+
+while True:
+    response = requests.get(
+        "https://api.wokelo.ai/api/enterprise/company/jobs/",
+        headers=HEADERS,
+        params={
+            "company": "tesla",
+            "page": page,
+            "page_size": PAGE_SIZE
+        }
+    )
+    batch = response.json().get("data", [])
+    all_jobs.extend(batch)
+    print(f"Page {page}: fetched {len(batch)} jobs (running total: {len(all_jobs)})")
+
+    # Last page reached when a partial (or empty) page is returned
+    if len(batch) < PAGE_SIZE:
+        break
+    page += 1
+
+# Summarise hiring footprint
+remote = sum(1 for j in all_jobs if j["remote_allow"])
+print(f"\nTotal open roles: {len(all_jobs)} | Remote-eligible: {remote}")
+
+top_locations = Counter(j["location"] for j in all_jobs if j["location"]).most_common(10)
+print("\nTop hiring locations:")
+for loc, n in top_locations:
+    print(f"  {n:>3}  {loc}")
+```
+
+### Chaining to the Get Job Details API
+
+The listing view returns summary fields only. To get the full posting, pass each `job_id` to the Get Job Details API.
+
+```python
+import requests
+
+HEADERS = {"Authorization": "Bearer <YOUR_API_TOKEN>"}
+
+# 1. Get the listing
+jobs = requests.get(
+    "https://api.wokelo.ai/api/enterprise/company/jobs/",
+    headers=HEADERS,
+    params={"company": "tesla", "page": 1, "page_size": 50}
+).json()["data"]
+
+# 2. Fetch full details for the first few job_ids
+for job in jobs[:5]:
+    details = requests.get(
+        "https://api.wokelo.ai/api/enterprise/company/job-details/",
+        headers=HEADERS,
+        params={"job_id": job["job_id"]}
+    ).json()
+
+    print(f"{job['title']} ({job['job_id']})")
+    print(f"  {details.get('data', {})}")
+    print()
+```
+
+<Note>
+  Refer to the [Get Job Details API](/job-details-doc) documentation for its exact endpoint path, parameters, and response schema.
+</Note>
+
+---
+
+## 7. Error Handling
+
+The API uses standard HTTP status codes. All error responses include a JSON body with a `detail` or `message` field.
+
+| Status | Meaning | Cause & Resolution |
+| --- | --- | --- |
+| `200 OK` | Success | Jobs returned successfully. |
+| `400 Bad Request` | Invalid parameters | A required parameter is missing or a value is invalid — e.g. missing `company`, or `page_size` above the maximum. Check `detail`. |
+| `401 Unauthorized` | Auth failed | The `Authorization` header is missing, malformed, or contains an invalid token. Verify your key in **Settings → API Keys**. |
+| `403 Forbidden` | Insufficient access | Your plan does not include access to this endpoint or company. Contact [support@wokelo.ai](mailto:support@wokelo.ai). |
+| `404 Not Found` | Company not found | The `company` permalink could not be resolved. Use the [Company Search API](/supporting-apis-doc) to verify it. |
+| `429 Too Many Requests` | Rate limit exceeded | Implement exponential back-off. The response includes a `Retry-After` header. |
+| `500 Internal Server Error` | Server error | Retry after a brief delay. If the issue persists, contact [support@wokelo.ai](mailto:support@wokelo.ai). |
+
+**Error response example:**
+
+```json
+{
+  "status": "error",
+  "detail": "Company permalink 'unknown-co' could not be resolved."
+}
+```
+
+---
+
+## 8. Best Practices
+
+**Use the `company` permalink, not a display name.** The `company` parameter expects a permalink (e.g. `"tesla"`) or a full URL. Passing `"Tesla Inc."` will not resolve. Use the [Company Search API](/supporting-apis-doc) to look up the permalink first.
+
+**Tune `page_size` to your workload.** Default is `50` and the maximum is `500`. Use larger pages to minimise round-trips when pulling a company's full hiring footprint; stop paginating when a page returns fewer results than `page_size`.
+
+**Guard against empty and `null` fields.** Most compensation, classification, and timing fields are unpopulated in the listing view. Always use `.get()` with defaults and check for `null` before using `min_salary`, `listed_at_date`, etc.
+
+**Use Get Job Details for full content.** This endpoint is optimised for listing and discovery. When you need the complete description, structured requirements, or resolved metadata, pass the `job_id` to the Get Job Details API rather than relying on the (often empty) `description` field here.
+
+---
+
+## 9. Related APIs
+
+<CardGroup cols={3}>
+  <Card title="Get Job Details" icon="briefcase" href="/job-details-doc">
+    Retrieve the complete posting for a single role by passing the `job_id` from this API.
+  </Card>
+
+  <Card title="Company News Monitoring" icon="newspaper" href="/company-news-monitoring-doc">
+    Fetch the latest AI-enriched news articles for any company.
+  </Card>
+
+  <Card title="Company Instant Enrichment" icon="bolt" href="/company-instant-enrichment-doc">
+    Synchronously enrich firmographic and financial data for any company by permalink or URL.
+  </Card>
+</CardGroup>

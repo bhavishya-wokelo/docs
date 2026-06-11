@@ -1,0 +1,271 @@
+---
+title: "Add Company"
+openapi: "POST /api/enterprise/company/add/"
+---
+
+## Overview
+
+Add a company to the Wokelo database when it cannot be found using the Company Search API. This is an asynchronous request that returns a `request_id`. Once the request is completed, the result contains the `permalink` of the newly added company, which can then be used across other Wokelo APIs.
+
+## Endpoint Details
+
+- **Method:** POST
+- **Endpoint:** `/api/enterprise/company/add/`
+
+NOTE: This is an asynchronous API. After submitting a request, poll the request status endpoint and retrieve the output using the request result endpoint. Learn more in [How Async APIs work](https://docs.wokelo.ai/how-async-apis-work).
+
+## Authentication requirements
+
+- Include a valid JWT token in your request header
+- If you don't have a token yet, you can get one from the `/auth/token/` endpoint first.
+
+## Request
+
+#### Header Parameters
+
+<ParamField header="Authorization" type="string" required>
+  JWT token obtained from the Authentication request
+</ParamField>
+
+<ParamField header="Content-Type" type="string" required>
+  Must be set to `application/json`
+</ParamField>
+
+#### Body Parameters
+
+<ParamField body="company_name" type="string" required>
+  Name of the company to add.
+
+  Example: `Aditi Solar`
+</ParamField>
+
+<ParamField body="website" type="string" required>
+  Full URL of the company's website.
+
+  Example: `https://aditisolar.in/`
+</ParamField>
+
+<ParamField body="product_category" type="string">
+  Product or industry category of the company.
+</ParamField>
+
+<ParamField body="company_type" type="string">
+  Type of the company. Supported values: `Public`, `Private`
+</ParamField>
+
+**Sample Request Body**
+
+```json
+{
+    "company_name": "Aditi Solar",
+    "website": "https://aditisolar.in/"
+}
+```
+
+## Response
+
+**Successful Response Fields**
+
+Returns a JSON object with the following structure:
+
+<ResponseField name="request_id" type="string">
+  Unique identifier for the request. Use this to check status and retrieve the result.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Current status of the request (e.g., `PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`, `CANCELLED`).
+</ResponseField>
+
+**Sample Response**
+
+```json
+{
+    "request_id": "89daf26a-ee17-4915-96da-19b52067068a",
+    "status": "PENDING"
+}
+```
+
+## Retrieving the Result
+
+Once the request status is `COMPLETED`, use the request result endpoint to fetch the output.
+
+```bash
+curl --location 'https://api.wokelo.ai/api/enterprise/request/result/?request_id=89daf26a-ee17-4915-96da-19b52067068a' \
+--header 'Authorization: Bearer {YOUR TOKEN}' \
+--header 'Content-Type: application/json'
+```
+
+**Completed Result Fields**
+
+<ResponseField name="request_id" type="string">
+  Unique identifier for the request.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Status of the request — `COMPLETED` when the company has been added.
+</ResponseField>
+
+<ResponseField name="result" type="object">
+  Result object containing the outcome of the add operation.
+
+  - `status` — `"success"` if the company was added successfully.
+  - `permalink` — Unique identifier/slug for the newly added company.
+</ResponseField>
+
+<ResponseField name="credits_consumed" type="number">
+  Number of credits consumed by the request.
+</ResponseField>
+
+**Sample Completed Result**
+
+```json
+{
+    "request_id": "89daf26a-ee17-4915-96da-19b52067068a",
+    "status": "COMPLETED",
+    "result": {
+        "status": "success",
+        "permalink": "wokelo-aditisolar-in"
+    },
+    "credits_consumed": 0.0
+}
+```
+
+<ResponseExample>
+
+```json 200
+{
+    "request_id": "89daf26a-ee17-4915-96da-19b52067068a",
+    "status": "PENDING"
+}
+```
+
+</ResponseExample>
+
+## OpenAPI
+
+```yaml POST /api/enterprise/company/add/
+openapi: 3.0.3
+info:
+  title: Wokelo API
+  description: >
+    Wokelo provides four categories of APIs for company and market intelligence:
+
+
+    1. **Enrichment** – Company and Industry data using Wokelo database and
+    alternative data. Supports multi-company requests.
+
+    2. **Discovery** – Workflows for specific use-cases such as market map,
+    target screening, and buyer screening.
+
+    3. **Monitoring** – Real-time news monitoring for companies.
+
+    4. **Workflow Automation** – Wokelo and custom research workflows executed
+    within notebooks.
+
+
+    Enrichment and Discovery APIs are managed through async requests; use the
+    Supporting APIs to track status and export results in JSON.
+
+    Workflow APIs are executed within notebooks and support export to PDF, PPT,
+    DOC, or JSON.
+
+
+    **Authentication:** All endpoints (except `/auth/token/`) require a Bearer
+    JWT token in the `Authorization` header.
+  version: 1.0.0
+  contact:
+    url: https://docs.wokelo.ai/contact
+servers:
+  - url: https://api.wokelo.ai
+    description: Production server
+security: []
+tags:
+  - name: Supporting APIs
+    description: >-
+      Utility endpoints for search, file upload, request management, and report
+      retrieval
+externalDocs:
+  description: Official Wokelo API Documentation
+  url: https://docs.wokelo.ai/overview
+paths:
+  /api/enterprise/company/add/:
+    post:
+      tags:
+        - Supporting APIs
+      summary: Add Company
+      description: >-
+        Add a company to the Wokelo database when it cannot be found via Company
+        Search. This is an asynchronous request that returns a request_id; poll
+        the request status endpoint and retrieve the resulting permalink via the
+        request result endpoint.
+      operationId: addCompany
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - company_name
+                - website
+              properties:
+                company_name:
+                  type: string
+                  description: Name of the company to add.
+                  example: Aditi Solar
+                website:
+                  type: string
+                  format: uri
+                  description: Full URL of the company's website.
+                  example: https://aditisolar.in/
+                product_category:
+                  type: string
+                  description: Product or industry category of the company.
+                company_type:
+                  type: string
+                  enum:
+                    - Public
+                    - Private
+                  description: Type of the company.
+            example:
+              company_name: Aditi Solar
+              website: https://aditisolar.in/
+      responses:
+        '200':
+          description: Request accepted and queued for processing
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  request_id:
+                    type: string
+                    description: >-
+                      Unique identifier for the request. Use this to check status
+                      and retrieve the result.
+                    example: 89daf26a-ee17-4915-96da-19b52067068a
+                  status:
+                    type: string
+                    description: Current status of the request.
+                    enum:
+                      - PENDING
+                      - PROCESSING
+                      - COMPLETED
+                      - FAILED
+                      - CANCELLED
+                    example: PENDING
+              example:
+                request_id: 89daf26a-ee17-4915-96da-19b52067068a
+                status: PENDING
+        '401':
+          description: Unauthorized – invalid or missing JWT token
+      security:
+        - bearerAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from the `/auth/token/` endpoint.
+```

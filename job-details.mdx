@@ -1,0 +1,372 @@
+---
+title: "Company Job Details"
+description: "Fetch the full details of a single job posting by its job ID — title, location, full description, employment type, salary, industries, job functions, and experience level — returned synchronously."
+---
+
+## 1. Overview
+
+The Company Job Details API fetches the complete details of a single job posting using its `job_id`. Results are returned synchronously in the HTTP response — no job polling required.
+
+This is a **synchronous GET API** — you pass a `job_id` as a URL parameter and receive the full job posting object immediately.
+
+The job posting object includes:
+
+- **Core posting data** — title, location, full description text, and canonical posting URL
+- **Employment details** — employment type, remote eligibility, and experience level
+- **Compensation** — salary details, compensation type, pay period, and currency code (when disclosed)
+- **Classification** — associated job functions and industries
+- **Requirements** — listed skills and benefits (when present on the posting)
+
+**Common use cases:**
+
+- **Talent intelligence** — Pull the full description and required skills for postings surfaced by the Get Jobs API to analyse hiring signals across a company
+- **Competitive hiring analysis** — Track the seniority mix, remote policy, and functional focus of a competitor's open roles
+- **Market mapping** — Aggregate job functions and industries across a set of postings to understand where a company is investing headcount
+- **LLM-powered research** — Feed the full `description` field into your own summarisation, skill-extraction, or classification pipeline
+
+<Info>
+  This API is synchronous. Results are returned directly in the HTTP response — no job submission or polling required. See [How Sync APIs work](/how-sync-apis-work).
+</Info>
+
+---
+
+## 2. Quick Start
+
+**Step 1 — Obtain a `job_id`**
+
+The `job_id` is returned by the [Get Jobs API](/company-jobs-doc). Each job in that response carries an `id` that you pass to this endpoint.
+
+**Step 2 — Make a request**
+
+<CodeGroup>
+
+```bash cURL
+curl --location 'https://api.wokelo.ai/api/enterprise/company/jobs/detail?job_id=4426080772' \
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json'
+```
+
+```python Python
+import requests
+
+response = requests.get(
+    "https://api.wokelo.ai/api/enterprise/company/jobs/detail",
+    headers={
+        "Authorization": "Bearer <YOUR_API_TOKEN>",
+        "Content-Type": "application/json"
+    },
+    params={
+        "job_id": "4426080772"
+    }
+)
+data = response.json()
+job = data["data"]
+print(f"{job['title']} — {job['location']} ({job['experience_level']})")
+```
+
+</CodeGroup>
+
+**Step 3 — Work with the job object**
+
+```python
+job = response.json()["data"]
+
+print(f"Title:        {job['title']}")
+print(f"Location:     {job['location']}")
+print(f"Type:         {job['type']}")
+print(f"Remote:       {job['remote_allow']}")
+print(f"Experience:   {job['experience_level']}")
+print(f"Functions:    {', '.join(job['job_functions'])}")
+print(f"Industries:   {', '.join(job['industries'])}")
+print(f"\nDescription:\n{job['description'][:300]}...")
+```
+
+---
+
+## 3. Authentication
+
+All requests must include a **Bearer token** in the `Authorization` HTTP header. No other authentication method is supported.
+
+```text
+Authorization: Bearer <YOUR_API_TOKEN>
+```
+
+API tokens are issued from your Wokelo account. Navigate to **Account Details → API Credentials** in the Wokelo dashboard to get your client id and client secret. Contact [support@wokelo.ai](mailto:support@wokelo.ai) if you do not yet have API access.
+
+<Warning>
+  Never expose your token in client-side code, browser requests, or public repositories. A missing or invalid token returns `401 Unauthorized`. A valid token without sufficient plan permissions returns `403 Forbidden`.
+</Warning>
+
+---
+
+## 4. Request Reference
+
+**Endpoint**
+
+```text
+GET https://api.wokelo.ai/api/enterprise/company/jobs/detail
+```
+
+All parameters are passed as URL query parameters.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `job_id` | string | **Required** | The unique identifier of the job posting. Obtain this from the `id` field returned by the [Get Jobs API](/company-jobs-doc). |
+
+**Full request example:**
+
+<CodeGroup>
+
+```bash cURL
+curl --location 'https://api.wokelo.ai/api/enterprise/company/jobs/detail?job_id=4426080772' \
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json'
+```
+
+```python Python
+import requests
+
+response = requests.get(
+    "https://api.wokelo.ai/api/enterprise/company/jobs/detail",
+    headers={
+        "Authorization": "Bearer <YOUR_API_TOKEN>",
+        "Content-Type": "application/json"
+    },
+    params={
+        "job_id": "4426080772"
+    }
+)
+print(response.json())
+```
+
+</CodeGroup>
+
+---
+
+## 5. Response
+
+### Response structure
+
+```json
+{
+  "status": "success",
+  "data": { ...job object... },
+  "credits_consumed": 0.1
+}
+```
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `status` | string | `"success"` when the request was processed successfully. |
+| `data` | object | The job posting object. See fields below. |
+| `credits_consumed` | number | Number of API credits consumed by this request. |
+
+### Job object fields
+
+**Core posting data**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | string | Unique identifier of the job posting (mirrors the `job_id` parameter). |
+| `title` | string | Job title of the posting. |
+| `location` | string | Location of the role (e.g. `"Vittuone, Lombardy, Italy"`). |
+| `description` | string | Full description text of the posting, including responsibilities and requirements. May be in the local language of the posting. |
+| `url` | string | Canonical URL of the original job posting. |
+
+**Employment details**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `type` | string | Employment type (e.g. `"Full-time"`, `"Part-time"`, `"Contract"`). |
+| `remote_allow` | boolean | `true` if the role permits remote work, otherwise `false`. |
+| `experience_level` | string | Seniority of the role (e.g. `"Entry level"`, `"Mid-Senior level"`, `"Director"`). |
+
+**Compensation**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `salary_details` | object | Structured salary information when disclosed. Empty object `{}` when not present on the posting. |
+| `compensation_type` | string | Type of compensation (e.g. `"Base"`, `"Base + Commission"`). `null` when not disclosed. |
+| `pay_period` | string | Frequency of pay (e.g. `"Hourly"`, `"Monthly"`, `"Annual"`). `null` when not disclosed. |
+| `currency_code` | string | ISO 4217 currency code for the salary (e.g. `"USD"`, `"EUR"`). `null` when not disclosed. |
+| `expire_at` | string | Expiry datetime of the posting. `null` when not disclosed. |
+
+**Classification & requirements**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `job_functions` | string\[\] | Job functions associated with the role. Empty array when none are listed. |
+| `industries` | string\[\] | Industries associated with the role. Empty array when none are listed. |
+| `skills` | string\[\] | Skills listed on the posting. Empty array when none are listed. |
+| `benefits` | string\[\] | Benefits listed on the posting. Empty array when none are listed. |
+
+### Notes on empty fields
+
+Several fields can be empty or `null` in valid responses:
+
+- `skills`, `benefits`, `job_functions`, `industries` — empty array when no values were present on the posting
+- `salary_details` — empty object `{}` when compensation was not disclosed
+- `compensation_type`, `pay_period`, `currency_code`, `expire_at` — `null` when not disclosed
+
+### Sample response
+
+```json
+{
+  "status": "success",
+  "data": {
+    "id": "4426080772",
+    "title": "Service Preparation Specialist",
+    "location": "Vittuone, Lombardy, Italy",
+    "description": "What To Expect\nIn qualità di Specialista nella Preparazione del Servizio Tecnico, fornirai un contributo chiave al nostro team di Preparazione Service...",
+    "skills": [],
+    "benefits": [],
+    "url": "https://www.linkedin.com/jobs/view/4426080772/",
+    "type": "Full-time",
+    "remote_allow": false,
+    "salary_details": {},
+    "compensation_type": null,
+    "pay_period": null,
+    "currency_code": null,
+    "expire_at": null,
+    "job_functions": [
+      "Innovation in electric cars and clean energy products"
+    ],
+    "industries": [
+      "Motor Vehicle Manufacturing"
+    ],
+    "experience_level": "Entry level"
+  },
+  "credits_consumed": 0.1
+}
+```
+
+---
+
+## 6. Examples
+
+### Enrich a list of jobs from the Get Jobs API
+
+Pull a list of postings from the Get Jobs API, then fetch full details for each to analyse seniority and functional focus.
+
+```python
+import requests
+
+HEADERS = {"Authorization": "Bearer <YOUR_API_TOKEN>"}
+
+# Assume `job_ids` were collected from the Get Jobs API
+job_ids = ["4426080772", "4426080773", "4426080774"]
+
+detailed_jobs = []
+for job_id in job_ids:
+    response = requests.get(
+        "https://api.wokelo.ai/api/enterprise/company/jobs/detail",
+        headers=HEADERS,
+        params={"job_id": job_id}
+    )
+    if response.ok:
+        detailed_jobs.append(response.json()["data"])
+
+# Summarise the hiring signal
+from collections import Counter
+
+levels = Counter(j["experience_level"] for j in detailed_jobs)
+functions = Counter(f for j in detailed_jobs for f in j["job_functions"])
+remote_count = sum(1 for j in detailed_jobs if j["remote_allow"])
+
+print(f"Roles analysed:   {len(detailed_jobs)}")
+print(f"Remote-friendly:  {remote_count}")
+print(f"Seniority mix:    {dict(levels)}")
+print(f"Top functions:    {functions.most_common(5)}")
+```
+
+### Extract job description for LLM processing
+
+Use the full `description` field to feed posting content into a skill-extraction or summarisation pipeline.
+
+```python
+import requests
+
+HEADERS = {"Authorization": "Bearer <YOUR_API_TOKEN>"}
+
+response = requests.get(
+    "https://api.wokelo.ai/api/enterprise/company/jobs/detail",
+    headers=HEADERS,
+    params={"job_id": "4426080772"}
+)
+
+job = response.json()["data"]
+
+description = job.get("description", "").strip()
+if description:
+    word_count = len(description.split())
+    print(f"Title: {job['title']}")
+    print(f"Location: {job['location']} | Words: {word_count}")
+    # Pass `description` to your LLM pipeline here
+else:
+    print("No description available for this posting.")
+```
+
+---
+
+## 7. Error Handling
+
+The API uses standard HTTP status codes. All error responses include a JSON body with a `detail` or `message` field.
+
+| Status | Meaning | Cause & Resolution |
+| --- | --- | --- |
+| `200 OK` | Success | Job details returned successfully. |
+| `400 Bad Request` | Invalid parameters | The `job_id` parameter is missing or malformed. Check the `detail` field. |
+| `401 Unauthorized` | Auth failed | The `Authorization` header is missing, malformed, or contains an invalid token. Verify your key in **Account Details → API Credentials**. |
+| `403 Forbidden` | Insufficient access | Your plan does not include access to this endpoint. Contact [support@wokelo.ai](mailto:support@wokelo.ai) to review your plan. |
+| `404 Not Found` | Job not found | The `job_id` could not be resolved. Verify the ID using the [Get Jobs API](/company-jobs-doc). |
+| `429 Too Many Requests` | Rate limit exceeded | Implement exponential back-off. The response includes a `Retry-After` header. |
+| `500 Internal Server Error` | Server error | Retry after a brief delay. If the issue persists, contact [support@wokelo.ai](mailto:support@wokelo.ai). |
+
+**Error response example:**
+
+```json
+{
+  "status": "error",
+  "detail": "Job with id '0000000000' could not be found."
+}
+```
+
+---
+
+## 8. Best Practices
+
+**Obtain `job_id` from the Get Jobs API**
+
+The `job_id` is not a value you construct — it comes from the `id` field of postings returned by the [Get Jobs API](/company-jobs-doc). Always resolve IDs through that endpoint before calling this one.
+
+**Guard against `null` and empty fields**
+
+Compensation and requirement fields (`salary_details`, `compensation_type`, `pay_period`, `currency_code`, `skills`, `benefits`) are frequently absent on public postings. Use `.get()` with a default rather than direct key access:
+
+```python
+# ✅ Safe
+currency = job.get("currency_code") or "N/A"
+skills = job.get("skills", [])
+```
+
+**Expect localized description text**
+
+The `description` field reflects the original language of the posting, which may not be English. If you need consistent-language output, run the text through a translation or LLM normalisation step before analysis.
+
+---
+
+## 9. Related APIs
+
+<CardGroup cols={3}>
+  <Card title="Get Jobs" icon="briefcase" href="/company-jobs-doc">
+    Retrieve the list of open job postings for a company, including the `job_id` used by this endpoint.
+  </Card>
+
+  <Card title="Company News Monitoring" icon="newspaper" href="/company-news-monitoring-doc">
+    Fetch the latest news articles for any company, enriched with AI summaries and event categories.
+  </Card>
+
+  <Card title="Company Instant Enrichment" icon="bolt" href="/company-instant-enrichment-doc">
+    Synchronously enrich firmographic and financial data for any company by permalink or URL.
+  </Card>
+</CardGroup>

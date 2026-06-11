@@ -64,6 +64,100 @@ Example response:
 }
 ```
 
+## Add Company
+
+Add a company to the Wokelo database when it cannot be found using the [Company Search](#company-search) API. Once added, the company becomes available for use across other Wokelo APIs via the returned `permalink`.
+
+`POST   /api/enterprise/company/add/`
+
+NOTE: This is an asynchronous API. After submitting a request, poll the [Check status](#check-status) endpoint and retrieve the output using the [Request result](#request-result) endpoint. Learn more about [How Async APIs work](https://docs.wokelo.ai/how-async-apis-work).
+
+### Authentication
+
+Uses the same authentication and headers as the Company Search API: a Bearer token in the `Authorization` header and `Content-Type: application/json`.
+
+### Request body
+
+| **Parameter** | **Type** | **Required** | **Description** |
+| --- | --- | --- | --- |
+| `company_name` | string | Yes | Name of the company to add. |
+| `website` | string | Yes | Full URL of the company's website. |
+| `product_category` | string | No | Product or industry category of the company. |
+| `company_type` | string | No | Type of the company. Accepted values: `Public`, `Private`. |
+
+<CodeGroup>
+
+```bash cURL
+curl --location 'https://api.wokelo.ai/api/enterprise/company/add/' \
+--header 'Authorization: Bearer Token' \
+--header 'Content-Type: application/json' \
+--data '{
+    "company_name": "Aditi Solar",
+    "website": "https://aditisolar.in/"
+}'
+```
+
+```python Python
+import requests
+import json
+
+url = "https://api.wokelo.ai/api/enterprise/company/add/"
+
+headers = {
+    "Authorization": "Bearer Token",
+    "Content-Type": "application/json"
+}
+
+payload = {
+    "company_name": "Aditi Solar",
+    "website": "https://aditisolar.in/",
+    "product_category": "Solar Energy",
+    "company_type": "Private"
+}
+
+response = requests.post(url, headers=headers, data=json.dumps(payload))
+print(response.json())
+```
+
+</CodeGroup>
+
+### Response
+
+The API returns a `request_id` that you use to poll for status and retrieve the result.
+
+```json
+{
+    "request_id": "89daf26a-ee17-4915-96da-19b52067068a",
+    "status": "PENDING"
+}
+```
+
+### Retrieving the result
+
+Once the request status is `COMPLETED`, use the [Request result](#request-result) endpoint to fetch the output.
+
+```bash
+curl --location 'https://api.wokelo.ai/api/enterprise/request/result/?request_id=89daf26a-ee17-4915-96da-19b52067068a' \
+--header 'Authorization: Bearer Token' \
+--header 'Content-Type: application/json'
+```
+
+Example completed result:
+
+```json
+{
+    "request_id": "89daf26a-ee17-4915-96da-19b52067068a",
+    "status": "COMPLETED",
+    "result": {
+        "status": "success",
+        "permalink": "wokelo-aditisolar-in"
+    },
+    "credits_consumed": 0.0
+}
+```
+
+The returned `permalink` can then be used as the company reference in other Wokelo API calls.
+
 ## File upload
 
 Upload your proprietary files to Wokelo to supplement research reports with internal data. Each uploaded file receives a unique identifier (fileName) that you reference in the custom\_files parameter when creating reports.

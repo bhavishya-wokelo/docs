@@ -1,0 +1,201 @@
+---
+title: "Company Job Details"
+openapi: "GET /api/enterprise/company/jobs/detail"
+---
+
+## Overview
+
+The Job Details API fetches the complete details of a single job posting using its `job_id`. The `job_id` is obtained from the [Get Jobs API](/company-jobs). Results are returned directly in the API response.
+
+## Endpoint Details
+
+- **Method:** GET
+- **Endpoint:** `api/enterprise/company/jobs/detail`
+
+## Authentication requirements
+
+- Include a valid JWT token in your request header
+- If you don't have a token yet, you can get one from the `/auth/token/` endpoint first.
+
+## Request
+
+### Request Parameters
+
+#### Header Parameters
+
+<ParamField header="token" type="string" required>
+  JWT token obtained from the Authentication request
+</ParamField>
+
+### URL Parameters
+
+<ParamField query="job_id" type="string" required>
+  Unique identifier of the job posting for which details need to be fetched (e.g., `4426080772`). Obtain this from the `id` field returned by the [Get Jobs API](/company-jobs).
+</ParamField>
+
+## Response
+
+#### Successful Response Fields
+
+Returns a JSON object with the following structure:
+
+<ResponseField name="status" type="string">
+  `"success"` if the request was processed successfully.
+</ResponseField>
+
+<ResponseField name="data" type="object">
+  The job posting object.
+
+  <Expandable title="data">
+    <ResponseField name="id" type="string">
+      Unique identifier of the job posting (mirrors the `job_id` parameter).
+    </ResponseField>
+
+    <ResponseField name="title" type="string">
+      Job title of the posting.
+    </ResponseField>
+
+    <ResponseField name="location" type="string">
+      Location of the role (e.g., `Vittuone, Lombardy, Italy`).
+    </ResponseField>
+
+    <ResponseField name="description" type="string">
+      Full description text of the posting, including responsibilities and requirements. May be in the local language of the posting.
+    </ResponseField>
+
+    <ResponseField name="url" type="string">
+      Canonical URL of the original job posting.
+    </ResponseField>
+
+    <ResponseField name="type" type="string">
+      Employment type (e.g., `Full-time`, `Part-time`, `Contract`).
+    </ResponseField>
+
+    <ResponseField name="remote_allow" type="boolean">
+      `true` if the role permits remote work, otherwise `false`.
+    </ResponseField>
+
+    <ResponseField name="experience_level" type="string">
+      Seniority of the role (e.g., `Entry level`, `Mid-Senior level`, `Director`).
+    </ResponseField>
+
+    <ResponseField name="salary_details" type="object">
+      Structured salary information when disclosed. Empty object `{}` when not present on the posting.
+    </ResponseField>
+
+    <ResponseField name="compensation_type" type="string">
+      Type of compensation (e.g., `Base`, `Base + Commission`). `null` when not disclosed.
+    </ResponseField>
+
+    <ResponseField name="pay_period" type="string">
+      Frequency of pay (e.g., `Hourly`, `Monthly`, `Annual`). `null` when not disclosed.
+    </ResponseField>
+
+    <ResponseField name="currency_code" type="string">
+      ISO 4217 currency code for the salary (e.g., `USD`, `EUR`). `null` when not disclosed.
+    </ResponseField>
+
+    <ResponseField name="expire_at" type="string">
+      Expiry datetime of the posting. `null` when not disclosed.
+    </ResponseField>
+
+    <ResponseField name="job_functions" type="array">
+      Job functions associated with the role. Empty array when none are listed.
+    </ResponseField>
+
+    <ResponseField name="industries" type="array">
+      Industries associated with the role. Empty array when none are listed.
+    </ResponseField>
+
+    <ResponseField name="skills" type="array">
+      Skills listed on the posting. Empty array when none are listed.
+    </ResponseField>
+
+    <ResponseField name="benefits" type="array">
+      Benefits listed on the posting. Empty array when none are listed.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="credits_consumed" type="number">
+  Number of API credits consumed by this request.
+</ResponseField>
+
+<RequestExample>
+
+```bash cURL
+curl --location 'https://api.wokelo.ai/api/enterprise/company/jobs/detail?job_id=4426080772' \
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json'
+```
+
+```python Python
+import requests
+
+url = "https://api.wokelo.ai/api/enterprise/company/jobs/detail"
+
+headers = {
+    "Authorization": "Bearer <YOUR_API_TOKEN>",
+    "Content-Type": "application/json"
+}
+
+params = {
+    "job_id": "4426080772"
+}
+
+response = requests.get(url, headers=headers, params=params)
+print(response.json())
+```
+
+```javascript JavaScript - Fetch
+const myHeaders = new Headers();
+myHeaders.append("Authorization", "Bearer Token");
+myHeaders.append("Content-Type", "application/json");
+
+const requestOptions = {
+  method: "GET",
+  headers: myHeaders,
+  redirect: "follow"
+};
+
+fetch("{{path}}/api/enterprise/company/jobs/detail?job_id=4426080772", requestOptions)
+  .then((response) => response.text())
+  .then((result) => console.log(result))
+  .catch((error) => console.error(error));
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json 200
+{
+    "status": "success",
+    "data": {
+        "id": "4426080772",
+        "title": "Service Preparation Specialist",
+        "location": "Vittuone, Lombardy, Italy",
+        "description": "What To Expect\nIn qualità di Specialista nella Preparazione del Servizio Tecnico, fornirai un contributo chiave al nostro team di Preparazione Service...",
+        "skills": [],
+        "benefits": [],
+        "url": "https://www.linkedin.com/jobs/view/4426080772/",
+        "type": "Full-time",
+        "remote_allow": false,
+        "salary_details": {},
+        "compensation_type": null,
+        "pay_period": null,
+        "currency_code": null,
+        "expire_at": null,
+        "job_functions": [
+            "Innovation in electric cars and clean energy products"
+        ],
+        "industries": [
+            "Motor Vehicle Manufacturing"
+        ],
+        "experience_level": "Entry level"
+    },
+    "credits_consumed": 0.1
+}
+```
+
+</ResponseExample>
