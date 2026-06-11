@@ -1,4 +1,4 @@
-﻿---
+---
 title: "Company Instant Enrichment (Batch)"
 openapi: "POST /api/enterprise/company/enrich/"
 ---
@@ -34,7 +34,7 @@ The Company Enrichment API delivers structured data for one or more companies ac
 <ParamField body="sections" type="string[]" required>
   Sections of data to include in the enrichment response. Select one or more values.
 
-  Supported values: `firmographics`, `products`, `headcount`, `funding`, `public_company_financials`, `uk_private_company_financials`, `acquisitions`, `investments`, `website_traffic`
+  Supported values: `firmographics`, `products`, `headcount`, `funding`, `public_company_financials`, `uk_private_company_financials`, `uk_private_company_ownership`,`social_media`, `acquisitions`, `investments`, `website_traffic`
 </ParamField>
 
 ### Response
@@ -50,7 +50,6 @@ A successful response returns a `request_id` that can be used to track the statu
 <ResponseField name="status" type="string">
   Status of the request (e.g. `"PENDING"`)
 </ResponseField>
-
 
 <ResponseExample>
 
