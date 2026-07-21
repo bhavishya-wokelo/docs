@@ -386,9 +386,7 @@ print(response.text)
 
 ### Report config
 
-Retrieve the settings originally used to trigger a report. View detailed [<u>API reference</u>](/notebook-configuration).\
-\
-`POST api/wkl/notebook/configuration/`
+Retrieve the settings originally used to trigger a report. View detailed [<u>API reference</u>](/notebook-configuration).<br /><br />`POST api/wkl/notebook/configuration/`
 
 <CodeGroup>
 
@@ -421,3 +419,157 @@ print(response.text)
 ```
 
 </CodeGroup>
+
+## Credits
+
+APIs to check your current credit balance and review historical credit consumption.
+
+### Credit balance
+
+Retrieve your account's current credit balance, total allotted credits, and account expiry period.
+
+`GET   /api/wkl/credits/get-credits-balance/`
+
+<CodeGroup>
+
+```json cURL expandable wrap
+  curl --location 'https://api.wokelo.ai/api/wkl/credits/get-credits-balance/' \
+  --header 'Authorization: Bearer Token'
+  --header 'Content-Type: application/json'
+```
+
+```json Python expandable wrap
+  import requests
+
+  url = "https://api.wokelo.ai/api/wkl/credits/get-credits-balance/"
+
+  payload = {}
+  headers = {
+    'Authorization': 'Bearer Token',
+    'Content-Type': 'application/json'
+  }
+
+  response = requests.request("GET", url, headers=headers, data=payload)
+
+  print(response.text)
+```
+
+</CodeGroup>
+
+Example response:
+
+```json
+{
+    "credits_consumed": 0,
+    "acount_expiry_period": "2099-10-04T09:11:05Z",
+    "credits_balance": 849.2029999999613,
+    "total_credits": 25000.0
+}
+```
+
+| **Field** | **Type** | **Description** |
+| --- | --- | --- |
+| `credits_balance` | number | Credits remaining on the account. |
+| `total_credits` | number | Total credits allotted to the account. |
+| `acount_expiry_period` | string | Expiry timestamp (ISO 8601) for the current credit allotment/plan. |
+
+### Credit logs
+
+Retrieve a paginated log of credit-consuming activity across the account — reports, newsletters, API calls, and Assistant usage.
+
+`GET   /api/wkl/credits/get-credits-logs/`
+
+**Query parameters**
+
+| **Parameter** | **Type** | **Required** | **Description** |
+| --- | --- | --- | --- |
+| `page` | integer | No | Page number to retrieve. Defaults to `1`. |
+| `page_size` | integer | No | Number of log entries per page. |
+
+<CodeGroup>
+
+```json cURL expandable wrap
+  curl --location 'https://api.wokelo.ai/api/wkl/credits/get-credits-logs/?page=1&page_size=30' \
+  --header 'Authorization: Bearer Token'
+  --header 'Content-Type: application/json'
+```
+
+```json Python expandable wrap
+  import requests
+
+  url = "https://api.wokelo.ai/api/wkl/credits/get-credits-logs/?page=1&page_size=30"
+
+  payload = {}
+  headers = {
+    'Authorization': 'Bearer Token',
+    'Content-Type': 'application/json'
+  }
+
+  response = requests.request("GET", url, headers=headers, data=payload)
+
+  print(response.text)
+```
+
+</CodeGroup>
+
+Example response:
+
+```json
+{
+    "count": 2604,
+    "current_page": 1,
+    "total_pages": 87,
+    "data": [
+        {
+            "id": 2681,
+            "email": "system@wokelo.ai",
+            "date": "2026-07-21T11:05:15.040079+00:00",
+            "name": "Newsletter Pipeline",
+            "type": "Report",
+            "sub_info": "Newsfeed",
+            "credit_consumed": 10.0
+        },
+        {
+            "id": 2670,
+            "email": "rahul.parlani@wokelo.ai",
+            "date": "2026-07-17T14:04:16.175945+00:00",
+            "name": "Arbor Memorial Inc. - Add Company",
+            "type": "API",
+            "sub_info": "Add Company",
+            "credit_consumed": 0.0
+        },
+        {
+            "id": 2663,
+            "email": "tarun@wokelo.ai",
+            "date": "2026-07-16T15:29:37.451531+00:00",
+            "name": "Acquisition Target Companies",
+            "type": "Assistant",
+            "sub_info": "generated via deep_research, final summary layer cost",
+            "credit_consumed": 10.0
+        }
+    ],
+    "credits_consumed": 0
+}
+```
+
+**Response fields**
+
+| **Field** | **Type** | **Description** |
+| --- | --- | --- |
+| `count` | integer | Total number of log entries across all pages. |
+| `current_page` | integer | The page number returned in this response. |
+| `total_pages` | integer | Total number of pages available. |
+| `data` | array | List of individual credit log entries (see below). |
+| `credits_consumed` | number | Credits consumed by this logging call itself (typically `0`). |
+
+**Log entry fields**
+
+| **Field** | **Type** | **Description** |
+| --- | --- | --- |
+| `id` | integer | Unique identifier for the log entry. |
+| `email` | string | Email of the user who triggered the activity. May be blank for system-generated entries (e.g. scheduled newsletters). |
+| `date` | string | Timestamp (ISO 8601) of the activity. |
+| `name` | string | Name of the report, notebook, or task associated with the activity. |
+| `type` | string | Category of activity. Observed values include `Report`, `Newsletter`, `API`, and `Assistant`. |
+| `sub_info` | string | Additional context on the specific action taken (e.g. `Add Company`, `Research Plan Validation`, `Newsfeed`). |
+| `credit_consumed` | number | Credits consumed by this specific activity. |

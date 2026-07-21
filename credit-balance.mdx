@@ -1,0 +1,58 @@
+---
+title: "Credit Balance"
+openapi: "GET /api/wkl/credits/get-credits-balance/"
+hidden: true
+---
+
+## Overview
+
+Retrieves the current credit balance for your account, along with the total credits allotted and the account's expiry period.
+
+## Endpoint Details
+
+- **Method:** GET
+- **Endpoint:** `/api/wkl/credits/get-credits-balance/`
+
+## Authentication requirements
+
+- Include a valid JWT token in your request header
+- If you don't have a token yet, you can get one from the `/auth/token/` endpoint first.
+
+## Request
+
+### Request Parameters
+
+#### Header Parameters
+
+<ParamField header="Authorization" type="string" required>
+  JWT token obtained from the Authentication request
+</ParamField>
+
+<ParamField header="Content-Type" type="string" required>
+  Must be set to `application/json`
+</ParamField>
+
+This endpoint takes no URL or body parameters.
+
+## Response
+
+Successful response will include the `credits_consumed`, `acount_expiry_period`, `credits_balance`, and `total_credits` fields.
+
+**Sample Response**
+
+```json
+{
+    "credits_consumed": 0,
+    "acount_expiry_period": "2099-10-04T09:11:05Z",
+    "credits_balance": 849.2029999999613,
+    "total_credits": 25000.0
+}
+```
+
+**Response Fields**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `credits_consumed` | number | Credits consumed by this API call itself (typically `0`). |
+| `acount_expiry_period` | string | Expiry timestamp (ISO 8601) for the current credit allotment/plan. |
+| `credits_balance` | number | Credits |

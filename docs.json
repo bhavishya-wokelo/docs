@@ -187,7 +187,9 @@
               "get-report-status",
               "download-report",
               "notebook-configuration",
-              "add-company"
+              "add-company",
+              "credit-balance",
+              "credit-logs"
             ]
           }
         ]
