@@ -46,7 +46,8 @@
               "industry-deep-intelligence-doc",
               "jobs",
               "job-details"
-            ]
+            ],
+            "hidden": true
           },
           {
             "group": "Discovery",
@@ -67,7 +68,8 @@
               "company-news-monitoring-doc",
               "industry-news-monitoring-doc",
               "newsfeed-doc"
-            ]
+            ],
+            "hidden": true
           },
           {
             "group": "Workflow",
@@ -92,7 +94,8 @@
               "getting-started-mcp",
               "getting-started-mcp-copied-1",
               "mcp-use-cases"
-            ]
+            ],
+            "hidden": true
           },
           {
             "group": "Resources",
@@ -143,7 +146,8 @@
               "earnings-transcripts",
               "jobs-1",
               "job-details-1"
-            ]
+            ],
+            "hidden": true
           },
           {
             "group": "Discovery",
@@ -165,7 +169,8 @@
               "company-news-monitoring-copied-1",
               "legacy-fetch-news-report",
               "legacy-initiate-news-report"
-            ]
+            ],
+            "hidden": true
           },
           {
             "group": "Workflow automation",
