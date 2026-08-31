@@ -447,11 +447,11 @@ fetch("https://api.wokelo.ai/api/workflow_manager/start/", requestOptions)
   };
 
   const tabs = [
-    { id: 'enrichment', label: 'Company Instant Enrichment', href: '/api-reference/company-research' },
-    { id: 'deep', label: 'Company Deep Intelligence', href: '/api-reference/company-research' },
-    { id: 'industry', label: 'Industry Deep Intelligence', href: '/api-reference/industry-research' },
+    // { id: 'enrichment', label: 'Company Instant Enrichment', href: '/api-reference/company-research' },
+    // { id: 'deep', label: 'Company Deep Intelligence', href: '/api-reference/company-research' },
+    // { id: 'industry', label: 'Industry Deep Intelligence', href: '/api-reference/industry-research' },
     { id: 'discovery', label: 'Company Discovery', href: '/api-reference/get-company-list' },
-    { id: 'news', label: 'News Monitoring', href: '/api-reference/initiate-news-report' },
+    // { id: 'news', label: 'News Monitoring', href: '/api-reference/initiate-news-report' },
     { id: 'workflow', label: 'Workflow Automation', href: '/api-reference/custom-workflows' }
   ];
 
