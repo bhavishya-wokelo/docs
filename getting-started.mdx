@@ -45,49 +45,48 @@ print(response.text)
 
 **Make first API call**
 
-Lets try using Company Instant Enrichment API.
+Lets try using Market Map API.
 
 <CodeGroup>
 
 ```json cURL
-curl --location 'https://api.wokelo.ai/api/enterprise/company/enrich/' \
---header 'Authorization: Bearer Token' \
---header 'Content-Type: application/json' \
---data '{
-    "companies": [
-        "https://ulteig.com/"
-    ],
-    "sections": [
-        "firmographics",
-        "products"
-    ]
-    
-}'
+curl --location 'https://api.wokelo.ai/api/enterprise/market-map/enrich/' \
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "topic": "AI-powered CRM software",
+    "parameters": {
+      "detailed_query": "B2B CRM tools leveraging AI for sales automation",
+      "keywords": ["AI", "CRM", "sales automation"],
+      "sample_companies": ["salesforce", "hubspot"],
+      "geography": ["USA"],
+      "company_type": "private"
+    }
+  }'
 ```
 
-```json Python expandable wrap
+```json Python wrap
 import requests
-import json
 
-url = "https://api.wokelo.ai/api/enterprise/company/enrich/"
-
-payload = json.dumps({
-  "companies": [
-    "https://ulteig.com/"
-  ],
-  "sections": [
-    "firmographics",
-    "products"
-  ]
-})
-headers = {
-  'Authorization': 'Bearer Token',
-  'Content-Type': 'application/json'
-}
-
-response = requests.request("POST", url, headers=headers, data=payload)
-
-print(response.text)
+response = requests.post(
+    "https://api.wokelo.ai/api/enterprise/market-map/enrich/",
+    headers={
+        "Authorization": "Bearer <YOUR_API_TOKEN>",
+        "Content-Type": "application/json"
+    },
+    json={
+        "topic": "AI-powered CRM software",
+        "parameters": {
+            "detailed_query": "B2B CRM tools leveraging AI for sales automation",
+            "keywords": ["AI", "CRM", "sales automation"],
+            "sample_companies": ["salesforce", "hubspot"],
+            "geography": ["USA"],
+            "company_type": "private"
+        }
+    }
+)
+request_id = response.json()["request_id"]
+print("Job submitted:", request_id)
 ```
 
 </CodeGroup>
@@ -105,33 +104,43 @@ You can then use request result API to view the results.
 
 ```json expandable wrap
 {
-    "request_id": "98620177-6b1d-4cda-837b-2be844ec8d65",
-    "status": "COMPLETED",
-    "result": {
-        "ulteig": {
-            "firmographics": {
-                "name": "Ulteig",
-                "website": "http://ulteig.com",
-                "location": "Austin, United States",
-                "founded": 1944,
-                "type": "private",
-                "operating_status": "Operating",
-                "ticker": null
-            },
-            "products": {
-                "product_category": "Civil Engineering Infrastructure Services",
-                "core_offering": "Ulteig is a civil engineering company that provides comprehensive engineering design, program management, and field services across various sectors including power, renewable energy, transportation, and water management.",
-                "product_catalog": [
-                    "Engineering design services",
-                    "Program management",
-                    "Environmental planning and services",
-                    "Construction management",
-                    "Land surveying"
-                ],
-                "short_description": "Ulteig is a civil engineering company that offers engineering, surveying, and consulting services.",
-                "long_description": "Ulteig is a civil engineering company that offers engineering, surveying, and consulting services."
-            }
-        }
+  "request_id": "a57a9100-e7e1-4c6c-9b29-cdd064516ba7",
+  "status": "COMPLETED",
+  "result": [
+    {
+      "Permalink": "esub-construction-software",
+      "Name": "eSUB Construction Software",
+      "Website": "esub.com",
+      "HQ City": "San Diego",
+      "HQ Country": "United States",
+      "Founded": "2008",
+      "Type": "Private",
+      "Operating Status": "Operating",
+      "Product Category": "Construction Project Management Software",
+      "Core Offering": "ESUB Construction Software provides cloud-based project management solutions specifically designed for subcontractors in the construction industry...",
+      "Employees (Crunchbase)": "51-100",
+      "Funding Stage": "Series B",
+      "Total Funding": 22000000.0,
+      "Last Funding Date": "2023-05-01",
+      "Key Investors": ["Autodesk", "Revolution", "Catalyst Investors"],
+      "Overall Score": 7.0,
+      "Commentary": "eSUB Construction Software provides cloud-based project management and document control for commercial subcontractors, with mobile field reporting, timecards, RFIs, submittals, and change orders. The platform explicitly serves electrical and HVAC contractors in the United States, making it a strong direct fit for field service management workflows."
+    },
+    {
+      "Permalink": "kloudgin",
+      "Name": "KloudGin",
+      "Website": "kloudgin.com",
+      "HQ City": "Sunnyvale",
+      "HQ Country": "United States",
+      "Founded": "2014",
+      "Type": "Private",
+      "Product Category": "Field Service Asset Management Software",
+      "Employees (Crunchbase)": "101-250",
+      "Funding Stage": "Series A",
+      "Total Funding": 8200000.0,
+      "Overall Score": 7.0,
+      "Commentary": "KloudGin provides cloud-based field service management software and asset management, automating work management processes with scheduling, dispatch, mobile work orders, and billing..."
     }
+  ]
 }
 ```

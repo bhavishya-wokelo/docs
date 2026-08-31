@@ -1,0 +1,123 @@
+---
+title: "Credit Logs"
+openapi: "GET /api/wkl/credits/get-credits-logs/"
+---
+
+## Overview
+
+Retrieves a paginated log of credit-consuming activity across your account, including reports, newsletters, API calls, and Assistant usage.
+
+## Endpoint Details
+
+- **Method:** GET
+- **Endpoint:** `/api/wkl/credits/get-credits-logs/`
+
+## Authentication requirements
+
+- Include a valid JWT token in your request header
+- If you don't have a token yet, you can get one from the `/auth/token/` endpoint first.
+
+## Request
+
+### Request Parameters
+
+#### Header Parameters
+
+<ParamField header="Authorization" type="string" required>
+  JWT token obtained from the Authentication request
+</ParamField>
+
+<ParamField header="Content-Type" type="string" required>
+  Must be set to `application/json`
+</ParamField>
+
+#### Query Parameters
+
+<ParamField query="page" type="integer">
+  Page number to retrieve. Defaults to `1`. Example: `1`
+</ParamField>
+
+<ParamField query="page_size" type="integer">
+  Number of log entries to return per page. Example: `30`
+</ParamField>
+
+## Response
+
+Successful response will include the `count`, `current_page`, `total_pages`, `data`, and `credits_consumed` fields.
+
+**Sample Response**
+
+```json
+{
+    "count": 2604,
+    "current_page": 1,
+    "total_pages": 87,
+    "data": [
+        {
+            "id": 2681,
+            "email": "system@wokelo.ai",
+            "date": "2026-07-21T11:05:15.040079+00:00",
+            "name": "Newsletter Pipeline",
+            "type": "Report",
+            "sub_info": "Newsfeed",
+            "credit_consumed": 10.0
+        },
+        {
+            "id": 2670,
+            "email": "rahul.parlani@wokelo.ai",
+            "date": "2026-07-17T14:04:16.175945+00:00",
+            "name": "Arbor Memorial Inc. - Add Company",
+            "type": "API",
+            "sub_info": "Add Company",
+            "credit_consumed": 0.0
+        }
+    ],
+    "credits_consumed": 0
+}
+```
+
+**Response Fields**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `count` | integer | Total number of log entries across all pages. |
+| `current_page` | integer | The page number returned in this response. |
+| `total_pages` | integer | Total number of pages available. |
+| `data` | array | List of individual credit log entries (see below). |
+| `credits_consumed` | number | Credits consumed by this logging call itself (typically `0`). |
+
+**Log Entry Fields**
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | integer | Unique identifier for the log entry. |
+| `email` | string | Email of the user who triggered the activity. May be blank for system-generated entries (e.g. scheduled newsletters). |
+| `date` | string | Timestamp (ISO 8601) of the activity. |
+| `name` | string | Name of the report, notebook, or task associated with the activity. |
+| `type` | string | Category of activity. Observed values include `Report`, `Newsletter`, `API`, and `Assistant`. |
+| `sub_info` | string | Additional context on the specific action taken (e.g. `Add Company`, `Research Plan Validation`, `Newsfeed`). |
+| `credit_consumed` | number | Credits consumed by this specific activity. |
+
+<ResponseExample>
+
+```json 200
+{
+    "count": 2604,
+    "current_page": 1,
+    "total_pages": 87,
+    "data": [
+        {
+            "id": 2663,
+            "email": "tarun@wokelo.ai",
+            "date": "2026-07-16T15:29:37.451531+00:00",
+            "name": "Acquisition Target Companies",
+            "type": "Assistant",
+            "sub_info": "generated via deep_research, final summary layer cost",
+            "credit_consumed": 10.0
+        }
+    ],
+    "credits_consumed": 0
+}
+```
+
+</ResponseExample>
