@@ -4,15 +4,17 @@ title: "Getting started"
 
 Access your API credentials from the [API Credentials page](https://app.wokelo.ai/dashboard/profile/api-credentials).
 
-Authentication All API requests must be authenticated using a JWT token. Follow the steps below to generate your token:
+## Authentication
 
-- Use our authentication end point: `https://api.wokelo.ai/auth/token/`
-- Use your Client ID and Client Secret obtained from the API credentials page. Add your email and password. Grant type should be “password”.
-- This generates a JWT token.
+All API requests must be authenticated using a JWT token. Follow the steps below to generate your token:
+
+- Use the authentication endpoint: `https://api.wokelo.ai/auth/token/`
+- Use the Client ID and Client Secret from the API Credentials page, along with your email and password. Set the grant type to `"password"`.
+- The response contains your JWT token. Pass it in the `Authorization` header of every request as `Bearer <YOUR_API_TOKEN>`.
 
 <CodeGroup>
 
-```json cURL wrap
+```bash cURL wrap
 curl --location 'https://api.wokelo.ai/auth/token/' \
 --form 'username="sam@abconsulting.com"' \
 --form 'password="password"' \
@@ -21,19 +23,19 @@ curl --location 'https://api.wokelo.ai/auth/token/' \
 --form 'client_secret="YOUR_CLIENT_SECRET"'
 ```
 
-```json Python expandable wrap
+```python Python expandable wrap
 import requests
 
 url = "https://api.wokelo.ai/auth/token/"
 
-payload = {'username': 'sam@abconsulting.com',
-'password': 'password',
-'grant_type': 'password',
-'client_id': 'YOUR_CLIENT_ID',
-'client_secret': 'YOUR_CLIENT_SECRET'}
-files=[
-
-]
+payload = {
+    'username': 'sam@abconsulting.com',
+    'password': 'password',
+    'grant_type': 'password',
+    'client_id': 'YOUR_CLIENT_ID',
+    'client_secret': 'YOUR_CLIENT_SECRET'
+}
+files = []
 headers = {}
 
 response = requests.request("POST", url, headers=headers, data=payload, files=files)
@@ -43,104 +45,107 @@ print(response.text)
 
 </CodeGroup>
 
-**Make first API call**
+## Make your first API call
 
-Lets try using Market Map API.
+Let's try the Market Map API. Wokelo APIs are asynchronous: you start a workflow, track its status, and then download the report. See [How Async APIs work](/how-async-apis-work) for details.
+
+### Step 1: Start the workflow
 
 <CodeGroup>
 
-```json cURL
-curl --location 'https://api.wokelo.ai/api/enterprise/market-map/enrich/' \
+```bash cURL
+curl --location 'https://api.wokelo.ai/api/workflow_manager/start/' \
   --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
   --header 'Content-Type: application/json' \
   --data '{
-    "topic": "AI-powered CRM software",
-    "parameters": {
-      "detailed_query": "B2B CRM tools leveraging AI for sales automation",
-      "keywords": ["AI", "CRM", "sales automation"],
-      "sample_companies": ["salesforce", "hubspot"],
-      "geography": ["USA"],
-      "company_type": "private"
+    "topic": "warehouse automation",
+    "workflow": "agentic_mm",
+    "workbook_name": "warehouse automation",
+    "advanced_settings": {
+      "detailed_query": "warehouse automation",
+      "companies": [],
+      "company_type": "all",
+      "geography": ["Worldwide"],
+      "employee_count": [],
+      "funding_stage": [],
+      "total_funding_include_blanks": true
     }
   }'
 ```
 
-```json Python wrap
+```python Python wrap
 import requests
 
 response = requests.post(
-    "https://api.wokelo.ai/api/enterprise/market-map/enrich/",
+    "https://api.wokelo.ai/api/workflow_manager/start/",
     headers={
         "Authorization": "Bearer <YOUR_API_TOKEN>",
         "Content-Type": "application/json"
     },
     json={
-        "topic": "AI-powered CRM software",
-        "parameters": {
-            "detailed_query": "B2B CRM tools leveraging AI for sales automation",
-            "keywords": ["AI", "CRM", "sales automation"],
-            "sample_companies": ["salesforce", "hubspot"],
-            "geography": ["USA"],
-            "company_type": "private"
+        "topic": "warehouse automation",
+        "workflow": "agentic_mm",
+        "workbook_name": "warehouse automation",
+        "advanced_settings": {
+            "detailed_query": "warehouse automation",
+            "companies": [],
+            "company_type": "all",
+            "geography": ["Worldwide"],
+            "employee_count": [],
+            "funding_stage": [],
+            "total_funding_include_blanks": True
         }
     }
 )
-request_id = response.json()["request_id"]
-print("Job submitted:", request_id)
+report_id = response.json()["report_id"]
+print("Report started:", report_id)
 ```
 
 </CodeGroup>
 
-A successful request should return a request\_id as shown below.
+A successful request returns a `report_id`:
 
-```text
+```json
 {
-    "request_id": "98620177-6b1d-4cda-837b-2be844ec8d65",
-    "status": "PENDING"
+  "report_id": 117253
 }
 ```
 
-You can then use request result API to view the results.
+### Step 2: Check the report status
 
-```json expandable wrap
+Use the `report_id` to track completion with `/api/assets/get_notebook_status/`.
+
+```bash
+curl --request GET \
+  --url 'https://api.wokelo.ai/api/assets/get_notebook_status/?report_id=117253' \
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>'
+```
+
+```json
 {
-  "request_id": "a57a9100-e7e1-4c6c-9b29-cdd064516ba7",
-  "status": "COMPLETED",
-  "result": [
-    {
-      "Permalink": "esub-construction-software",
-      "Name": "eSUB Construction Software",
-      "Website": "esub.com",
-      "HQ City": "San Diego",
-      "HQ Country": "United States",
-      "Founded": "2008",
-      "Type": "Private",
-      "Operating Status": "Operating",
-      "Product Category": "Construction Project Management Software",
-      "Core Offering": "ESUB Construction Software provides cloud-based project management solutions specifically designed for subcontractors in the construction industry...",
-      "Employees (Crunchbase)": "51-100",
-      "Funding Stage": "Series B",
-      "Total Funding": 22000000.0,
-      "Last Funding Date": "2023-05-01",
-      "Key Investors": ["Autodesk", "Revolution", "Catalyst Investors"],
-      "Overall Score": 7.0,
-      "Commentary": "eSUB Construction Software provides cloud-based project management and document control for commercial subcontractors, with mobile field reporting, timecards, RFIs, submittals, and change orders. The platform explicitly serves electrical and HVAC contractors in the United States, making it a strong direct fit for field service management workflows."
-    },
-    {
-      "Permalink": "kloudgin",
-      "Name": "KloudGin",
-      "Website": "kloudgin.com",
-      "HQ City": "Sunnyvale",
-      "HQ Country": "United States",
-      "Founded": "2014",
-      "Type": "Private",
-      "Product Category": "Field Service Asset Management Software",
-      "Employees (Crunchbase)": "101-250",
-      "Funding Stage": "Series A",
-      "Total Funding": 8200000.0,
-      "Overall Score": 7.0,
-      "Commentary": "KloudGin provides cloud-based field service management software and asset management, automating work management processes with scheduling, dispatch, mobile work orders, and billing..."
-    }
-  ]
+  "report_id": 117253,
+  "status": "Completed",
+  "title": "warehouse automation"
 }
 ```
+
+### Step 3: Download the report
+
+Once the status is `Completed`, export the results with `/api/assets/download_report/`. Set `file_type` to `pdf`, `docx` or `json`.
+
+```bash
+curl --request POST \
+  --url https://api.wokelo.ai/api/assets/download_report/ \
+  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+  --header 'Content-Type: application/json' \
+  --output report.pdf \
+  --data '{
+    "report_id": 117253,
+    "file_type": "pdf"
+  }'
+```
+
+## Next steps
+
+- Review the [Market Map API reference](/market-map-doc) for all available filters.
+- Not sure which API to use? See [Choosing the right API](/choosing-the-right-api).
