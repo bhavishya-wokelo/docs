@@ -1,56 +1,47 @@
 ---
 title: "Target Screening"
-description: "Identify and score potential acquisition targets for a defined acquirer using AI — returns a ranked list of strategic and bolt-on targets with deal feasibility scores, synergy analysis, and full firmographic and financial data."
+description: "Identify and score potential acquisition targets for a defined acquirer."
 ---
 
 ## 1. Overview
 
-The Target Screening API identifies and scores potential acquisition targets for a defined acquirer. Given an acquirer and a set of strategic criteria, Wokelo's AI pipeline searches its coverage universe of 3M\+ companies, evaluates each candidate target against the acquirer's profile, M&A history, and stated thesis, and returns a ranked list with AI-generated deal scores, synergy commentary, and full firmographic and financial profiles.
+The Target Screening API identifies and scores potential acquisition targets for a defined acquirer. Given an acquirer and strategic criteria, the AI pipeline evaluates each candidate against the acquirer's profile, M&A history and stated thesis, and returns a ranked list with deal scores and synergy commentary.
 
-This is an **asynchronous API** — submitting a request returns a `request_id` immediately, and you must poll for status and then retrieve results once the job is complete. Read more about the async pattern in [How Async APIs work](/how-async-apis-work).
+This is an **asynchronous API**. Starting the workflow returns a `report_id`, which you use to track completion and export the results. See [How Async APIs work](/how-async-apis-work).
 
-Each target in the result set is evaluated across five dimensions:
-
-- **Overall Score** — composite strategic fit rating (1–10)
-- **Query Relevance Score** — how closely the target matches the stated thesis in `detailed_query` and `keywords`
-- **Deal Feasibility Score** — likelihood the acquirer can financially execute the acquisition given size, balance sheet, and deal history
-- **Deal Precedent Score** — alignment with the acquirer's historical M&A pattern and deal size
-- **Synergy Potential Score** — quantified revenue and cost synergy opportunity between acquirer and target
-
-Each score is accompanied by an AI-written rationale and a `Commentary` paragraph synthesising the deal thesis — calling out specific product overlaps, customer-base expansion, integration challenges, and valuation considerations.
+Each target is scored (1 to 10) on `Overall Score`, `Query Relevance Score`, `Deal Feasibility Score`, `Deal Precedent Score` and `Synergy Potential Score`, each with a written rationale, plus a `Commentary` summarising the deal thesis.
 
 **Common use cases:**
 
-- **Corporate development** — Generate a scored target pipeline for a strategic acquirer's M&A team, refreshed quarterly
-- **Buy-side M&A advisory** — Build a target universe for a sponsor or strategic client engagement
-- **Private equity bolt-on sourcing** — Identify add-on acquisitions for portfolio companies based on their existing profile
-- **Investment banking** — Populate target lists for buy-side mandate pitch books or thesis-driven outreach
-- **Strategic planning** — Build-vs-buy analyses for new product categories or geographic expansion
-
-<Info>
-  This API is asynchronous. You submit a job, receive a `request_id`, poll until `status` is `"COMPLETED"`, and then read results from the same response. See [How Async APIs work](/how-async-apis-work).
-</Info>
+- **Corporate development**: build a scored target pipeline for a strategic acquirer
+- **Private equity**: identify bolt-on acquisitions for portfolio companies
+- **Buy-side advisory**: build a target universe for a client mandate
 
 ---
 
 ## 2. Quick Start
 
-**Step 1 — Submit the job**
+**Step 1: Start the workflow**
 
 <CodeGroup>
 
 ```bash cURL
-curl --location 'https://api.wokelo.ai/api/enterprise/target-screening/enrich/' \
+curl --location 'https://api.wokelo.ai/api/workflow_manager/start/' \
   --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
   --header 'Content-Type: application/json' \
   --data '{
-    "company": "microsoft",
-    "parameters": {
-      "detailed_query": "B2B SaaS companies in the cybersecurity space",
-      "keywords": ["zero trust", "endpoint security"],
-      "sample_companies": ["crowdstrike", "sentinelone"],
-      "geography": ["USA"],
-      "company_type": "private"
+    "topic": "Enterprise Software Solutions",
+    "workflow": "target_screening_v2",
+    "workbook_name": "Enterprise Software Solutions",
+    "advanced_settings": {
+      "acquirer": "microsoft",
+      "detailed_query": "Enterprise Software Solutions",
+      "companies": [],
+      "company_type": "all",
+      "geography": ["Worldwide"],
+      "employee_count": [],
+      "funding_stage": [],
+      "total_funding_include_blanks": true
     }
   }'
 ```
@@ -59,73 +50,56 @@ curl --location 'https://api.wokelo.ai/api/enterprise/target-screening/enrich/' 
 import requests
 
 response = requests.post(
-    "https://api.wokelo.ai/api/enterprise/target-screening/enrich/",
+    "https://api.wokelo.ai/api/workflow_manager/start/",
     headers={
         "Authorization": "Bearer <YOUR_API_TOKEN>",
         "Content-Type": "application/json"
     },
     json={
-        "company": "microsoft",
-        "parameters": {
-            "detailed_query": "B2B SaaS companies in the cybersecurity space",
-            "keywords": ["zero trust", "endpoint security"],
-            "sample_companies": ["crowdstrike", "sentinelone"],
-            "geography": ["USA"],
-            "company_type": "private"
+        "topic": "Enterprise Software Solutions",
+        "workflow": "target_screening_v2",
+        "workbook_name": "Enterprise Software Solutions",
+        "advanced_settings": {
+            "acquirer": "microsoft",
+            "detailed_query": "Enterprise Software Solutions",
+            "companies": [],
+            "company_type": "all",
+            "geography": ["Worldwide"],
+            "employee_count": [],
+            "funding_stage": [],
+            "total_funding_include_blanks": True
         }
     }
 )
-request_id = response.json()["request_id"]
-print("Job submitted:", request_id)
+print(response.json()["report_id"])
 ```
 
 </CodeGroup>
 
-**Step 2 — Poll for completion**
+The response contains a `report_id`.
 
-```python
-import time
+**Step 2: Track completion**
 
-while True:
-    status_resp = requests.get(
-        f"https://api.wokelo.ai/api/enterprise/request/{request_id}/status/",
-        headers={"Authorization": "Bearer <YOUR_API_TOKEN>"}
-    )
-    status = status_resp.json()["status"]
-    if status == "COMPLETED":
-        break
-    elif status == "FAILED":
-        raise Exception("Job failed")
-    print(f"Status: {status} — waiting...")
-    time.sleep(5)
-```
+Use `/api/assets/get_notebook_status/` with the `report_id` to check whether the report has completed.
 
-**Step 3 — Read results**
+**Step 3: Export results**
 
-```python
-result_resp = requests.get(
-    f"https://api.wokelo.ai/api/enterprise/request/{request_id}/result/",
-    headers={"Authorization": "Bearer <YOUR_API_TOKEN>"}
-)
-targets = result_resp.json()["result"]
-for t in targets:
-    print(t["Name"], "— Overall Score:", t.get("Overall Score"))
-```
+Once the report is complete, use `/api/assets/download_report/` with the `report_id` to export the results.
 
 ---
 
 ## 3. Authentication
 
-All requests must include a **Bearer token** in the `Authorization` HTTP header. No other authentication method is supported.
+Include a Bearer token in the `Authorization` header of every request.
 
 ```text
 Authorization: Bearer <YOUR_API_TOKEN>
 ```
 
-API tokens are issued from your Wokelo account. Navigate to **Account Details → API Credentials** in the Wokelo dashboard to get your client id and client secret. Contact [support@wokelo.ai](mailto:support@wokelo.ai) if you do not yet have API access.
+Obtain a token from the `/auth/token/` endpoint using the client id and client secret under **Account Details → API Credentials** in the Wokelo dashboard. Contact [support@wokelo.ai](mailto:support@wokelo.ai) if you do not yet have API access.
 
 <Warning>
-  Never expose your token in client-side code, browser requests, or public repositories. A missing or invalid token returns `401 Unauthorized`. A valid token without sufficient plan permissions returns `403 Forbidden`.
+  Never expose your token in client-side code or public repositories.
 </Warning>
 
 ---
@@ -135,506 +109,133 @@ API tokens are issued from your Wokelo account. Navigate to **Account Details �
 **Endpoint**
 
 ```text
-POST https://api.wokelo.ai/api/enterprise/target-screening/enrich/
+POST https://api.wokelo.ai/api/workflow_manager/start/
 ```
 
-The request body is JSON. Only `company` is required; all `parameters` fields are optional refinements. The `parameters` object itself **must always be included in the request body** — pass empty values (`""`, `[]`, `{}`) for any fields you do not want to filter on.
+The request body is JSON. Include `advanced_settings` in every request and send empty values (`""`, `[]`) for filters you do not want to apply.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
-| `company` | string | **Required** | Permalink (e.g. `"microsoft"`) or full URL of the **acquirer** doing the screening. Use the [Company Search API](/supporting-apis-doc) to resolve a permalink if needed. |
-| `parameters.detailed_query` | string | Optional | A natural-language description of the ideal target profile, strategic rationale, or deal criteria. The **single highest-impact parameter** for result quality. Example: `"B2B SaaS companies in endpoint security and zero-trust networking with mid-market and enterprise distribution"`. |
-| `parameters.keywords` | string\[\] | Optional | Keywords used to identify and filter relevant target companies. Use 3–6 product or category terms. Example: `["zero trust", "endpoint security", "EDR"]`. |
-| `parameters.sample_companies` | string\[\] | Optional | Permalinks (e.g. `"crowdstrike"`) or full URLs of representative companies to anchor the target search. Strongly recommended for niche or jargon-heavy markets. Use the [Company Search API](/supporting-apis-doc) to resolve permalinks. |
-| `parameters.geography` | string\[\] | Optional | Geographic scope as [ISO country codes](/iso-country-codes) (e.g. `["USA", "GBR"]`). Defaults to global if omitted. |
-| `parameters.company_type` | string | Optional | Ownership type filter. Accepted values: `"private"`, `"public"`, `"all"`. Defaults to `"all"`. |
-| `parameters.employee_count` | string\[\] | Optional | Headcount band filter. Accepted values: `"1-10"`, `"11-50"`, `"51-100"`, `"101-250"`, `"251-500"`, `"501-1000"`, `"1001-5000"`, `"5001-10000"`, `"10000+"`. Empty array = all. |
-| `parameters.founded_year` | object | Optional | Filter by founding year. Accepts `{ "from": 2010 }`, `{ "to": 2020 }`, or both. |
-| `parameters.funding_stage` | string\[\] | Optional | Filter by most-recent funding stage. Accepted values: `"Non-Equity Assistance"`, `"Angel round"`, `"Pre-seed"`, `"Seed"`, `"Series A"` through `"Series J"`, `"Corporate-Funded"`, `"Debt-Funded"`, `"Private equity round"`, `"Others"`. Empty array = all. |
-| `parameters.total_funding` | object | Optional | Filter by total funding raised in USD. Accepts `{ "from": 1000000 }`, `{ "to": 50000000 }`, or both. |
-| `parameters.revenue` | object | Optional | Filter by annual revenue in USD. Accepts `from` and/or `to` values. Most useful when combined with `company_type: "public"`. |
-
-**Full request example:**
-
-<CodeGroup>
-
-```bash cURL
-curl --location 'https://api.wokelo.ai/api/enterprise/target-screening/enrich/' \
-  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
-  --header 'Content-Type: application/json' \
-  --data '{
-    "company": "microsoft",
-    "parameters": {
-      "detailed_query": "B2B SaaS companies in endpoint security and zero-trust networking",
-      "keywords": ["zero trust", "endpoint security", "EDR"],
-      "sample_companies": ["crowdstrike", "sentinelone"],
-      "geography": ["USA"],
-      "company_type": "private",
-      "employee_count": ["101-250", "251-500"],
-      "founded_year": { "from": 2015 },
-      "funding_stage": ["Series B", "Series C"],
-      "total_funding": { "from": 20000000 }
-    }
-  }'
-```
-
-```python Python
-import requests
-
-response = requests.post(
-    "https://api.wokelo.ai/api/enterprise/target-screening/enrich/",
-    headers={
-        "Authorization": "Bearer <YOUR_API_TOKEN>",
-        "Content-Type": "application/json"
-    },
-    json={
-        "company": "microsoft",
-        "parameters": {
-            "detailed_query": "B2B SaaS companies in endpoint security and zero-trust networking",
-            "keywords": ["zero trust", "endpoint security", "EDR"],
-            "sample_companies": ["crowdstrike", "sentinelone"],
-            "geography": ["USA"],
-            "company_type": "private",
-            "employee_count": ["101-250", "251-500"],
-            "founded_year": {"from": 2015},
-            "funding_stage": ["Series B", "Series C"],
-            "total_funding": {"from": 20000000}
-        }
-    }
-)
-print(response.json())
-```
-
-</CodeGroup>
+| `topic` | string | **Required** | The sector or theme to screen for targets (e.g. `"Enterprise Software Solutions"`). |
+| `workflow` | string | **Required** | Must be `"target_screening_v2"`. |
+| `workbook_name` | string | **Required** | Name of the workbook that holds the generated report. |
+| `advanced_settings` | object | **Required** | Acquirer and filter parameters. All fields below live inside this object. |
+| `advanced_settings.acquirer` | string | **Required** | Permalink or full URL of the acquiring company (e.g. `"microsoft"`). |
+| `advanced_settings.detailed_query` | string | Optional | A descriptive query that refines the target search scope. |
+| `advanced_settings.companies` | string[] | Optional | Permalinks or full URLs of representative companies to anchor the target search. |
+| `advanced_settings.geography` | string[] | Optional | `["Worldwide"]` for no restriction, or ISO country codes (e.g. `["USA", "GBR"]`). |
+| `advanced_settings.company_type` | string | Optional | `"private"`, `"public"` or `"all"`. |
+| `advanced_settings.employee_count` | string[] | Optional | Headcount bands. Empty array includes all. Values: `1-10`, `11-50`, `51-100`, `101-250`, `251-500`, `501-1000`, `1001-5000`, `5001-10000`, `10000+`. |
+| `advanced_settings.founded_year` | object | Optional | Object with `from` and/or `to` (integer years, inclusive). |
+| `advanced_settings.funding_stage` | string[] | Optional | Empty array includes all. Values: `Non-Equity Assistance`, `Angel round`, `Pre-seed`, `Seed`, `Series A` to `Series J`, `Corporate-Funded`, `Debt-Funded`, `Private equity round`, `Others`. |
+| `advanced_settings.total_funding` | object | Optional | Object with `from` and/or `to`, in USD. |
+| `advanced_settings.total_funding_include_blanks` | boolean | Optional | When `true`, companies with no reported total funding are included. |
+| `advanced_settings.revenue` | object | Optional | Object with `from` and/or `to`, in USD. |
 
 ---
 
 ## 5. Response
 
-### Job submission response
-
-When you submit the job, you receive a response immediately with a `request_id` and an initial `status`.
+### Workflow start response
 
 ```json
 {
-  "request_id": "8583f59e-0412-4f1e-81e5-13cc70349cb6",
-  "status": "PENDING"
+  "report_id": 117253
 }
 ```
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `request_id` | string | Unique identifier for this job. Use it to poll status and retrieve results. |
-| `status` | string | Initial job state. One of `"PENDING"`, `"PROCESSING"`, `"COMPLETED"`, `"FAILED"`. |
+| `report_id` | integer | Unique identifier of the report. Use it to track completion and export results. |
 
-### Completed result response
+### Report output fields
 
-Once `status` is `"COMPLETED"`, the result contains a `result` array of target objects.
+| Field | Description |
+| --- | --- |
+| `Permalink`, `Name`, `Website` | Wokelo company identifier, display name and primary domain. |
+| `HQ City`, `HQ Country`, `HQ Continent`, `Founded` | Headquarters location and founding year. |
+| `Type`, `Operating Status` | Ownership type (`Public` or `Private`) and status (e.g. `Operating`, `Acquired`, `IPO`). |
+| `Product Category`, `Core Offering`, `Product Catalog` | Primary product category, AI-generated description of the core business, and key products. |
+| `Employees (Crunchbase)`, `Employees (LinkedIn)` | Headcount band and numeric headcount. |
+| `Funding Stage`, `Total Funding`, `Last Funding Date`, `Key Investors` | Funding profile. Total funding is in USD. Typically empty for public companies. |
+| `Revenue`, `EBITDA`, `Net Income`, `Market Cap`, `Enterprise Value`, `Ticker`, margins and multiples | Financial data in USD, primarily populated for public companies. |
+| `Acquisitions`, `Investments` | Past acquisitions (with year) and notable investments. May be empty. |
+| `Overall Score`, `Overall Score Rationale` | Composite strategic fit (1 to 10) and a one-sentence rationale. |
+| `Query Relevance Score` | How closely the target matches the stated thesis. |
+| `Deal Feasibility Score` | Whether the acquirer can financially execute the deal. |
+| `Deal Precedent Score` | Alignment with the acquirer's historical M&A pattern and deal size. |
+| `Synergy Potential Score` | Revenue and cost synergy opportunity. |
+| `Commentary` | AI-written deal thesis covering rationale, synergies and integration risks. |
 
-```json
-{
-  "request_id": "8583f59e-0412-4f1e-81e5-13cc70349cb6",
-  "status": "COMPLETED",
-  "result": [ ...target objects... ]
-}
-```
-
-### Target object fields
-
-Each object in the `result` array contains the following fields:
-
-**Identity & firmographics**
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `Permalink` | string | Wokelo company identifier for the target (e.g. `"postscript"`, `"attentive"`). Use this with other Wokelo APIs. |
-| `Name` | string | Display name of the target company. |
-| `Website` | string | Target's primary domain (e.g. `"postscript.io"`). |
-| `HQ City` | string | Headquarters city. |
-| `HQ Country` | string | Headquarters country. |
-| `HQ Continent` | string | Headquarters continent. |
-| `Founded` | string | Year the company was founded. |
-| `Type` | string | Ownership type: `"Public"` or `"Private"`. |
-| `Operating Status` | string | Current operational status (e.g. `"Operating"`, `"Acquired"`, `"IPO"`). |
-
-**Product & business**
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `Product Category` | string | High-level category describing the target's primary product (e.g. `"SMS Marketing Platform"`). |
-| `Core Offering` | string | AI-generated paragraph describing the target's core business and product. |
-| `Product Catalog` | string | Comma-separated list of key products and services offered. |
-
-**People & funding**
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `Employees (Crunchbase)` | string | Employee count band from Crunchbase (e.g. `"251-500"`). |
-| `Employees (LinkedIn)` | integer or empty | Employee count from LinkedIn. May be empty. |
-| `Funding Stage` | string | Most recent funding stage (e.g. `"Series C"`). May be empty for public or bootstrapped companies. |
-| `Total Funding` | float or empty | Total disclosed funding raised in USD. |
-| `Last Funding Date` | string | Date of the most recent funding round (`YYYY-MM-DD`). |
-| `Key Investors` | string\[\] | Array of notable investors. May be empty. |
-
-**Financials (primarily for public companies)**
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `Revenue` | float or empty | Annual revenue in USD. |
-| `Ticker` | string | Exchange and ticker symbol (e.g. `"NASDAQ:CRWD"`). |
-| `EBITDA` | float or empty | Earnings before interest, taxes, depreciation, and amortisation. |
-| `Net Income` | float or empty | Net income in USD. |
-| `EBITDA Margin (%)` | float or empty | EBITDA as a percentage of revenue. |
-| `Net Income Margin (%)` | float or empty | Net income as a percentage of revenue. |
-| `EPS Diluted` | float or empty | Diluted earnings per share. |
-| `ROA (%)` | float or empty | Return on assets. |
-| `Unlevered FCF` | float or empty | Unlevered free cash flow in USD. |
-| `D/E` | float or empty | Debt-to-equity ratio. |
-| `Market Cap` | float or empty | Market capitalisation in USD. |
-| `Enterprise Value` | float or empty | Enterprise value in USD. |
-| `EV/Revenue (LTM)` | float or empty | Enterprise value to last-twelve-months revenue multiple. |
-| `EV/EBITDA (LTM)` | float or empty | Enterprise value to LTM EBITDA multiple. |
-| `P/E (LTM)` | float or empty | Price-to-earnings ratio on LTM basis. |
-
-**M&A history**
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `Acquisitions` | string | Comma-separated list of past acquisitions made by the target with year (e.g. `"Tone (2021), Privy (2021)"`). |
-| `Investments` | string | Notable investments made by the target. May be empty. |
-
-**AI scoring**
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `Overall Score` | float | Composite strategic fit score (1–10) for the target as an acquisition for the acquirer. Higher is a stronger candidate. |
-| `Overall Score Rationale` | string | One-sentence explanation of the Overall Score. |
-| `Commentary` | string | Full AI-written deal thesis paragraph evaluating strategic rationale, synergies, integration risks, and revenue impact. |
-| `Query Relevance Score` | float | Score (1–10) measuring how closely the target matches the stated thesis in `detailed_query` and `keywords`. |
-| `Query Relevance Rationale` | string | One-sentence rationale for the Query Relevance Score. |
-| `Deal Feasibility Score` | float | Score (1–10) assessing whether the acquirer can financially execute the acquisition given its size, balance sheet, and deal history. |
-| `Deal Feasibility Rationale` | string | One-sentence rationale for the Deal Feasibility Score. |
-| `Deal Precedent Score` | float | Score (1–10) measuring how closely this deal aligns with the acquirer's historical M&A pattern and deal size. |
-| `Deal Precedent Rationale` | string | One-sentence rationale for the Deal Precedent Score. |
-| `Synergy Potential Score` | float | Score (1–10) estimating the revenue and cost synergies achievable post-acquisition. |
-| `Synergy Potential Rationale` | string | One-sentence rationale for the Synergy Potential Score. |
-
-<Info>
-  The `Commentary` field is the richest AI output in the response — a full paragraph synthesising why the target does or does not fit the acquirer's thesis. Read this carefully before relying on the numeric scores alone.
-</Info>
+Each sub-score has a matching `... Rationale` field with a one-sentence explanation.
 
 ---
 
 ## 6. Examples
 
-### Buy-side sourcing for corporate development
+### Filtered target screen
 
-Find acquisition targets for Klaviyo — Series A and B SMS marketing and push notification infrastructure companies in the United States — anchored on Attentive and Postscript. Filter to high-fit candidates and sort by feasibility.
+Private enterprise software targets for Microsoft in the USA and UK, 51 to 250 employees, Series A or B, with \$1M to \$50M total funding.
 
 <CodeGroup>
 
 ```bash cURL
-curl --location 'https://api.wokelo.ai/api/enterprise/target-screening/enrich/' \
+curl --location 'https://api.wokelo.ai/api/workflow_manager/start/' \
   --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
   --header 'Content-Type: application/json' \
   --data '{
-    "company": "klaviyo",
-    "parameters": {
-      "detailed_query": "SMS marketing and push notification infrastructure companies",
-      "keywords": ["SMS marketing", "push notification"],
-      "sample_companies": ["attentive", "postscript"],
-      "geography": ["USA"],
+    "topic": "Enterprise Software Solutions",
+    "workflow": "target_screening_v2",
+    "workbook_name": "Enterprise Software Solutions",
+    "advanced_settings": {
+      "acquirer": "microsoft",
+      "detailed_query": "Cloud-based enterprise software platforms for large organizations",
+      "companies": [],
       "company_type": "private",
-      "funding_stage": ["Series A", "Series B"]
+      "geography": ["USA", "GBR"],
+      "employee_count": ["51-100", "101-250"],
+      "funding_stage": ["Series A", "Series B"],
+      "total_funding": {
+        "from": 1000000,
+        "to": 50000000
+      },
+      "total_funding_include_blanks": false
     }
   }'
 ```
 
 ```python Python
-import requests, time
+import requests
 
-HEADERS = {
-    "Authorization": "Bearer <YOUR_API_TOKEN>",
-    "Content-Type": "application/json"
-}
-
-# Submit
-job = requests.post(
-    "https://api.wokelo.ai/api/enterprise/target-screening/enrich/",
-    headers=HEADERS,
+response = requests.post(
+    "https://api.wokelo.ai/api/workflow_manager/start/",
+    headers={
+        "Authorization": "Bearer <YOUR_API_TOKEN>",
+        "Content-Type": "application/json"
+    },
     json={
-        "company": "klaviyo",
-        "parameters": {
-            "detailed_query": "SMS marketing and push notification infrastructure companies",
-            "keywords": ["SMS marketing", "push notification"],
-            "sample_companies": ["attentive", "postscript"],
-            "geography": ["USA"],
+        "topic": "Enterprise Software Solutions",
+        "workflow": "target_screening_v2",
+        "workbook_name": "Enterprise Software Solutions",
+        "advanced_settings": {
+            "acquirer": "microsoft",
+            "detailed_query": "Cloud-based enterprise software platforms for large organizations",
+            "companies": [],
             "company_type": "private",
-            "funding_stage": ["Series A", "Series B"]
+            "geography": ["USA", "GBR"],
+            "employee_count": ["51-100", "101-250"],
+            "funding_stage": ["Series A", "Series B"],
+            "total_funding": {
+                "from": 1000000,
+                "to": 50000000
+            },
+            "total_funding_include_blanks": False
         }
     }
-).json()
-
-request_id = job["request_id"]
-
-# Poll
-while True:
-    s = requests.get(
-        f"https://api.wokelo.ai/api/enterprise/request/{request_id}/status/",
-        headers=HEADERS
-    ).json()["status"]
-    if s == "COMPLETED": break
-    time.sleep(5)
-
-# Retrieve and shortlist actionable targets
-targets = requests.get(
-    f"https://api.wokelo.ai/api/enterprise/request/{request_id}/result/",
-    headers=HEADERS
-).json()["result"]
-
-actionable = sorted(
-    [t for t in targets
-     if t.get("Overall Score", 0) >= 7
-     and t.get("Deal Feasibility Score", 0) >= 6],
-    key=lambda x: x["Overall Score"],
-    reverse=True
 )
-
-for t in actionable:
-    print(f"{t['Name']} ({t['HQ City']}) — Overall: {t['Overall Score']} | "
-          f"Feasibility: {t['Deal Feasibility Score']} | "
-          f"Relevance: {t['Query Relevance Score']}")
+print(response.json()["report_id"])
 ```
 
 </CodeGroup>
 
-**Sample response (excerpt):**
-
-```json
-{
-  "request_id": "f525ae70-b6aa-4b6e-b0af-c40efaf9681c",
-  "status": "COMPLETED",
-  "result": [
-    {
-      "Permalink": "postscript",
-      "Name": "Postscript",
-      "Website": "postscript.io",
-      "HQ City": "Scottsdale",
-      "HQ Country": "United States",
-      "Founded": "2018",
-      "Type": "Private",
-      "Product Category": "SMS Marketing Platform",
-      "Core Offering": "Postscript provides SMS marketing solutions aimed at ecommerce brands...",
-      "Employees (Crunchbase)": "251-500",
-      "Funding Stage": "Series C",
-      "Total Funding": 106200000.0,
-      "Key Investors": ["Twilio", "Y Combinator", "Accel", "OpenView", "Greylock"],
-      "Overall Score": 7.0,
-      "Overall Score Rationale": "Strong strategic fit and product synergies offset by significant financial stretch and integration complexity for this scale of acquisition.",
-      "Commentary": "Postscript acquisition would eliminate Klaviyo's primary SMS competitor while adding superior AI-powered automation and deliverability infrastructure. The combined platform would dominate ecommerce SMS with unified customer data and expanded automation flows. Revenue synergies from cross-selling existing customers could generate $200M+ incremental ARR within 24 months. Integration challenges and premium valuation require careful due diligence on customer overlap and retention metrics.",
-      "Query Relevance Score": 9.0,
-      "Deal Feasibility Score": 3.0,
-      "Deal Precedent Score": 6.0,
-      "Synergy Potential Score": 8.0
-    },
-    {
-      "Permalink": "shoptext",
-      "Name": "ShopText",
-      "Website": "shoptext.com",
-      "HQ City": "Norwalk",
-      "HQ Country": "United States",
-      "Founded": "2006",
-      "Type": "Private",
-      "Product Category": "Mobile marketing platform",
-      "Employees (Crunchbase)": "11-50",
-      "Funding Stage": "Series A",
-      "Total Funding": 5700000.0,
-      "Overall Score": 9.0,
-      "Overall Score Rationale": "Strong strategic fit with Klaviyo's SMS marketing focus, clear synergies in mobile engagement technology, and highly feasible acquisition size.",
-      "Commentary": "ShopText's ScanTxt technology would enable Klaviyo clients to capture consumer intent directly from physical advertisements through text responses...",
-      "Query Relevance Score": 9.0,
-      "Deal Feasibility Score": 10.0,
-      "Deal Precedent Score": 7.0,
-      "Synergy Potential Score": 8.0
-    }
-  ]
-}
-```
-
-### Bolt-on screening for a PE portfolio company
-
-Identify bolt-on acquisitions for a portfolio company. Use a narrower thesis in `detailed_query`, restrict by geography, and filter to a target size that the portfolio company can realistically absorb.
-
-```python
-import requests
-
-response = requests.post(
-    "https://api.wokelo.ai/api/enterprise/target-screening/enrich/",
-    headers={
-        "Authorization": "Bearer <YOUR_API_TOKEN>",
-        "Content-Type": "application/json"
-    },
-    json={
-        "company": "acme-vertical-saas",
-        "parameters": {
-            "detailed_query": "Bolt-on field-service software targeting commercial HVAC and plumbing contractors in North America with $1-10M ARR",
-            "keywords": ["field service management", "HVAC", "dispatch"],
-            "geography": ["USA", "CAN"],
-            "company_type": "private",
-            "employee_count": ["11-50", "51-100"],
-            "total_funding": {"from": 1000000, "to": 25000000}
-        }
-    }
-)
-print(response.json()["request_id"])
-```
-
-### Public-company target screen
-
-For larger strategic acquirers evaluating public-to-public deals, restrict to public targets and use revenue filters to focus on scaled assets.
-
-```python
-import requests
-
-response = requests.post(
-    "https://api.wokelo.ai/api/enterprise/target-screening/enrich/",
-    headers={
-        "Authorization": "Bearer <YOUR_API_TOKEN>",
-        "Content-Type": "application/json"
-    },
-    json={
-        "company": "salesforce",
-        "parameters": {
-            "detailed_query": "Public AI-native enterprise SaaS companies in customer data, analytics, and revenue intelligence",
-            "keywords": ["customer data platform", "revenue intelligence", "AI analytics"],
-            "company_type": "public",
-            "geography": ["USA"],
-            "revenue": {"from": 100000000}
-        }
-    }
-)
-print(response.json()["request_id"])
-```
-
 ---
-
-## 7. Error Handling
-
-The API uses standard HTTP status codes. All error responses include a JSON body with a `detail` or `message` field.
-
-| Status | Meaning | Cause & Resolution |
-| --- | --- | --- |
-| `200 OK` / `202 Accepted` | Success | Job submitted (`202`) or result retrieved (`200`) successfully. |
-| `400 Bad Request` | Invalid parameters | A required field is missing or a parameter value is invalid — e.g. unrecognised `funding_stage`, missing `parameters` object, or invalid ISO country code. Check the `detail` field. |
-| `401 Unauthorized` | Auth failed | The `Authorization` header is missing, malformed, or contains an invalid token. Verify your key in **Settings → API Keys**. |
-| `403 Forbidden` | Insufficient access | Your plan does not include access to this endpoint. Contact [support@wokelo.ai](mailto:support@wokelo.ai) to review your plan. |
-| `404 Not Found` | Resource not found | The acquirer `company` permalink could not be resolved, a `sample_companies` permalink is invalid, or the `request_id` does not exist. Use the [Company Search API](/supporting-apis-doc) to verify permalinks. |
-| `429 Too Many Requests` | Rate limit exceeded | Implement exponential back-off. The response includes a `Retry-After` header. |
-| `500 Internal Server Error` | Server error | Retry after a brief delay. If the issue persists, contact [support@wokelo.ai](mailto:support@wokelo.ai) with your `request_id`. |
-
-**Error response example:**
-
-```json
-{
-  "status": "error",
-  "detail": "Company permalink 'unknown-co' could not be resolved."
-}
-```
-
-**Job failure handling:**
-
-```python
-import requests, time
-
-def poll_until_done(request_id, headers, interval=5, timeout=600):
-    elapsed = 0
-    while elapsed < timeout:
-        resp = requests.get(
-            f"https://api.wokelo.ai/api/enterprise/request/{request_id}/status/",
-            headers=headers
-        ).json()
-        status = resp["status"]
-        if status == "COMPLETED":
-            return True
-        elif status == "FAILED":
-            raise Exception(f"Job {request_id} failed: {resp.get('detail', 'unknown error')}")
-        time.sleep(interval)
-        elapsed += interval
-    raise TimeoutError(f"Job {request_id} did not complete within {timeout}s")
-```
-
----
-
-## 8. Best Practices
-
-**Write a specific `detailed_query` — this is the highest-leverage parameter**
-
-The `detailed_query` is by far the most impactful way to sharpen the target universe. A vague query like `"cybersecurity targets"` returns a broad, noisy result set. A specific query naming the product category, customer segment, deal size, and strategic rationale returns a tight, actionable list. For example:
-
-> _"B2B SaaS companies in endpoint security and zero-trust networking with mid-market and enterprise distribution,_ $$20M-$$_100M ARR, and a complementary go-to-market motion"_
-
-is far stronger than:
-
-> _"cybersecurity companies"_
-
-**Anchor niche or jargon-heavy markets with `sample_companies`**
-
-For specialised verticals where the AI cannot fully infer the thesis from a topic and keywords alone, supply 2–4 representative permalinks in `sample_companies`. This dramatically improves precision. Use the [Company Search API](/supporting-apis-doc) to resolve company names to permalinks.
-
-**Always include the full `parameters` object**
-
-Even when you don't want to filter on a field, the API expects the `parameters` object with every field present. Pass empty values (`""`, `[]`, `{}`) for unused filters. Omitting `parameters` entirely will return a `400 Bad Request`.
-
-**Use both `Overall Score` and `Query Relevance Score` for triage**
-
-These two scores measure different things. `Overall Score` is the composite strategic fit including feasibility, precedent, and synergies. `Query Relevance Score` measures only how closely the target matches the stated thesis. A target with high `Query Relevance` but low `Overall Score` is an on-thesis fit that's hard to execute (e.g. too expensive, off-precedent); a target with high `Overall Score` but moderate `Query Relevance` is an adjacent opportunity worth exploring even if it wasn't the original ask.
-
-**Filter on `Deal Feasibility Score` to drop financially out-of-reach targets**
-
-A high `Overall Score` paired with a low `Deal Feasibility Score` (≤4) usually means the target is strategically attractive but priced beyond what the acquirer can realistically execute. For most pipelines, drop these unless the acquirer is open to merger-of-equals or stock-heavy structures.
-
-**Cross-check `Deal Precedent Score` for stylistic fit**
-
-The `Deal Precedent Score` measures whether the proposed deal looks like the acquirer's prior M&A. A low score doesn't disqualify the target, but flags that the deal would be a departure — useful context for senior-stakeholder conversations.
-
-**Read the `Commentary` for the full deal narrative**
-
-The `Commentary` field is the richest AI output — a full paragraph synthesising the strategic rationale, synergy thesis, integration considerations, and key risks. Use it to draft the strategic-rationale section of a board memo or buy-side pitch, and to brief deal teams before outreach.
-
-**Iterate the query — treat the first run as a diagnostic**
-
-Review the top 20 targets and their commentaries from the first run, then refine `detailed_query`, swap `sample_companies`, or tighten filters and re-run. Two or three iterations typically produce a substantially better target universe than a single pass.
-
-**Store the `request_id` for auditability**
-
-Target screens are associated with your account and a specific point in time. Store the `request_id` alongside the acquirer, thesis, and run date so you can re-retrieve the result set later, track how the universe evolves across quarterly refreshes, and audit which target list was used for a given mandate or board update.
-
----
-
-## 9. Related APIs
-
-<CardGroup cols={3}>
-  <Card title="Buyer Screening" icon="users" href="/buyer-screening-doc">
-    Identify and score potential acquirers for a target company — the inverse of Target Screening.
-  </Card>
-
-  <Card title="Market Map" icon="map" href="/market-map-doc">
-    Discover and map all companies competing in a specific market or product category.
-  </Card>
-
-  <Card title="Competitor List" icon="list" href="/competitor-list-doc">
-    Generate a structured list of direct and indirect competitors for any company.
-  </Card>
-
-  <Card title="Company Deep Intelligence" icon="brain" href="/company-deep-intelligence-doc">
-    Generate deep AI intelligence on any target — business model, financials, strategy, and M&A history.
-  </Card>
-
-  <Card title="Company Instant Enrichment" icon="bolt" href="/company-instant-enrichment-doc">
-    Synchronously enrich firmographic and financial data for any target in the screened list.
-  </Card>
-
-  <Card title="Industry Deep Intelligence" icon="chart-line" href="/industry-deep-intelligence-doc">
-    Generate a deep intelligence report on the industry behind the screen for thesis development.
-  </Card>
-</CardGroup>

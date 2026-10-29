@@ -1,54 +1,45 @@
 ---
 title: "Buyer Screening"
-description: "Identify and score potential acquirers for a target company using AI — returns a ranked list of strategic and financial buyers with deal feasibility scores, synergy analysis, and full firmographic and financial data."
+description: "Identify and score potential acquirers for a target company."
 ---
 
 ## 1. Overview
 
-The Buyer Screening API identifies and scores potential acquirers for a defined target company. Given a target and a set of strategic criteria, Wokelo's AI pipeline searches its coverage universe, evaluates each candidate buyer against the target, and returns a ranked list with AI-generated deal scores, synergy commentary, and full financial profiles.
+The Buyer Screening API identifies and scores potential acquirers for a defined target company. Given a target and strategic criteria, the AI pipeline evaluates each candidate buyer and returns a ranked list with deal scores, synergy commentary and financial profiles.
 
-This is an **asynchronous API** — submitting a request returns a `request_id` immediately, and you must poll for status and then retrieve results once the job is complete. Read more about the async pattern in [How Async APIs work](/how-async-apis-work).
+This is an **asynchronous API**. Starting the workflow returns a `report_id`, which you use to track completion and export the results. See [How Async APIs work](/how-async-apis-work).
 
-Each buyer in the result set is evaluated across four dimensions:
-
-- **Overall Score** — composite strategic fit rating (1–10)
-- **Deal Feasibility Score** — likelihood the buyer can financially execute the acquisition
-- **Product Synergy Score** — degree of product and capability overlap
-- **Deal Precedent Score** — alignment with the buyer's historical M&A pattern
-- **Synergy Potential Score** — quantified revenue and cost synergy opportunity
-
-Each score is accompanied by an AI-written rationale and an overall commentary paragraph synthesising the deal thesis.
+Each buyer receives an `Overall Score` (1 to 10) and four sub-scores: `Deal Feasibility Score`, `Product Synergy Score`, `Deal Precedent Score` and `Synergy Potential Score`, each with a written rationale, plus a `Commentary` summarising the deal thesis.
 
 **Common use cases:**
 
-- **Sell-side M&A advisory** — Generate a scored buyer universe for board-level presentations and process initiation
-- **Corporate development** — Identify strategic acquirers for portfolio companies or subsidiaries
-- **Investment banking** — Rapidly populate a buyer list for pitch books or CIM preparation
-- **Private equity exits** — Screen strategic and financial buyers for portfolio company sale processes
-
-<Info>
-  This API is asynchronous. You submit a job, receive a `request_id`, poll until `status` is `"COMPLETED"`, and then read results from the same response. See [How Async APIs work](/how-async-apis-work).
-</Info>
+- **Sell-side advisory**: generate a scored buyer universe for a sale process
+- **Private equity exits**: screen strategic and financial buyers for portfolio companies
+- **Corporate development**: identify acquirers for subsidiaries or divestitures
 
 ---
 
 ## 2. Quick Start
 
-**Step 1 — Submit the job**
+**Step 1: Start the workflow**
 
 <CodeGroup>
 
 ```bash cURL
-curl --location 'https://api.wokelo.ai/api/enterprise/buyer-screening/enrich/' \
+curl --location 'https://api.wokelo.ai/api/workflow_manager/start/' \
   --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
   --header 'Content-Type: application/json' \
   --data '{
-    "company": "acme-security",
-    "parameters": {
-      "detailed_query": "Looking for strategic acquirers in enterprise software",
-      "buyer_type": ["strategic"],
-      "company_type": "public",
-      "geography": ["United States"]
+    "topic": "Civil Engineering Infrastructure Services",
+    "workflow": "buyer_analysis",
+    "workbook_name": "Ulteig Buyers",
+    "advanced_settings": {
+      "target": "ulteig",
+      "detailed_query": "Civil Engineering Infrastructure Services",
+      "companies": [],
+      "buyer_type": [],
+      "company_type": "all",
+      "geography": ["Worldwide"]
     }
   }'
 ```
@@ -57,72 +48,54 @@ curl --location 'https://api.wokelo.ai/api/enterprise/buyer-screening/enrich/' \
 import requests
 
 response = requests.post(
-    "https://api.wokelo.ai/api/enterprise/buyer-screening/enrich/",
+    "https://api.wokelo.ai/api/workflow_manager/start/",
     headers={
         "Authorization": "Bearer <YOUR_API_TOKEN>",
         "Content-Type": "application/json"
     },
     json={
-        "company": "acme-security",
-        "parameters": {
-            "detailed_query": "Looking for strategic acquirers in enterprise software",
-            "buyer_type": ["strategic"],
-            "company_type": "public",
-            "geography": ["United States"]
+        "topic": "Civil Engineering Infrastructure Services",
+        "workflow": "buyer_analysis",
+        "workbook_name": "Ulteig Buyers",
+        "advanced_settings": {
+            "target": "ulteig",
+            "detailed_query": "Civil Engineering Infrastructure Services",
+            "companies": [],
+            "buyer_type": [],
+            "company_type": "all",
+            "geography": ["Worldwide"]
         }
     }
 )
-request_id = response.json()["request_id"]
-print("Job submitted:", request_id)
+print(response.json()["report_id"])
 ```
 
 </CodeGroup>
 
-**Step 2 — Poll for completion**
+The response contains a `report_id`.
 
-```python
-import time
+**Step 2: Track completion**
 
-while True:
-    status_resp = requests.get(
-        f"https://api.wokelo.ai/api/enterprise/request/{request_id}/status/",
-        headers={"Authorization": "Bearer <YOUR_API_TOKEN>"}
-    )
-    status = status_resp.json()["status"]
-    if status == "COMPLETED":
-        break
-    elif status == "FAILED":
-        raise Exception("Job failed")
-    print(f"Status: {status} — waiting...")
-    time.sleep(5)
-```
+Use `/api/assets/get_notebook_status/` with the `report_id` to check whether the report has completed.
 
-**Step 3 — Read results**
+**Step 3: Export results**
 
-```python
-result_resp = requests.get(
-    f"https://api.wokelo.ai/api/enterprise/request/{request_id}/result/",
-    headers={"Authorization": "Bearer <YOUR_API_TOKEN>"}
-)
-buyers = result_resp.json()["result"]
-for buyer in buyers:
-    print(buyer["Name"], "— Overall Score:", buyer.get("Overall Score"))
-```
+Once the report is complete, use `/api/assets/download_report/` with the `report_id` to export the results.
 
 ---
 
 ## 3. Authentication
 
-All requests must include a **Bearer token** in the `Authorization` HTTP header. No other authentication method is supported.
+Include a Bearer token in the `Authorization` header of every request.
 
 ```text
 Authorization: Bearer <YOUR_API_TOKEN>
 ```
 
-API tokens are issued from your Wokelo account. Navigate to **Account Details → API Credentials** in the Wokelo dashboard to get your client id and client secret. Contact [support@wokelo.ai](mailto:support@wokelo.ai) if you do not yet have API access.
+Obtain a token from the `/auth/token/` endpoint using the client id and client secret under **Account Details → API Credentials** in the Wokelo dashboard. Contact [support@wokelo.ai](mailto:support@wokelo.ai) if you do not yet have API access.
 
 <Warning>
-  Never expose your token in client-side code, browser requests, or public repositories. A missing or invalid token returns `401 Unauthorized`. A valid token without sufficient plan permissions returns `403 Forbidden`.
+  Never expose your token in client-side code or public repositories.
 </Warning>
 
 ---
@@ -132,392 +105,117 @@ API tokens are issued from your Wokelo account. Navigate to **Account Details �
 **Endpoint**
 
 ```text
-POST https://api.wokelo.ai/api/enterprise/buyer-screening/enrich/
+POST https://api.wokelo.ai/api/workflow_manager/start/
 ```
 
-The request body is JSON. Only `company` is required; all `parameters` fields are optional refinements.
+The request body is JSON. Include `advanced_settings` in every request and send empty values (`""`, `[]`) for filters you do not want to apply.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
-| `company` | string | **Required** | Permalink (e.g. `"brex"`) or full URL of the **target** company being acquired. Use the [Company Search API](/supporting-apis-doc) to resolve a permalink if needed. |
-| `parameters.detailed_query` | string | Optional | A natural-language description of the ideal acquirer profile, strategic rationale, or deal criteria. The more specific, the more targeted the buyer universe. Example: `"Looking for companies in spend management, corporate cards, and CFO workflow software with mid-market and enterprise distribution"`. |
-| `parameters.buyer_type` | string or string\[\] | Optional | Type of buyer to screen for. Accepted values: `"strategic"`, `"financial"`, or both as an array `["strategic", "financial"]`. Defaults to all types if omitted. |
-| `parameters.company_type` | string | Optional | Limits results to a specific company ownership type. Accepted values: `"public"`, `"private"`, or `"all"`. Defaults to `"all"` if omitted. |
-| `parameters.geography` | string\[\] | Optional | Geographic scope for the buyer search. Pass country names or ISO codes (e.g. `["United States"]`, `["USA", "GBR"]`). Defaults to global if omitted. |
-
-**Full request example:**
-
-<CodeGroup>
-
-```bash cURL
-curl --location 'https://api.wokelo.ai/api/enterprise/buyer-screening/enrich/' \
-  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
-  --header 'Content-Type: application/json' \
-  --data '{
-    "company": "brex",
-    "parameters": {
-      "detailed_query": "Looking for companies in spend management, corporate cards, and CFO workflow software with mid-market and enterprise distribution",
-      "buyer_type": "strategic",
-      "company_type": "public",
-      "geography": ["USA"]
-    }
-  }'
-```
-
-```python Python
-import requests
-
-response = requests.post(
-    "https://api.wokelo.ai/api/enterprise/buyer-screening/enrich/",
-    headers={
-        "Authorization": "Bearer <YOUR_API_TOKEN>",
-        "Content-Type": "application/json"
-    },
-    json={
-        "company": "brex",
-        "parameters": {
-            "detailed_query": "Looking for companies in spend management, corporate cards, and CFO workflow software with mid-market and enterprise distribution",
-            "buyer_type": "strategic",
-            "company_type": "public",
-            "geography": ["USA"]
-        }
-    }
-)
-print(response.json())
-```
-
-</CodeGroup>
+| `topic` | string | **Required** | The sector or theme describing the target's business (e.g. `"Civil Engineering Infrastructure Services"`). |
+| `workflow` | string | **Required** | Must be `"buyer_analysis"`. |
+| `workbook_name` | string | **Required** | Name of the workbook that holds the generated report. |
+| `advanced_settings` | object | **Required** | Target and filter parameters. All fields below live inside this object. |
+| `advanced_settings.target` | string | **Required** | Permalink or full URL of the target company being sold (e.g. `"ulteig"`). |
+| `advanced_settings.detailed_query` | string | Optional | A descriptive query that refines the buyer search scope and strategic criteria. |
+| `advanced_settings.companies` | string[] | Optional | Permalinks or full URLs of representative companies to anchor the buyer search. |
+| `advanced_settings.buyer_type` | string[] | Optional | `"strategic"`, `"financial"`. Empty array includes all buyer types. |
+| `advanced_settings.company_type` | string | Optional | `"private"`, `"public"` or `"all"`. |
+| `advanced_settings.geography` | string[] | Optional | `["Worldwide"]` for no restriction, or ISO country codes (e.g. `["USA", "GBR"]`). |
 
 ---
 
 ## 5. Response
 
-### Job submission response
-
-When you submit the job, you receive a response immediately with a `request_id` and an initial `status`.
+### Workflow start response
 
 ```json
 {
-  "request_id": "c685171e-ce46-474b-b0de-f17123b3085a",
-  "status": "PROCESSING"
+  "report_id": 117253
 }
 ```
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `request_id` | string | Unique identifier for this job. Use it to poll status and retrieve results. |
-| `status` | string | Initial job state. One of `"PENDING"`, `"PROCESSING"`, `"COMPLETED"`, `"FAILED"`. |
+| `report_id` | integer | Unique identifier of the report. Use it to track completion and export results. |
 
-### Completed result response
+### Report output fields
 
-Once `status` is `"COMPLETED"`, the result contains a `result` array of buyer objects.
+| Field | Description |
+| --- | --- |
+| `Permalink`, `Name`, `Website` | Wokelo company identifier, display name and primary domain. |
+| `HQ City`, `HQ Country`, `HQ Continent`, `Founded` | Headquarters location and founding year. |
+| `Type`, `Operating Status` | Ownership type (`Public` or `Private`) and status (e.g. `Operating`, `Acquired`, `IPO`). |
+| `Product Category`, `Core Offering`, `Product Catalog` | Primary product category, AI-generated description of the core business, and key products. |
+| `Employees (Crunchbase)`, `Employees (LinkedIn)` | Headcount band and numeric headcount. |
+| `Funding Stage`, `Total Funding`, `Last Funding Date`, `Key Investors` | Funding profile. Total funding is in USD. Typically empty for public companies. |
+| `Revenue`, `EBITDA`, `Net Income`, `Market Cap`, `Enterprise Value`, `Ticker`, margins and multiples | Financial data in USD, primarily populated for public companies. |
+| `Acquisitions`, `Investments` | Past acquisitions (with year) and notable investments. May be empty. |
+| `Buyer Type` | `Strategic`, `Financial` or `Institutional`. |
+| `Overall Score`, `Overall Score Rationale` | Composite strategic fit (1 to 10) and a one-sentence rationale. |
+| `Deal Feasibility Score` | Whether the buyer can financially execute the deal. |
+| `Product Synergy Score` | Product and capability overlap with the target. |
+| `Deal Precedent Score` | Alignment with the buyer's historical M&A pattern and deal size. |
+| `Synergy Potential Score` | Revenue and cost synergy opportunity. |
+| `Commentary` | AI-written deal thesis covering rationale, synergies and risks. |
 
-```json
-{
-  "request_id": "c685171e-ce46-474b-b0de-f17123b3085a",
-  "status": "COMPLETED",
-  "result": [ ...buyer objects... ]
-}
-```
-
-### Buyer object fields
-
-Each object in the `result` array contains the following fields:
-
-**Identity & firmographics**
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `Permalink` | string | Wokelo company identifier for the buyer (e.g. `"visa"`, `"intuit"`). |
-| `Name` | string | Display name of the buyer company. |
-| `Website` | string | Buyer's primary domain (e.g. `"visa.com"`). |
-| `HQ City` | string | Headquarters city. |
-| `HQ Country` | string | Headquarters country. |
-| `HQ Continent` | string | Headquarters continent. |
-| `Founded` | string | Year the company was founded. |
-| `Type` | string | Ownership type: `"Public"` or `"Private"`. |
-| `Operating Status` | string | Current operational status (e.g. `"IPO"`, `"Acquired"`). |
-| `Buyer Type` | string | Classification of the buyer: `"Strategic"`, `"Financial"`, or `"Institutional"`. |
-
-**Product & business**
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `Product Category` | string | High-level category describing the buyer's primary product (e.g. `"Payment Processing Network"`). |
-| `Core Offering` | string | AI-generated paragraph describing the buyer's core business. |
-| `Product Catalog` | string | Comma-separated list of key products and services offered. |
-
-**People & funding**
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `Employees (Crunchbase)` | string | Employee count range from Crunchbase (e.g. `"10000+"`). |
-| `Employees (LinkedIn)` | integer or empty | Employee count from LinkedIn. May be empty. |
-| `Funding Stage` | string | Most recent funding stage. May be empty for public companies. |
-| `Total Funding` | string | Total disclosed funding raised. May be empty. |
-| `Last Funding Date` | string | Date of the most recent funding round. May be empty. |
-| `Key Investors` | string\[\] or empty | Array of notable investors. |
-
-**Financials (public companies)**
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `Revenue` | float | Annual revenue in USD. |
-| `EBITDA` | float | Earnings before interest, taxes, depreciation, and amortisation. |
-| `Net Income` | float | Net income in USD. |
-| `EBITDA Margin (%)` | float | EBITDA as a percentage of revenue. |
-| `Net Income Margin (%)` | float | Net income as a percentage of revenue. |
-| `EPS Diluted` | float | Diluted earnings per share. |
-| `ROA (%)` | float | Return on assets. |
-| `Unlevered FCF` | float | Unlevered free cash flow in USD. |
-| `D/E` | float | Debt-to-equity ratio. |
-| `Market Cap` | float | Market capitalisation in USD. |
-| `Enterprise Value` | float | Enterprise value in USD. |
-| `EV/Revenue (LTM)` | float | Enterprise value to last-twelve-months revenue multiple. |
-| `EV/EBITDA (LTM)` | float | Enterprise value to LTM EBITDA multiple. |
-| `P/E (LTM)` | float | Price-to-earnings ratio on LTM basis. |
-| `Ticker` | string | Exchange and ticker symbol (e.g. `"NYSE:V"`). |
-
-**M&A history**
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `Acquisitions` | string | Comma-separated list of past acquisitions with year (e.g. `"Pismo (2023), Tink (2021)"`). |
-| `Investments` | string | Notable investments made by the buyer. May be empty. |
-
-**AI scoring (present on high-relevance buyers)**
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `Overall Score` | float | Composite strategic fit score from 1–10. Higher is a stronger acquirer candidate. |
-| `Overall Score Rationale` | string | One-sentence explanation of the Overall Score. |
-| `Commentary` | string | Full AI-written deal thesis paragraph evaluating the strategic rationale, synergies, and risks. |
-| `Deal Feasibility Score` | float | Score (1–10) assessing whether the buyer can financially execute the acquisition given its size, balance sheet, and deal history. |
-| `Deal Feasibility Rationale` | string | One-sentence rationale for the Deal Feasibility Score. |
-| `Product Synergy Score` | float | Score (1–10) measuring product and capability overlap between buyer and target. |
-| `Product Synergy Rationale` | string | One-sentence rationale for the Product Synergy Score. |
-| `Deal Precedent Score` | float | Score (1–10) measuring how closely this deal aligns with the buyer's historical M&A pattern and deal size. |
-| `Deal Precedent Rationale` | string | One-sentence rationale for the Deal Precedent Score. |
-| `Synergy Potential Score` | float | Score (1–10) estimating the revenue and cost synergies achievable post-acquisition. |
-| `Synergy Potential Rationale` | string | One-sentence rationale for the Synergy Potential Score. |
-
-<Info>
-  AI scoring fields (`Overall Score`, `Commentary`, and the four sub-scores) are only present on buyers where Wokelo's AI has sufficient data to generate a reliable assessment. Buyers without scores are still returned with full firmographic and financial data.
-</Info>
+Each sub-score has a matching `... Rationale` field. AI scoring fields are present only where there is enough data for a reliable assessment. Unscored buyers are still returned with firmographic and financial data.
 
 ---
 
 ## 6. Examples
 
-### Sell-side M&A: board-level buyer universe
+### Filtered buyer screen
 
-Find strategic acquirers for Brex — public companies in spend management, corporate cards, and CFO workflow software with US distribution. Filter results to the highest-scored buyers for a board presentation.
+Strategic, publicly listed buyers for Ulteig in the USA and Canada.
 
 <CodeGroup>
 
 ```bash cURL
-curl --location 'https://api.wokelo.ai/api/enterprise/buyer-screening/enrich/' \
+curl --location 'https://api.wokelo.ai/api/workflow_manager/start/' \
   --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
   --header 'Content-Type: application/json' \
   --data '{
-    "company": "brex",
-    "parameters": {
-      "detailed_query": "Looking for companies in spend management, corporate cards, and CFO workflow software with mid-market and enterprise distribution",
-      "buyer_type": "strategic",
+    "topic": "Civil Engineering Infrastructure Services",
+    "workflow": "buyer_analysis",
+    "workbook_name": "Ulteig Buyers",
+    "advanced_settings": {
+      "target": "ulteig",
+      "detailed_query": "Engineering and consulting firms seeking to expand infrastructure services",
+      "companies": [],
+      "buyer_type": ["strategic"],
       "company_type": "public",
-      "geography": ["USA"]
+      "geography": ["USA", "CAN"]
     }
   }'
 ```
 
 ```python Python
-import requests, time
-
-HEADERS = {
-    "Authorization": "Bearer <YOUR_API_TOKEN>",
-    "Content-Type": "application/json"
-}
-
-# Submit
-job = requests.post(
-    "https://api.wokelo.ai/api/enterprise/buyer-screening/enrich/",
-    headers=HEADERS,
-    json={
-        "company": "brex",
-        "parameters": {
-            "detailed_query": "Looking for companies in spend management, corporate cards, and CFO workflow software with mid-market and enterprise distribution",
-            "buyer_type": "strategic",
-            "company_type": "public",
-            "geography": ["USA"]
-        }
-    }
-).json()
-
-request_id = job["request_id"]
-
-# Poll
-while True:
-    s = requests.get(
-        f"https://api.wokelo.ai/api/enterprise/request/{request_id}/status/",
-        headers=HEADERS
-    ).json()["status"]
-    if s == "COMPLETED": break
-    time.sleep(5)
-
-# Retrieve and filter top buyers
-buyers = requests.get(
-    f"https://api.wokelo.ai/api/enterprise/request/{request_id}/result/",
-    headers=HEADERS
-).json()["result"]
-
-top_buyers = sorted(
-    [b for b in buyers if b.get("Overall Score")],
-    key=lambda x: x["Overall Score"],
-    reverse=True
-)[:10]
-
-for b in top_buyers:
-    print(f"{b['Name']} ({b['Ticker']}) — Overall: {b['Overall Score']} | Feasibility: {b['Deal Feasibility Score']}")
-```
-
-</CodeGroup>
-
-### Financial buyer screening
-
-Screen for private equity and institutional buyers for a B2B SaaS company, globally.
-
-```python
 import requests
 
 response = requests.post(
-    "https://api.wokelo.ai/api/enterprise/buyer-screening/enrich/",
+    "https://api.wokelo.ai/api/workflow_manager/start/",
     headers={
         "Authorization": "Bearer <YOUR_API_TOKEN>",
         "Content-Type": "application/json"
     },
     json={
-        "company": "acme-saas",
-        "parameters": {
-            "detailed_query": "Financial sponsors and PE firms with B2B SaaS and fintech portfolio experience",
-            "buyer_type": ["financial"],
-            "company_type": "all"
+        "topic": "Civil Engineering Infrastructure Services",
+        "workflow": "buyer_analysis",
+        "workbook_name": "Ulteig Buyers",
+        "advanced_settings": {
+            "target": "ulteig",
+            "detailed_query": "Engineering and consulting firms seeking to expand infrastructure services",
+            "companies": [],
+            "buyer_type": ["strategic"],
+            "company_type": "public",
+            "geography": ["USA", "CAN"]
         }
     }
 )
-print(response.json()["request_id"])
+print(response.json()["report_id"])
 ```
 
----
-
-## 7. Error Handling
-
-The API uses standard HTTP status codes. All error responses include a JSON body with a `detail` or `message` field.
-
-| Status | Meaning | Cause & Resolution |
-| --- | --- | --- |
-| `200 OK` | Success | Job submitted or result retrieved successfully. |
-| `400 Bad Request` | Invalid parameters | A required field is missing or a parameter value is invalid — e.g. unrecognised `buyer_type`. Check the `detail` field in the response body. |
-| `401 Unauthorized` | Auth failed | The `Authorization` header is missing, malformed, or contains an invalid token. Verify your key in **Settings → API Keys**. |
-| `403 Forbidden` | Insufficient access | Your plan does not include access to this endpoint. Contact [support@wokelo.ai](mailto:support@wokelo.ai) to review your plan. |
-| `404 Not Found` | Company or job not found | The `company` permalink could not be resolved, or the `request_id` does not exist. Use the [Company Search API](/supporting-apis-doc) to verify the company permalink. |
-| `429 Too Many Requests` | Rate limit exceeded | Implement exponential back-off. The response includes a `Retry-After` header. |
-| `500 Internal Server Error` | Server error | Retry after a brief delay. If the issue persists, contact [support@wokelo.ai](mailto:support@wokelo.ai) with your `request_id`. |
-
-**Error response example:**
-
-```json
-{
-  "status": "error",
-  "detail": "Company permalink 'unknown-co' could not be resolved."
-}
-```
-
-**Job failure handling:**
-
-```python
-import requests, time
-
-def poll_until_done(request_id, headers, interval=5, timeout=300):
-    elapsed = 0
-    while elapsed < timeout:
-        resp = requests.get(
-            f"https://api.wokelo.ai/api/enterprise/request/{request_id}/status/",
-            headers=headers
-        ).json()
-        status = resp["status"]
-        if status == "COMPLETED":
-            return True
-        elif status == "FAILED":
-            raise Exception(f"Job {request_id} failed: {resp.get('detail', 'unknown error')}")
-        time.sleep(interval)
-        elapsed += interval
-    raise TimeoutError(f"Job {request_id} did not complete within {timeout}s")
-```
+</CodeGroup>
 
 ---
-
-## 8. Best Practices
-
-**Write a specific `detailed_query` for better results**
-
-The `detailed_query` parameter is the single most impactful way to sharpen the buyer universe. Generic queries like `"strategic acquirers"` return broad results. Specific queries that name product categories, distribution models, customer segments, and deal rationale return a more focused and relevant set. For example:
-
-> _"Looking for companies in spend management, corporate cards, and CFO workflow software with mid-market and enterprise distribution"_
-
-is far more targeted than:
-
-> _"Looking for technology companies"_
-
-**Combine `buyer_type` and `company_type` to bound the universe**
-
-If your process targets only strategic acquirers capable of an all-cash deal, set `buyer_type: "strategic"` and `company_type: "public"` to limit results to entities with public-market capital access. For financial sponsor processes, set `buyer_type: "financial"`.
-
-**Sort and tier by `Overall Score` before review**
-
-The `Overall Score` is Wokelo's composite fit metric. Sort the result set descending by `Overall Score` and segment into tiers (e.g. 8–10: Priority, 5–7: Secondary, below 5: Monitor) before reviewing individual rationales. This dramatically reduces time spent reviewing low-fit candidates.
-
-**Use `Deal Feasibility Score` to screen out financially constrained buyers**
-
-A high `Overall Score` paired with a low `Deal Feasibility Score` indicates a strategically attractive but financially constrained buyer. Filter out buyers with `Deal Feasibility Score < 5` early in the process unless you are exploring merger-of-equals structures.
-
-**Read `Commentary` for the full deal narrative**
-
-The `Commentary` field contains Wokelo's most detailed AI output — a full paragraph synthesising the strategic rationale, synergy thesis, and key risks for each buyer. Use this field to draft the strategic rationale section of pitch books or CIMs, or to brief deal teams before outreach.
-
-**Store the `request_id` for auditability**
-
-Buyer screening jobs are associated with your account and a specific point in time. Store the `request_id` alongside the target company and run date so you can re-retrieve results later, track how the universe evolves across multiple runs, and audit which buyer list was used for a given process.
-
-**Re-run with different parameters to stress-test the universe**
-
-Run the same target with different `buyer_type`, `company_type`, and `geography` parameters to discover buyers that might be missed by a single query. Comparing results across runs helps identify edge-case buyers worth adding to a long list.
-
----
-
-## 9. Related APIs
-
-<CardGroup cols={3}>
-  <Card title="Target Screening" icon="crosshairs" href="/target-screening-doc">
-    Identify and score acquisition targets for a defined acquirer — the inverse of Buyer Screening.
-  </Card>
-
-  <Card title="Market Map" icon="map" href="/market-map-doc">
-    Discover and map all companies competing in a specific market or product category.
-  </Card>
-
-  <Card title="Competitor List" icon="list" href="/competitor-list-doc">
-    Generate a structured list of direct and indirect competitors for any company.
-  </Card>
-
-  <Card title="Company Deep Intelligence" icon="brain" href="/company-deep-intelligence-doc">
-    Generate deep AI intelligence on any buyer — business model, financials, strategy, and M&A history.
-  </Card>
-
-  <Card title="M&A Activity" icon="handshake" href="/acquisitions-doc">
-    Retrieve historical acquisition data for any company to validate Deal Precedent scores.
-  </Card>
-
-  <Card title="Company Instant Enrichment" icon="bolt" href="/company-instant-enrichment-doc">
-    Synchronously enrich firmographic and financial data for any buyer in the screened list.
-  </Card>
-</CardGroup>

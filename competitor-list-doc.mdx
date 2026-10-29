@@ -1,56 +1,48 @@
 ---
 title: "Competitor List"
+description: "Generate a ranked list of companies similar to a given seed company."
 ---
 
 ## 1. Overview
 
-The Competitor List API generates a ranked list of companies similar to a given seed company, enriched with structured firmographic, funding, and financial data. Given a single company permalink (e.g. `"del-air"`) and an optional set of refinements, Wokelo's AI pipeline searches its coverage universe of 3M\+ companies, evaluates each candidate against the seed company's product, customers, and business model, and returns a ranked peer set with AI-generated similarity scores and per-company commentary.
+The Competitor List API generates a ranked list of companies similar to a given seed company, enriched with firmographic, funding and financial data. Given a company permalink and optional refinements, the AI pipeline evaluates each candidate against the seed company's product, customers and business model.
 
-This is an **asynchronous API** — submitting a request returns a `request_id` immediately, and you must poll for status and then retrieve results once the job is complete. Read more about the async pattern in [How Async APIs work](/how-async-apis-work).
+Unlike [Market Map](/market-map-doc), which starts from a market topic, Competitor List starts from a specific company.
 
-Each peer in the result set is returned with:
+This is an **asynchronous API**. Starting the workflow returns a `report_id`, which you use to track completion and export the results. See [How Async APIs work](/how-async-apis-work).
 
-- **Identity & firmographics** — name, website, HQ location, founding year, ownership type
-- **Product & business profile** — product category, AI-generated core offering description, product catalog
-- **Funding & employees** — funding stage, total funding raised, investor list, headcount
-- **Financials** — revenue, EBITDA, net income, market cap, EV multiples (for public companies)
-- **M&A history** — past acquisitions and investments
-- **AI similarity scoring** — an `Overall Score` (1–10) measuring how closely the peer matches the seed company, plus a `Commentary` paragraph explaining the overlap and differentiation
-
-**How it differs from Market Map:** Market Map starts from a _market topic_ (e.g. "AI-powered CRM software"); Competitor List starts from a _specific company_ and returns peers most similar to it. Use Competitor List when you have a clear anchor company; use Market Map when you're defining the universe by category.
+Each peer includes firmographics, product profile, funding and headcount, financials (for public companies), M&A history, an `Overall Score` (1 to 10) measuring similarity to the seed company, and a `Commentary` explaining the overlap.
 
 **Common use cases:**
 
-- **Competitive intelligence** — Build a competitive battlecard or vendor landscape around a specific company
-- **Peer benchmarking** — Identify the right comparable set for valuation, financial benchmarking, or KPI comparisons
-- **Sales & GTM** — Map adjacent and competing vendors for partner strategy or competitive deal positioning
-- **M&A roll-up sourcing** — Find regional or sub-segment players similar to a platform company for bolt-on consolidation
-- **Investor research** — Build a peer set for diligence on a private or public company under evaluation
-- **Sell-side & corp dev** — Identify likely competitive intermediaries or strategic peers in a sale process
-
-<Info>
-  This API is asynchronous. You submit a job, receive a `request_id`, poll until `status` is `"COMPLETED"`, and then read results from the same response. See [How Async APIs work](/how-async-apis-work).
-</Info>
+- **Competitive intelligence**: build a vendor landscape around a specific company
+- **Peer benchmarking**: identify comparables for valuation or KPI analysis
+- **Roll-up sourcing**: find players similar to a platform company for bolt-on consolidation
 
 ---
 
 ## 2. Quick Start
 
-**Step 1 — Submit the job**
+**Step 1: Start the workflow**
 
 <CodeGroup>
 
 ```bash cURL
-curl --location 'https://api.wokelo.ai/api/enterprise/company-peers/enrich/' \
+curl --location 'https://api.wokelo.ai/api/workflow_manager/start/' \
   --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
   --header 'Content-Type: application/json' \
   --data '{
-    "company": "del-air",
-    "parameters": {
-      "detailed_query": "Residential home services companies",
-      "sample_companies": ["service-titan", "angi"],
-      "geography": ["USA"],
-      "company_type": "private"
+    "workflow": "company_peers",
+    "workbook_name": "LegalTech Players",
+    "permalink": "harvey-128b",
+    "advanced_settings": {
+      "detailed_query": "",
+      "companies": [],
+      "company_type": "all",
+      "geography": ["Worldwide"],
+      "employee_count": [],
+      "funding_stage": [],
+      "total_funding_include_blanks": true
     }
   }'
 ```
@@ -59,72 +51,55 @@ curl --location 'https://api.wokelo.ai/api/enterprise/company-peers/enrich/' \
 import requests
 
 response = requests.post(
-    "https://api.wokelo.ai/api/enterprise/company-peers/enrich/",
+    "https://api.wokelo.ai/api/workflow_manager/start/",
     headers={
         "Authorization": "Bearer <YOUR_API_TOKEN>",
         "Content-Type": "application/json"
     },
     json={
-        "company": "del-air",
-        "parameters": {
-            "detailed_query": "Residential home services companies",
-            "sample_companies": ["service-titan", "angi"],
-            "geography": ["USA"],
-            "company_type": "private"
+        "workflow": "company_peers",
+        "workbook_name": "LegalTech Players",
+        "permalink": "harvey-128b",
+        "advanced_settings": {
+            "detailed_query": "",
+            "companies": [],
+            "company_type": "all",
+            "geography": ["Worldwide"],
+            "employee_count": [],
+            "funding_stage": [],
+            "total_funding_include_blanks": True
         }
     }
 )
-request_id = response.json()["request_id"]
-print("Job submitted:", request_id)
+print(response.json()["report_id"])
 ```
 
 </CodeGroup>
 
-**Step 2 — Poll for completion**
+The response contains a `report_id`.
 
-```python
-import time
+**Step 2: Track completion**
 
-while True:
-    status_resp = requests.get(
-        f"https://api.wokelo.ai/api/enterprise/request/{request_id}/status/",
-        headers={"Authorization": "Bearer <YOUR_API_TOKEN>"}
-    )
-    status = status_resp.json()["status"]
-    if status == "COMPLETED":
-        break
-    elif status == "FAILED":
-        raise Exception("Job failed")
-    print(f"Status: {status} — waiting...")
-    time.sleep(5)
-```
+Use `/api/assets/get_notebook_status/` with the `report_id` to check whether the report has completed.
 
-**Step 3 — Read results**
+**Step 3: Export results**
 
-```python
-result_resp = requests.get(
-    f"https://api.wokelo.ai/api/enterprise/request/{request_id}/result/",
-    headers={"Authorization": "Bearer <YOUR_API_TOKEN>"}
-)
-peers = result_resp.json()["result"]
-for p in peers:
-    print(p["Name"], "—", p.get("Product Category"), "— Score:", p.get("Overall Score"))
-```
+Once the report is complete, use `/api/assets/download_report/` with the `report_id` to export the results.
 
 ---
 
 ## 3. Authentication
 
-All requests must include a **Bearer token** in the `Authorization` HTTP header. No other authentication method is supported.
+Include a Bearer token in the `Authorization` header of every request.
 
 ```text
 Authorization: Bearer <YOUR_API_TOKEN>
 ```
 
-API tokens are issued from your Wokelo account. Navigate to **Account Details → API Credentials** in the Wokelo dashboard to get your client id and client secret. Contact [support@wokelo.ai](mailto:support@wokelo.ai) if you do not yet have API access.
+Obtain a token from the `/auth/token/` endpoint using the client id and client secret under **Account Details → API Credentials** in the Wokelo dashboard. Contact [support@wokelo.ai](mailto:support@wokelo.ai) if you do not yet have API access.
 
 <Warning>
-  Never expose your token in client-side code, browser requests, or public repositories. A missing or invalid token returns `401 Unauthorized`. A valid token without sufficient plan permissions returns `403 Forbidden`.
+  Never expose your token in client-side code or public repositories.
 </Warning>
 
 ---
@@ -134,495 +109,124 @@ API tokens are issued from your Wokelo account. Navigate to **Account Details �
 **Endpoint**
 
 ```text
-POST https://api.wokelo.ai/api/enterprise/company-peers/enrich/
+POST https://api.wokelo.ai/api/workflow_manager/start/
 ```
 
-The request body is JSON. Only `company` is required; all `parameters` fields are optional refinements. The `parameters` object itself **must always be included in the request body** — pass empty values (`""`, `[]`, `{}`) for any fields you do not want to filter on.
+The request body is JSON. Include `advanced_settings` in every request and send empty values (`""`, `[]`) for filters you do not want to apply.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
-| `company` | string | **Required** | Permalink (e.g. `"del-air"`) or full URL of the **seed company** whose peers you want to find. Use the [Company Search API](/supporting-apis-doc) to resolve a permalink if needed. |
-| `parameters.detailed_query` | string | Optional | A natural-language description that refines what "similar" should mean for this run (e.g. focusing on a specific product line, customer segment, or business model). Highly recommended when the seed company is multi-product or operates across multiple segments. |
-| `parameters.sample_companies` | string\[\] | Optional | Permalinks (e.g. `"service-titan"`) or full URLs of additional representative companies to anchor the peer set. Use when you want to bias results toward a particular flavour of competitor. |
-| `parameters.geography` | string\[\] | Optional | Geographic scope as [ISO country codes](/iso-country-codes) (e.g. `["USA", "GBR"]`). Defaults to global if omitted. |
-| `parameters.company_type` | string | Optional | Ownership type filter. Accepted values: `"private"`, `"public"`, `"all"`. Defaults to `"all"`. |
-| `parameters.employee_count` | string\[\] | Optional | Headcount band filter. Accepted values: `"1-10"`, `"11-50"`, `"51-100"`, `"101-250"`, `"251-500"`, `"501-1000"`, `"1001-5000"`, `"5001-10000"`, `"10000+"`. Empty array = all. |
-| `parameters.founded_year` | object | Optional | Filter by founding year. Accepts `{ "from": 2010 }`, `{ "to": 2020 }`, or both. |
-| `parameters.funding_stage` | string\[\] | Optional | Filter by most-recent funding stage. Accepted values: `"Non-Equity Assistance"`, `"Angel round"`, `"Pre-seed"`, `"Seed"`, `"Series A"` through `"Series J"`, `"Corporate-Funded"`, `"Debt-Funded"`, `"Private equity round"`, `"Others"`. Empty array = all. |
-| `parameters.total_funding` | object | Optional | Filter by total funding raised in USD. Accepts `{ "from": 1000000 }`, `{ "to": 50000000 }`, or both. |
-| `parameters.last_funding_round` | object | Optional | Filter by last funding round size in USD. Accepts `from` and/or `to` values. |
-| `parameters.revenue` | object | Optional | Filter by annual revenue in USD. Accepts `from` and/or `to` values. Most useful when combined with `company_type: "public"`. |
-| `parameters.ebitda` | object | Optional | Filter by EBITDA (USD). Accepts `from` and/or `to` values. |
-| `parameters.net_income` | object | Optional | Filter by net income (USD). Accepts `from` and/or `to` values. |
-| `parameters.ev_ebitda` | object | Optional | Filter by EV/EBITDA multiple. Accepts `from` and/or `to` values. |
-
-**Full request example:**
-
-<CodeGroup>
-
-```bash cURL
-curl --location 'https://api.wokelo.ai/api/enterprise/company-peers/enrich/' \
-  --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
-  --header 'Content-Type: application/json' \
-  --data '{
-    "company": "del-air",
-    "parameters": {
-      "detailed_query": "Residential HVAC, plumbing, and electrical service contractors",
-      "sample_companies": ["wrench-group", "horizon-services"],
-      "geography": ["USA"],
-      "company_type": "private",
-      "employee_count": ["101-250", "251-500", "501-1000"],
-      "founded_year": { "from": 1980 }
-    }
-  }'
-```
-
-```python Python
-import requests
-
-response = requests.post(
-    "https://api.wokelo.ai/api/enterprise/company-peers/enrich/",
-    headers={
-        "Authorization": "Bearer <YOUR_API_TOKEN>",
-        "Content-Type": "application/json"
-    },
-    json={
-        "company": "del-air",
-        "parameters": {
-            "detailed_query": "Residential HVAC, plumbing, and electrical service contractors",
-            "sample_companies": ["wrench-group", "horizon-services"],
-            "geography": ["USA"],
-            "company_type": "private",
-            "employee_count": ["101-250", "251-500", "501-1000"],
-            "founded_year": {"from": 1980}
-        }
-    }
-)
-print(response.json())
-```
-
-</CodeGroup>
+| `workflow` | string | **Required** | Must be `"company_peers"`. |
+| `workbook_name` | string | **Required** | Name of the workbook that holds the generated report. |
+| `permalink` | string | **Required** | Permalink or full URL of the seed company whose peers you want to find (e.g. `"harvey-128b"`). |
+| `advanced_settings` | object | Optional | Filter parameters. All filters below live inside this object. |
+| `advanced_settings.detailed_query` | string | Optional | A descriptive query that refines what "similar" means for this run. |
+| `advanced_settings.companies` | string[] | Optional | Permalinks or full URLs of additional representative companies to anchor the peer set. |
+| `advanced_settings.geography` | string[] | Optional | `["Worldwide"]` for no restriction, or ISO country codes (e.g. `["USA", "GBR"]`). |
+| `advanced_settings.company_type` | string | Optional | `"private"`, `"public"` or `"all"`. |
+| `advanced_settings.employee_count` | string[] | Optional | Headcount bands. Empty array includes all. Values: `1-10`, `11-50`, `51-100`, `101-250`, `251-500`, `501-1000`, `1001-5000`, `5001-10000`, `10000+`. |
+| `advanced_settings.founded_year` | object | Optional | Object with `from` and/or `to` (integer years, inclusive). |
+| `advanced_settings.funding_stage` | string[] | Optional | Empty array includes all. Values: `Non-Equity Assistance`, `Angel round`, `Pre-seed`, `Seed`, `Series A` to `Series J`, `Corporate-Funded`, `Debt-Funded`, `Private equity round`, `Others`. |
+| `advanced_settings.total_funding` | object | Optional | Object with `from` and/or `to`, in USD. |
+| `advanced_settings.total_funding_include_blanks` | boolean | Optional | When `true`, companies with no reported total funding are included. |
+| `advanced_settings.last_funding_round`, `.revenue`, `.ebitda`, `.net_income` | object | Optional | Each accepts `from` and/or `to`, in USD. Revenue, EBITDA and net income work best with `company_type: "public"`. |
+| `advanced_settings.ev_ebitda` | object | Optional | Object with `from` and/or `to` (EV/EBITDA multiple). |
 
 ---
 
 ## 5. Response
 
-### Job submission response
-
-When you submit the job, you receive a response immediately with a `request_id` and an initial `status`.
+### Workflow start response
 
 ```json
 {
-  "request_id": "450c0d25-c83b-4fc7-8713-f96b63db7843",
-  "status": "PENDING"
+  "report_id": 117253
 }
 ```
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `request_id` | string | Unique identifier for this job. Use it to poll status and retrieve results. |
-| `status` | string | Initial job state. One of `"PENDING"`, `"PROCESSING"`, `"COMPLETED"`, `"FAILED"`. |
+| `report_id` | integer | Unique identifier of the report. Use it to track completion and export results. |
 
-### Completed result response
+### Report output fields
 
-Once `status` is `"COMPLETED"`, the result contains a `result` array of peer company objects.
-
-```json
-{
-  "request_id": "450c0d25-c83b-4fc7-8713-f96b63db7843",
-  "status": "COMPLETED",
-  "result": [ ...peer objects... ]
-}
-```
-
-### Peer object fields
-
-Each object in the `result` array contains the following fields:
-
-**Identity & firmographics**
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `Permalink` | string | Wokelo company identifier (e.g. `"horizon-services"`). Use this with other Wokelo APIs. |
-| `Name` | string | Display name of the peer company. |
-| `Website` | string | Primary domain (e.g. `"horizonservices.com"`). |
-| `HQ City` | string | Headquarters city. |
-| `HQ Country` | string | Headquarters country. |
-| `HQ Continent` | string | Headquarters continent. |
-| `Founded` | string or null | Year the company was founded. |
-| `Type` | string | Ownership type: `"Public"` or `"Private"`. |
-| `Operating Status` | string | Current operational status (e.g. `"Operating"`, `"Acquired"`, `"IPO"`). |
-
-**Product & business**
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `Product Category` | string or null | High-level category describing the peer's primary product (e.g. `"Residential Plumbing HVAC Services"`). |
-| `Core Offering` | string or null | AI-generated paragraph describing the peer's core business and product. |
-| `Product Catalog` | string or null | Comma-separated list of key products and services offered. |
-
-**People & funding**
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `Employees (Crunchbase)` | string | Employee count band from Crunchbase (e.g. `"251-500"`). |
-| `Employees (LinkedIn)` | integer or null | Employee count from LinkedIn. May be null. |
-| `Funding Stage` | string or null | Most recent funding stage (e.g. `"Private equity round"`). May be null for non-funded companies. |
-| `Total Funding` | float or null | Total disclosed funding raised in USD. |
-| `Last Funding Date` | string or null | Date of the most recent funding round (`YYYY-MM-DD`). |
-| `Key Investors` | string\[\] or null | Array of notable investors. |
-
-**Financials (primarily for public companies)**
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `Revenue` | float or null | Annual revenue in USD. |
-| `Ticker` | string or null | Exchange and ticker symbol (e.g. `"NYSE:ABC"`). |
-| `EBITDA` | float or null | Earnings before interest, taxes, depreciation, and amortisation. |
-| `Net Income` | float or null | Net income in USD. |
-| `EBITDA Margin (%)` | float or null | EBITDA as a percentage of revenue. |
-| `Net Income Margin (%)` | float or null | Net income as a percentage of revenue. |
-| `EPS Diluted` | float or null | Diluted earnings per share. |
-| `ROA (%)` | float or null | Return on assets. |
-| `Unlevered FCF` | float or null | Unlevered free cash flow in USD. |
-| `D/E` | float or null | Debt-to-equity ratio. |
-| `Market Cap` | float or null | Market capitalisation in USD. |
-| `Enterprise Value` | float or null | Enterprise value in USD. |
-| `EV/Revenue (LTM)` | float or null | Enterprise value to last-twelve-months revenue multiple. |
-| `EV/EBITDA (LTM)` | float or null | Enterprise value to LTM EBITDA multiple. |
-| `P/E (LTM)` | float or null | Price-to-earnings ratio on LTM basis. |
-
-**M&A history**
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `Acquisitions` | string or null | Comma-separated list of past acquisitions with year (e.g. `"Hutchinson Plumbing (2020), Casteel (2017)"`). |
-| `Investments` | string or null | Notable investments made by the peer. May be null. |
-
-**AI similarity scoring**
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `Overall Score` | float | Similarity score (1–10) measuring how closely the peer matches the seed company on product, customer segment, business model, and geography. Higher = closer match. |
-| `Commentary` | string | AI-written paragraph explaining the similarity to the seed company — calling out specific product overlaps, geographic differences, scale differences, and any unique offerings of the peer. |
-
-<Info>
-  The Competitor List API focuses on **similarity to a seed company**, so its AI scoring is a single composite `Overall Score` plus a `Commentary` paragraph. This is intentionally simpler than Buyer or Target Screening, which return multiple sub-scores (feasibility, precedent, synergy) because they evaluate a _deal_, not just similarity. Read the `Commentary` carefully — it's where the AI explains _why_ a peer was scored as such.
-</Info>
+| Field | Description |
+| --- | --- |
+| `Permalink`, `Name`, `Website` | Wokelo company identifier, display name and primary domain. |
+| `HQ City`, `HQ Country`, `HQ Continent`, `Founded` | Headquarters location and founding year. |
+| `Type`, `Operating Status` | Ownership type (`Public` or `Private`) and status (e.g. `Operating`, `Acquired`, `IPO`). |
+| `Product Category`, `Core Offering`, `Product Catalog` | Primary product category, AI-generated description of the core business, and key products. |
+| `Employees (Crunchbase)`, `Employees (LinkedIn)` | Headcount band and numeric headcount. |
+| `Funding Stage`, `Total Funding`, `Last Funding Date`, `Key Investors` | Funding profile. Total funding is in USD. Typically empty for public companies. |
+| `Revenue`, `EBITDA`, `Net Income`, `Market Cap`, `Enterprise Value`, `Ticker`, margins and multiples | Financial data in USD, primarily populated for public companies. |
+| `Acquisitions`, `Investments` | Past acquisitions (with year) and notable investments. May be empty. |
+| `Overall Score`, `Commentary` | Similarity to the seed company (1 to 10), and an AI-written explanation of the overlap and differences. |
 
 ---
 
 ## 6. Examples
 
-### Building a peer set for a private company
+### Filtered peer set
 
-Find U.S.-based private companies similar to Del-Air, focused on residential home services. Filter to peers of comparable scale and rank by similarity.
+Private AI legal technology peers of Harvey in the USA and UK, 51 to 250 employees, Series A or B, with \$1M to \$50M total funding.
 
 <CodeGroup>
 
 ```bash cURL
-curl --location 'https://api.wokelo.ai/api/enterprise/company-peers/enrich/' \
+curl --location 'https://api.wokelo.ai/api/workflow_manager/start/' \
   --header 'Authorization: Bearer <YOUR_API_TOKEN>' \
   --header 'Content-Type: application/json' \
   --data '{
-    "company": "del-air",
-    "parameters": {
-      "detailed_query": "Residential home services companies",
-      "geography": ["USA"],
-      "company_type": "private"
+    "workflow": "company_peers",
+    "workbook_name": "LegalTech Players",
+    "permalink": "harvey-128b",
+    "advanced_settings": {
+      "detailed_query": "AI-powered legal research and drafting platforms",
+      "companies": [],
+      "company_type": "private",
+      "geography": ["USA", "GBR"],
+      "employee_count": ["51-100", "101-250"],
+      "funding_stage": ["Series A", "Series B"],
+      "total_funding": {
+        "from": 1000000,
+        "to": 50000000
+      },
+      "total_funding_include_blanks": false
     }
   }'
 ```
 
 ```python Python
-import requests, time
+import requests
 
-HEADERS = {
-    "Authorization": "Bearer <YOUR_API_TOKEN>",
-    "Content-Type": "application/json"
-}
-
-# Submit
-job = requests.post(
-    "https://api.wokelo.ai/api/enterprise/company-peers/enrich/",
-    headers=HEADERS,
+response = requests.post(
+    "https://api.wokelo.ai/api/workflow_manager/start/",
+    headers={
+        "Authorization": "Bearer <YOUR_API_TOKEN>",
+        "Content-Type": "application/json"
+    },
     json={
-        "company": "del-air",
-        "parameters": {
-            "detailed_query": "Residential home services companies",
-            "geography": ["USA"],
-            "company_type": "private"
+        "workflow": "company_peers",
+        "workbook_name": "LegalTech Players",
+        "permalink": "harvey-128b",
+        "advanced_settings": {
+            "detailed_query": "AI-powered legal research and drafting platforms",
+            "companies": [],
+            "company_type": "private",
+            "geography": ["USA", "GBR"],
+            "employee_count": ["51-100", "101-250"],
+            "funding_stage": ["Series A", "Series B"],
+            "total_funding": {
+                "from": 1000000,
+                "to": 50000000
+            },
+            "total_funding_include_blanks": False
         }
     }
-).json()
-
-request_id = job["request_id"]
-
-# Poll
-while True:
-    s = requests.get(
-        f"https://api.wokelo.ai/api/enterprise/request/{request_id}/status/",
-        headers=HEADERS
-    ).json()["status"]
-    if s == "COMPLETED": break
-    time.sleep(5)
-
-# Retrieve and rank by similarity
-peers = requests.get(
-    f"https://api.wokelo.ai/api/enterprise/request/{request_id}/result/",
-    headers=HEADERS
-).json()["result"]
-
-close_peers = sorted(
-    [p for p in peers if p.get("Overall Score", 0) >= 8],
-    key=lambda x: x["Overall Score"],
-    reverse=True
 )
-
-for p in close_peers:
-    print(f"{p['Name']} ({p['HQ City']}) — Score: {p['Overall Score']}")
-    print(f"  {p.get('Product Category', 'n/a')}")
+print(response.json()["report_id"])
 ```
 
 </CodeGroup>
 
-**Sample response (excerpt):**
-
-```json
-{
-  "request_id": "450c0d25-c83b-4fc7-8713-f96b63db7843",
-  "status": "COMPLETED",
-  "result": [
-    {
-      "Permalink": "horizon-services",
-      "Name": "Horizon Services",
-      "Website": "horizonservices.com",
-      "HQ City": "Wilmington",
-      "HQ Country": "United States",
-      "Founded": "1987",
-      "Type": "Private",
-      "Operating Status": "Acquired",
-      "Product Category": "Residential Plumbing HVAC Services",
-      "Core Offering": "Horizon Services provides plumbing, heating, and air conditioning services, including installation, maintenance, and repair, primarily for residential customers.",
-      "Employees (Crunchbase)": "501-1000",
-      "Employees (LinkedIn)": 446,
-      "Acquisitions": "Hutchinson Plumbing Heating Cooling (2020), Casteel (2017), Gold Medal Service (2017)",
-      "Overall Score": 9.0,
-      "Commentary": "Horizon Services primarily delivers residential plumbing, heating, and air conditioning services, including installation, maintenance, and repair, plus drain cleaning and sewer repair. This maps closely to Del-Air's HVAC and home services model with strong evidence of direct residential service operations and regional leadership in that category."
-    },
-    {
-      "Permalink": "the-wrench-group",
-      "Name": "Wrench Group",
-      "Website": "wrenchgroup.com",
-      "HQ City": "Marietta",
-      "HQ Country": "United States",
-      "Founded": "2015",
-      "Type": "Private",
-      "Operating Status": "Acquired",
-      "Product Category": "Home Repair Maintenance Services",
-      "Funding Stage": "Debt-Funded",
-      "Total Funding": 1300000000.0,
-      "Key Investors": ["Oak Hill Capital Partners", "Crescent Capital Group", "TSG Consumer Partners", "Blue Owl"],
-      "Acquisitions": "Lindstrom Air Conditioning & Plumbing (2024), Superior Service (2022), Nexgen (2022), Buckeye Heating & Cooling (2021), Williams Comfort Air (2021)",
-      "Overall Score": 9.0,
-      "Commentary": "Wrench Group primarily provides residential home repair, replacement, and maintenance services specializing in HVAC, plumbing, and electrical, including heating and air conditioning installation, repair, and maintenance. Its multi-brand, direct-to-consumer model and emergency/service-center approach align closely with Del-Air's core residential HVAC and related home services across major U.S. metros."
-    }
-  ]
-}
-```
-
-### Competitive landscape for a public software company
-
-Build a peer set for a public SaaS company to support valuation work or competitive positioning. Restrict to public peers and use revenue filters to find comparables of similar scale.
-
-```python
-import requests
-
-response = requests.post(
-    "https://api.wokelo.ai/api/enterprise/company-peers/enrich/",
-    headers={
-        "Authorization": "Bearer <YOUR_API_TOKEN>",
-        "Content-Type": "application/json"
-    },
-    json={
-        "company": "crowdstrike",
-        "parameters": {
-            "detailed_query": "Public cybersecurity platforms covering endpoint protection, XDR, and cloud security",
-            "company_type": "public",
-            "revenue": {"from": 200000000}
-        }
-    }
-)
-print(response.json()["request_id"])
-```
-
-### Roll-up sourcing for a PE platform
-
-Find regional competitors and add-on targets similar to a platform company. Narrow the `detailed_query` to the platform's core service lines and use `geography`, `employee_count`, and `total_funding` filters to find absorbable players.
-
-```python
-import requests
-
-response = requests.post(
-    "https://api.wokelo.ai/api/enterprise/company-peers/enrich/",
-    headers={
-        "Authorization": "Bearer <YOUR_API_TOKEN>",
-        "Content-Type": "application/json"
-    },
-    json={
-        "company": "del-air",
-        "parameters": {
-            "detailed_query": "Regional residential HVAC and plumbing contractors suitable for roll-up consolidation",
-            "geography": ["USA"],
-            "company_type": "private",
-            "employee_count": ["51-100", "101-250", "251-500"],
-            "total_funding": {"to": 50000000}
-        }
-    }
-)
-print(response.json()["request_id"])
-```
-
-### Disambiguating a multi-product seed with `detailed_query`
-
-When the seed company operates across multiple product lines, use `detailed_query` to focus the peer set on a specific segment. Without this, the API returns peers matching the broadest interpretation of the seed.
-
-```python
-# Without detailed_query: returns broad set of "Amazon-like" companies
-# With detailed_query: returns peers specifically in cloud infrastructure
-import requests
-
-response = requests.post(
-    "https://api.wokelo.ai/api/enterprise/company-peers/enrich/",
-    headers={
-        "Authorization": "Bearer <YOUR_API_TOKEN>",
-        "Content-Type": "application/json"
-    },
-    json={
-        "company": "amazon",
-        "parameters": {
-            "detailed_query": "Public cloud infrastructure and platform providers (IaaS/PaaS), not retail or marketplaces",
-            "sample_companies": ["microsoft-azure", "google-cloud"],
-            "company_type": "public"
-        }
-    }
-)
-print(response.json()["request_id"])
-```
-
 ---
-
-## 7. Error Handling
-
-The API uses standard HTTP status codes. All error responses include a JSON body with a `detail` or `message` field.
-
-| Status | Meaning | Cause & Resolution |
-| --- | --- | --- |
-| `200 OK` / `202 Accepted` | Success | Job submitted (`202`) or result retrieved (`200`) successfully. |
-| `400 Bad Request` | Invalid parameters | A required field is missing or a parameter value is invalid — e.g. missing `parameters` object, unrecognised `funding_stage`, or malformed `founded_year` object. Check the `detail` field. |
-| `401 Unauthorized` | Auth failed | The `Authorization` header is missing, malformed, or contains an invalid token. Verify your key in **Settings → API Keys**. |
-| `403 Forbidden` | Insufficient access | Your plan does not include access to this endpoint. Contact [support@wokelo.ai](mailto:support@wokelo.ai) to review your plan. |
-| `404 Not Found` | Resource not found | The seed `company` permalink could not be resolved, a `sample_companies` permalink is invalid, or the `request_id` does not exist. Use the [Company Search API](/supporting-apis-doc) to verify permalinks. |
-| `429 Too Many Requests` | Rate limit exceeded | Implement exponential back-off. The response includes a `Retry-After` header. |
-| `500 Internal Server Error` | Server error | Retry after a brief delay. If the issue persists, contact [support@wokelo.ai](mailto:support@wokelo.ai) with your `request_id`. |
-
-**Error response example:**
-
-```json
-{
-  "status": "error",
-  "detail": "Company permalink 'unknown-co' could not be resolved."
-}
-```
-
-**Job failure handling:**
-
-```python
-import requests, time
-
-def poll_until_done(request_id, headers, interval=5, timeout=600):
-    elapsed = 0
-    while elapsed < timeout:
-        resp = requests.get(
-            f"https://api.wokelo.ai/api/enterprise/request/{request_id}/status/",
-            headers=headers
-        ).json()
-        status = resp["status"]
-        if status == "COMPLETED":
-            return True
-        elif status == "FAILED":
-            raise Exception(f"Job {request_id} failed: {resp.get('detail', 'unknown error')}")
-        time.sleep(interval)
-        elapsed += interval
-    raise TimeoutError(f"Job {request_id} did not complete within {timeout}s")
-```
-
----
-
-## 8. Best Practices
-
-**Use `detailed_query` to focus multi-product seed companies**
-
-If the seed company spans multiple product lines or segments (e.g. Amazon, Microsoft, Salesforce), the peer set can drift toward whichever segment the AI infers as dominant. Use `detailed_query` to lock the run to a specific segment — for example, _"Public cloud infrastructure and platform providers, not retail"_ for Amazon, or _"CRM and customer data platforms, excluding analytics tools"_ for Salesforce. For single-product seed companies, `detailed_query` is often unnecessary.
-
-**Anchor the peer set with `sample_companies` when the seed is niche or ambiguous**
-
-For niche businesses, regional players, or companies whose public profile is thin, supply 2–4 representative permalinks in `sample_companies` to bias the search toward the right flavour of competitor. Use the [Company Search API](/supporting-apis-doc) to resolve company names to permalinks.
-
-**Always include the full `parameters` object**
-
-Even when you don't want to filter on a field, the API expects the `parameters` object to be present. Pass empty values (`""`, `[]`, `{}`) for unused filters. Omitting `parameters` entirely returns a `400 Bad Request`.
-
-**Tier peers by `Overall Score` before review**
-
-Sort results descending by `Overall Score` and segment into tiers (e.g. 9–10: Direct competitors, 7–8: Close peers, 5–6: Adjacent, below 5: Tangential) for efficient triage. The `Commentary` paragraph then explains _why_ each peer was scored — calling out specific product overlaps, geographic differences, or scale differences worth knowing before downstream work.
-
-**Read the `Commentary` to validate the peer set**
-
-The `Commentary` is the most diagnostic signal in the response. A peer with a high `Overall Score` but a commentary noting "narrower geographic focus" or "broader product scope" is still useful context for benchmarking or competitive positioning. Use the commentary to decide which peers to include in a final comparable set.
-
-**Combine filters thoughtfully for valuation comparables**
-
-When building a comparable set for valuation, layer `company_type`, `revenue`, `ebitda`, and `ev_ebitda` filters to find peers at similar financial scale. For public-company comparables, set `company_type: "public"` so financial fields are reliably populated. For private-company peers, use `funding_stage`, `total_funding`, and `employee_count` instead since financial fields will mostly be null.
-
-**Compare against Market Map when defining a market**
-
-If your seed company is a clear category-defining player and you want to map the full category, run Competitor List first to get the strongest direct peers, then run [Market Map](/market-map-doc) with the category as the topic to capture earlier-stage and tangential players Competitor List may miss. The two endpoints are complementary.
-
-**Iterate the query — treat the first run as a diagnostic**
-
-Review the top 20 peers and their commentaries from the first run, then refine `detailed_query`, swap or add `sample_companies`, or tighten filters and re-run. Two or three iterations typically produce a substantially cleaner peer set than a single pass.
-
-**Store the `request_id` for reproducibility**
-
-Each peer set is a snapshot at a point in time. Store the `request_id` alongside the seed company, parameters, and run date so you can re-retrieve the same result set later, compare runs over time as the market evolves, or audit which peer set was used for a given valuation or competitive memo.
-
----
-
-## 9. Related APIs
-
-<CardGroup cols={3}>
-  <Card title="Market Map" icon="map" href="/market-map-doc">
-    Discover and map all companies competing in a specific market or product category — start from a topic instead of a single seed company.
-  </Card>
-
-  <Card title="Target Screening" icon="crosshairs" href="/target-screening-doc">
-    Identify and score acquisition targets for a defined acquirer with deal-fit scoring.
-  </Card>
-
-  <Card title="Buyer Screening" icon="users" href="/buyer-screening-doc">
-    Identify and score potential acquirers for a target company.
-  </Card>
-
-  <Card title="Peer Comparison" icon="scale-balanced" href="/peer-comparison-doc">
-    Run side-by-side financial and operational comparisons across a defined peer set.
-  </Card>
-
-  <Card title="Company Deep Intelligence" icon="brain" href="/company-deep-intelligence-doc">
-    Generate deep AI intelligence on any peer — business model, financials, strategy, and M&A history.
-  </Card>
-
-  <Card title="Company Instant Enrichment" icon="bolt" href="/company-instant-enrichment-doc">
-    Synchronously enrich firmographic and financial data for any peer in the result set.
-  </Card>
-</CardGroup>
