@@ -1,16 +1,18 @@
-﻿---
+---
 title: "Market Map"
-openapi: "POST /api/enterprise/market-map/enrich/"
+api: "POST https://api.wokelo.ai/api/workflow_manager/start/"
 ---
 
 ## Overview
 
-The Market Map API generates a long list of companies operating in a given market (e.g., _"AI-powered CRM software"_), enriched with structured data. Optionally, you can refine the output by specifying keywords, sample companies, geography, company type, employee count, funding stage, and more. Returns request\_id as a response.
+The Market Map API generates a long list of companies operating in a given market (e.g., _"warehouse automation"_), enriched with structured data. You can refine the output with a detailed query, sample companies, geography, company type, employee count, funding stage, financial filters, and more.
+
+Market Map runs as a workflow. Set `workflow` to `agentic_mm` in the request body to start one. The request returns a `report_id`, which you then use to track completion and export the results.
 
 ## Endpoint Details
 
 - Method: POST
-- Endpoint: `/api/enterprise/market-map/enrich/`
+- Endpoint: `/api/workflow_manager/start/`
 
 ## Authentication Requirements
 
@@ -28,36 +30,40 @@ The Market Map API generates a long list of companies operating in a given marke
 ### Body Parameters
 
 <ParamField body="topic" type="string" required>
-  The market or product category to map (e.g. `"AI-powered CRM software"`)
+  The market or product category to map (e.g. `"warehouse automation"`)
 </ParamField>
 
-<ParamField body="parameters" type="object">
-  Filter parameters object. All fields inside are optional, but **must always be included in the request body** — send empty values (`""`, `[]`, `{}`) for any fields you do not want to filter on.
+<ParamField body="workflow" type="string" required>
+  The workflow to run. Must be `"agentic_mm"` for Market Map.
+</ParamField>
+
+<ParamField body="workbook_name" type="string" required>
+  Name of the workbook that will hold the generated market map (e.g. `"warehouse automation"`)
+</ParamField>
+
+<ParamField body="advanced_settings" type="object">
+  Filter parameters object. All filters live inside `advanced_settings`. Include the object in every request, and send empty values (`""`, `[]`) for any filter you do not want to apply.
 
   <ParamField body="detailed_query" type="string">
     A more descriptive query to refine the market map scope
   </ParamField>
 
-  <ParamField body="keywords" type="string[]">
-    Keywords used to identify and filter relevant companies.
-  </ParamField>
-
-  <ParamField body="sample_companies" type="string[]">
+  <ParamField body="companies" type="string[]">
     Permalinks of representative companies or their complete URLs to anchor the market map.
   </ParamField>
 
   <ParamField body="geography" type="string[]">
-    Geographic scope. It should be a comma separated list of ISO country codes. (Eg.. `["USA", "GBR"]`)
+    Geographic scope. Pass `["Worldwide"]` for no geographic restriction, or a list of ISO country codes (e.g. `["USA", "GBR"]`).
   </ParamField>
 
-  <ParamField body="company_type" type="string[]">
+  <ParamField body="company_type" type="string">
     Type of company to include. Accepted values: `"private"`, `"public"`, `"all"`
   </ParamField>
 
   <ParamField body="employee_count" type="string[]">
     Filter by employee headcount range. Pass an empty array to include all headcounts.
 
-    Supporting array values: `1-10`, `11-50`, `51-100`, `101-250`, `251-500`, `501-1000`, `1001-5000`, `5001-10000`, `10000+`
+    Supported array values: `1-10`, `11-50`, `51-100`, `101-250`, `251-500`, `501-1000`, `1001-5000`, `5001-10000`, `10000+`
   </ParamField>
 
   <ParamField body="founded_year" type="object">
@@ -75,7 +81,7 @@ The Market Map API generates a long list of companies operating in a given marke
   <ParamField body="funding_stage" type="string[]">
     Filter by funding stage (e.g. `"Series A"`, `"Series B"`). Pass an empty array to include all stages.
 
-    Supporting array values: `Non-Equity Assistance`, `Angel round`, `Pre-seed`, `Seed`, `Series A`, `Series B`, `Series C`, `Series D`, `Series E`, `Series F`, `Series G`, `Series H`, `Series I`, `Series J`, `Corporate-Funded`, `Debt-Funded`, `Private equity round`, `Others`
+    Supported array values: `Non-Equity Assistance`, `Angel round`, `Pre-seed`, `Seed`, `Series A`, `Series B`, `Series C`, `Series D`, `Series E`, `Series F`, `Series G`, `Series H`, `Series I`, `Series J`, `Corporate-Funded`, `Debt-Funded`, `Private equity round`, `Others`
   </ParamField>
 
   <ParamField body="total_funding" type="object">
@@ -88,6 +94,10 @@ The Market Map API generates a long list of companies operating in a given marke
     <ParamField body="to" type="number">
       Maximum total funding in USD, e.g. `50000000`
     </ParamField>
+  </ParamField>
+
+  <ParamField body="total_funding_include_blanks" type="boolean">
+    When `true`, companies with no reported total funding are included in the results alongside companies that match the `total_funding` range.
   </ParamField>
 
   <ParamField body="last_funding_round" type="object">
@@ -151,24 +161,72 @@ The Market Map API generates a long list of companies operating in a given marke
   </ParamField>
 </ParamField>
 
+<RequestExample>
+
+```json Basic request
+{
+  "topic": "warehouse automation",
+  "workflow": "agentic_mm",
+  "workbook_name": "warehouse automation",
+  "advanced_settings": {
+    "detailed_query": "warehouse automation",
+    "companies": [],
+    "company_type": "all",
+    "geography": ["Worldwide"],
+    "employee_count": [],
+    "funding_stage": [],
+    "total_funding_include_blanks": true
+  }
+}
+```
+
+```json Request with filters
+{
+  "topic": "warehouse automation",
+  "workflow": "agentic_mm",
+  "workbook_name": "warehouse automation",
+  "advanced_settings": {
+    "detailed_query": "Robotics and software platforms for warehouse automation",
+    "companies": [],
+    "company_type": "private",
+    "geography": ["USA", "GBR"],
+    "employee_count": ["51-100", "101-250"],
+    "funding_stage": ["Series A", "Series B"],
+    "total_funding": {
+      "from": 1000000,
+      "to": 50000000
+    },
+    "total_funding_include_blanks": false
+  }
+}
+```
+
+</RequestExample>
+
 ### Response
 
-A successful response returns a `request_id` that can be used to track the status of the request.
+A successful response returns a `report_id` that identifies the market map report.
 
 #### Successful Response Fields
 
-<ResponseField name="request_id" type="string">
-  Unique identifier for the request posted. Use this with the `/api/enterprise/request/status/` endpoint to check the status
+<ResponseField name="report_id" type="integer">
+  Unique identifier for the report created by this request. Use it to track completion and to download the results (see below).
 </ResponseField>
 
 
 <ResponseExample>
 
-```json 202
+```json 200
 {
-    "request_id": "ed2ce223-3bd2-4a08-855f-79751bf1bd92",
-    "status": "PENDING"
+  "report_id": 117253
 }
 ```
 
 </ResponseExample>
+
+## Tracking Completion and Exporting Results
+
+Market Map generation is asynchronous. After you receive a `report_id`:
+
+1. Use `/api/assets/get_notebook_status/` to track completion of the report.
+2. Once the report is complete, use `/api/assets/download_report/` to export the results.

@@ -1,16 +1,18 @@
-﻿---
+---
 title: "Target Screening"
-openapi: "POST /api/enterprise/target-screening/enrich/"
+api: "POST https://api.wokelo.ai/api/workflow_manager/start/"
 ---
 
 ## Overview
 
-The Target Screening API generates a long list of potential acquisition targets for a given acquirer, enriched with structured data. Optionally, you can refine the output by specifying keywords, sample companies, geography, company type, employee count, funding stage, and a detailed query to narrow the search scope. Returns a request\_id as a response.
+The Target Screening API generates a long list of potential acquisition targets for a given acquirer, enriched with structured data. You can refine the output with a detailed query, sample companies, geography, company type, employee count, funding stage, financial filters, and more.
+
+Target Screening runs as a workflow. Set `workflow` to `target_screening_v2` in the request body to start one. The request returns a `report_id`, which you then use to track completion and export the results.
 
 ## Endpoint Details
 
 - Method: POST
-- Endpoint: `/api/enterprise/target-screening/enrich/`
+- Endpoint: `/api/workflow_manager/start/`
 
 ## Authentication Requirements
 
@@ -27,27 +29,35 @@ The Target Screening API generates a long list of potential acquisition targets 
 
 ### Body Parameters
 
-<ParamField body="company" type="string" required>
-  Permalink of the acquiring company or complete URL (e.g. `"microsoft"` OR `"https://www.microsoft.com/"`)
+<ParamField body="topic" type="string" required>
+  The sector or theme in which to screen for targets (e.g. `"Enterprise Software Solutions"`)
 </ParamField>
 
-<ParamField body="parameters" type="object">
-  Filter parameters object. All fields inside are optional, but **must always be included in the request body** — send empty values (`""`, `[]`, `{}`) for any fields you do not want to filter on.
+<ParamField body="workflow" type="string" required>
+  The workflow to run. Must be `"target_screening_v2"` for Target Screening.
+</ParamField>
+
+<ParamField body="workbook_name" type="string" required>
+  Name of the workbook that will hold the generated target list (e.g. `"Enterprise Software Solutions"`)
+</ParamField>
+
+<ParamField body="advanced_settings" type="object" required>
+  Acquirer and filter parameters object. Include the object in every request, and send empty values (`""`, `[]`) for any filter you do not want to apply.
+
+  <ParamField body="acquirer" type="string" required>
+    Permalink of the acquiring company or its complete URL (e.g. `"microsoft"` OR `"https://www.microsoft.com/"`)
+  </ParamField>
 
   <ParamField body="detailed_query" type="string">
-    A descriptive query to refine the target search scope.
+    A descriptive query to refine the target search scope
   </ParamField>
 
-  <ParamField body="keywords" type="string[]">
-    Keywords used to identify and filter relevant target companies.
-  </ParamField>
-
-  <ParamField body="sample_companies" type="string[]">
-    Permalinks of representative companies to anchor the target search.
+  <ParamField body="companies" type="string[]">
+    Permalinks of representative companies or their complete URLs to anchor the target search.
   </ParamField>
 
   <ParamField body="geography" type="string[]">
-    Geographic scope as ISO country codes. (e.g. `["USA", "GBR"]`)
+    Geographic scope. Pass `["Worldwide"]` for no geographic restriction, or a list of ISO country codes (e.g. `["USA", "GBR"]`).
   </ParamField>
 
   <ParamField body="company_type" type="string">
@@ -57,7 +67,7 @@ The Target Screening API generates a long list of potential acquisition targets 
   <ParamField body="employee_count" type="string[]">
     Filter by employee headcount range. Pass an empty array to include all headcounts.
 
-    Supporting array values: `1-10`, `11-50`, `51-100`, `101-250`, `251-500`, `501-1000`, `1001-5000`, `5001-10000`, `10000+`
+    Supported array values: `1-10`, `11-50`, `51-100`, `101-250`, `251-500`, `501-1000`, `1001-5000`, `5001-10000`, `10000+`
   </ParamField>
 
   <ParamField body="founded_year" type="object">
@@ -75,7 +85,7 @@ The Target Screening API generates a long list of potential acquisition targets 
   <ParamField body="funding_stage" type="string[]">
     Filter by funding stage. Pass an empty array to include all stages.
 
-    Supporting array values: `Non-Equity Assistance`, `Angel round`, `Pre-seed`, `Seed`, `Series A`, `Series B`, `Series C`, `Series D`, `Series E`, `Series F`, `Series G`, `Series H`, `Series I`, `Series J`, `Corporate-Funded`, `Debt-Funded`, `Private equity round`, `Others`
+    Supported array values: `Non-Equity Assistance`, `Angel round`, `Pre-seed`, `Seed`, `Series A`, `Series B`, `Series C`, `Series D`, `Series E`, `Series F`, `Series G`, `Series H`, `Series I`, `Series J`, `Corporate-Funded`, `Debt-Funded`, `Private equity round`, `Others`
   </ParamField>
 
   <ParamField body="total_funding" type="object">
@@ -88,6 +98,10 @@ The Target Screening API generates a long list of potential acquisition targets 
     <ParamField body="to" type="number">
       Maximum total funding in USD, e.g. `50000000`
     </ParamField>
+  </ParamField>
+
+  <ParamField body="total_funding_include_blanks" type="boolean">
+    When `true`, companies with no reported total funding are included in the results alongside companies that match the `total_funding` range.
   </ParamField>
 
   <ParamField body="revenue" type="object">
@@ -103,24 +117,74 @@ The Target Screening API generates a long list of potential acquisition targets 
   </ParamField>
 </ParamField>
 
+<RequestExample>
+
+```json Basic request
+{
+  "topic": "Enterprise Software Solutions",
+  "workflow": "target_screening_v2",
+  "workbook_name": "Enterprise Software Solutions",
+  "advanced_settings": {
+    "acquirer": "microsoft",
+    "detailed_query": "Enterprise Software Solutions",
+    "companies": [],
+    "company_type": "all",
+    "geography": ["Worldwide"],
+    "employee_count": [],
+    "funding_stage": [],
+    "total_funding_include_blanks": true
+  }
+}
+```
+
+```json Request with filters
+{
+  "topic": "Enterprise Software Solutions",
+  "workflow": "target_screening_v2",
+  "workbook_name": "Enterprise Software Solutions",
+  "advanced_settings": {
+    "acquirer": "microsoft",
+    "detailed_query": "Cloud-based enterprise software platforms for large organizations",
+    "companies": [],
+    "company_type": "private",
+    "geography": ["USA", "GBR"],
+    "employee_count": ["51-100", "101-250"],
+    "funding_stage": ["Series A", "Series B"],
+    "total_funding": {
+      "from": 1000000,
+      "to": 50000000
+    },
+    "total_funding_include_blanks": false
+  }
+}
+```
+
+</RequestExample>
+
 ### Response
 
-A successful response returns a `request_id` that can be used to track the status of the request.
+A successful response returns a `report_id` that identifies the target screening report.
 
 #### Successful Response Fields
 
-<ResponseField name="request_id" type="string">
-  Unique identifier for the request posted. Use this with the `/api/enterprise/request/status/` endpoint to check the status
+<ResponseField name="report_id" type="integer">
+  Unique identifier for the report created by this request. Use it to track completion and to download the results (see below).
 </ResponseField>
 
 
 <ResponseExample>
 
-```json 202
+```json 200
 {
-    "request_id": "8583f59e-0412-4f1e-81e5-13cc70349cb6",
-    "status": "PENDING"
+  "report_id": 117253
 }
 ```
 
 </ResponseExample>
+
+## Tracking Completion and Exporting Results
+
+Target Screening generation is asynchronous. After you receive a `report_id`:
+
+1. Use `/api/assets/get_notebook_status/` to track completion of the report.
+2. Once the report is complete, use `/api/assets/download_report/` to export the results.

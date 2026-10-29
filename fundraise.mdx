@@ -1,25 +1,25 @@
-﻿---
+---
 title: "Fundraising Activity"
-openapi: "POST /api/assets/process_fundraise/"
+api: "POST https://api.wokelo.ai/api/workflow_manager/start/"
 ---
 
 ## Overview
 
-Surface fundraising activity across a market segment.
+The Fundraising Activity API surfaces the funding activity that has taken place in a given industry domain. You can refine the output by transaction date, funding round type, transaction amount, company type, geography, and employee count.
+
+Fundraising Activity runs as a workflow. Set `workflow` to `fundraisers_workflow` in the request body to start one. The request returns a `report_id`, which you then use to track completion and export the results.
 
 ## Endpoint Details
 
-- **Method:** POST
-- **Endpoint:** `/api/assets/process_common/`
+- Method: POST
+- Endpoint: `/api/workflow_manager/start/`
 
-## Authentication requirements
+## Authentication Requirements
 
 - Include a valid JWT token in your request header
 - If you don't have a token yet, you can get one from the `/auth/token/` endpoint first.
 
 ## Request
-
-### Request Parameters
 
 #### Header Parameters
 
@@ -27,63 +27,117 @@ Surface fundraising activity across a market segment.
   JWT token obtained from the Authentication request
 </ParamField>
 
-#### Body Parameters
+### Body Parameters
 
-<ParamField body="reportType" type="string" required>
-  `fundraisers_workflow`
+<ParamField body="topic" type="string" required>
+  Industry topic to surface funding activity for (e.g. `"Neo databases"`)
 </ParamField>
 
-<ParamField body="reportSource" type="string" required>
-  `WKLAPP`
+<ParamField body="workflow" type="string" required>
+  The workflow to run. Must be `"fundraisers_workflow"` for Fundraising Activity.
 </ParamField>
 
-<ParamField body="payload" type="object" required>
-  Report configuration object
+<ParamField body="workbook_name" type="string" required>
+  Name of the workbook that will hold the generated report (e.g. `"Neo databases"`)
 </ParamField>
 
-<ParamField body="payload.topic" type="string" required>
-  Industry topic to generate the fundraise report for
+<ParamField body="advanced_settings" type="object">
+  Filter parameters object. All filters live inside `advanced_settings`. Include the object in every request, and send empty values (`[]`) for any filter you do not want to apply.
+
+  #### Funding filters
+
+  <ParamField body="transaction_date" type="object">
+    Filter by the date of the funding transaction. Dates use the `YYYY-MM-DD` format.
+
+    <ParamField body="from" type="string">
+      Earliest transaction date (inclusive), e.g. `"2023-10-28"`
+    </ParamField>
+
+    <ParamField body="to" type="string">
+      Latest transaction date (inclusive), e.g. `"2026-10-29"`
+    </ParamField>
+  </ParamField>
+
+  <ParamField body="transaction_funding_round_type" type="string[]">
+    Filter by funding round type (e.g. `"Seed"`, `"Series A"`). Pass an empty array to include all round types.
+  </ParamField>
+
+  <ParamField body="transaction_amount" type="object">
+    Filter by funding transaction amount (in million USD).
+
+    <ParamField body="from" type="number">
+      Minimum transaction amount, e.g. `5`
+    </ParamField>
+
+    <ParamField body="to" type="number">
+      Maximum transaction amount, e.g. `100`
+    </ParamField>
+  </ParamField>
+
+  <ParamField body="transaction_amount_include_blanks" type="boolean">
+    When `true`, funding transactions with no disclosed amount are included in the results alongside transactions that match the `transaction_amount` range.
+  </ParamField>
+
+  #### Company filters
+
+  <ParamField body="company_type" type="string">
+    Type of company to include. Accepted values: `"private"`, `"public"`, `"all"`
+  </ParamField>
+
+  <ParamField body="geography" type="string[]">
+    Geographic scope. Pass `["Worldwide"]` for no geographic restriction, or a list of ISO country codes (e.g. `["USA", "GBR"]`).
+  </ParamField>
+
+  <ParamField body="employee_count" type="string[]">
+    Filter by employee headcount range. Pass an empty array to include all headcounts.
+
+    Supported array values: `1-10`, `11-50`, `51-100`, `101-250`, `251-500`, `501-1000`, `1001-5000`, `5001-10000`, `10000+`
+  </ParamField>
 </ParamField>
-
-<ParamField body="payload.workbook_name" type="string" required>
-  Name to assign to the generated workbook
-</ParamField>
-
-<ParamField body="payload.advanced_settings" type="object">
-  Advanced filtering options for the report
-</ParamField>
-
-<ParamField body="payload.advanced_settings.company_type" type="string">
-  Type of company to filter by. Use `"all"` to include all types
-</ParamField>
-
-<ParamField body="payload.advanced_settings.geography" type="array">
-  List of geographies to filter by (e.g. `["Worldwide"]`)
-</ParamField>
-
-<ParamField body="payload.advanced_settings.funding_stage" type="array">
-  List of funding stages to filter by. Pass an empty array to include all stages
-</ParamField>
-
-<ParamField body="payload.advanced_settings.employee_count" type="array">
-  List of employee count ranges to filter by. Pass an empty array to include all
-</ParamField>
-
-<ParamField body="payload.advanced_settings.total_funding_include_blanks" type="boolean">
-  Whether to include companies with no total funding data. Defaults to `true`
-</ParamField>
-
-## Response
-
-Successful response will include the report\_id of the initiated Fundraise report.
-
-#### Successful Response Fields
-
-<ResponseField name="report_id" type="integer">
-  Report id for the initiated Fundraise report
-</ResponseField>
 
 <RequestExample>
+
+```json Basic request
+{
+  "topic": "Neo databases",
+  "workflow": "fundraisers_workflow",
+  "workbook_name": "Neo databases",
+  "advanced_settings": {
+    "company_type": "all",
+    "geography": ["Worldwide"],
+    "transaction_funding_round_type": [],
+    "employee_count": [],
+    "transaction_amount_include_blanks": true,
+    "transaction_date": {
+      "from": "2023-10-28",
+      "to": "2026-10-29"
+    }
+  }
+}
+```
+
+```json Request with filters
+{
+  "topic": "Neo databases",
+  "workflow": "fundraisers_workflow",
+  "workbook_name": "Neo databases",
+  "advanced_settings": {
+    "company_type": "private",
+    "geography": ["USA", "GBR"],
+    "transaction_funding_round_type": ["Seed", "Series A"],
+    "employee_count": ["11-50", "51-100"],
+    "transaction_amount": {
+      "from": 5,
+      "to": 100
+    },
+    "transaction_amount_include_blanks": false,
+    "transaction_date": {
+      "from": "2024-01-01",
+      "to": "2026-10-29"
+    }
+  }
+}
+```
 
 ```javascript JavaScript - Fetch
 const myHeaders = new Headers();
@@ -91,19 +145,20 @@ myHeaders.append("Content-Type", "application/json");
 myHeaders.append("Authorization", "your token");
 
 const raw = JSON.stringify({
-  "reportType": "fundraisers_workflow",
-  "payload": {
-    "topic": "EdTech",
-    "workbook_name": "EdTech",
-    "advanced_settings": {
-      "company_type": "all",
-      "geography": ["Worldwide"],
-      "funding_stage": [],
-      "employee_count": [],
-      "total_funding_include_blanks": true
+  "topic": "Neo databases",
+  "workflow": "fundraisers_workflow",
+  "workbook_name": "Neo databases",
+  "advanced_settings": {
+    "company_type": "all",
+    "geography": ["Worldwide"],
+    "transaction_funding_round_type": [],
+    "employee_count": [],
+    "transaction_amount_include_blanks": true,
+    "transaction_date": {
+      "from": "2023-10-28",
+      "to": "2026-10-29"
     }
-  },
-  "reportSource": "WKLAPP"
+  }
 });
 
 const requestOptions = {
@@ -124,19 +179,20 @@ import requests
 
 headers = {"Content-Type": "application/json", "Authorization": "Bearer YOUR_TOKEN"}
 payload = {
-    "reportType": "fundraisers_workflow",
-    "payload": {
-        "topic": "EdTech",
-        "workbook_name": "EdTech",
-        "advanced_settings": {
-            "company_type": "all",
-            "geography": ["Worldwide"],
-            "funding_stage": [],
-            "employee_count": [],
-            "total_funding_include_blanks": True
+    "topic": "Neo databases",
+    "workflow": "fundraisers_workflow",
+    "workbook_name": "Neo databases",
+    "advanced_settings": {
+        "company_type": "all",
+        "geography": ["Worldwide"],
+        "transaction_funding_round_type": [],
+        "employee_count": [],
+        "transaction_amount_include_blanks": True,
+        "transaction_date": {
+            "from": "2023-10-28",
+            "to": "2026-10-29"
         }
-    },
-    "reportSource": "WKLAPP"
+    }
 }
 response = requests.post("https://api.wokelo.ai/api/workflow_manager/start/", headers=headers, json=payload)
 print(response.json())
@@ -148,19 +204,20 @@ curl --request POST \
   --header 'Authorization: Bearer YOUR_TOKEN' \
   --header 'Content-Type: application/json' \
   --data '{
-    "reportType": "fundraisers_workflow",
-    "payload": {
-      "topic": "EdTech",
-      "workbook_name": "EdTech",
-      "advanced_settings": {
-        "company_type": "all",
-        "geography": ["Worldwide"],
-        "funding_stage": [],
-        "employee_count": [],
-        "total_funding_include_blanks": true
+    "topic": "Neo databases",
+    "workflow": "fundraisers_workflow",
+    "workbook_name": "Neo databases",
+    "advanced_settings": {
+      "company_type": "all",
+      "geography": ["Worldwide"],
+      "transaction_funding_round_type": [],
+      "employee_count": [],
+      "transaction_amount_include_blanks": true,
+      "transaction_date": {
+        "from": "2023-10-28",
+        "to": "2026-10-29"
       }
-    },
-    "reportSource": "WKLAPP"
+    }
   }'
 ```
 
@@ -179,19 +236,19 @@ func main() {
   advSettings := map[string]interface{}{
     "company_type": "all",
     "geography": []string{"Worldwide"},
-    "funding_stage": []string{},
+    "transaction_funding_round_type": []string{},
     "employee_count": []string{},
-    "total_funding_include_blanks": true,
-  }
-  innerPayload := map[string]interface{}{
-    "topic": "EdTech",
-    "workbook_name": "EdTech",
-    "advanced_settings": advSettings,
+    "transaction_amount_include_blanks": true,
+    "transaction_date": map[string]string{
+      "from": "2023-10-28",
+      "to": "2026-10-29",
+    },
   }
   payload := map[string]interface{}{
-    "reportType": "fundraisers_workflow",
-    "payload": innerPayload,
-    "reportSource": "WKLAPP",
+    "topic": "Neo databases",
+    "workflow": "fundraisers_workflow",
+    "workbook_name": "Neo databases",
+    "advanced_settings": advSettings,
   }
   body, _ := json.Marshal(payload)
   req, _ := http.NewRequest("POST", "https://api.wokelo.ai/api/workflow_manager/start/", bytes.NewBuffer(body))
@@ -210,7 +267,7 @@ import java.net.http.*;
 
 public class FundraiseWorkflow {
   public static void main(String[] args) throws Exception {
-    String body = "{\"reportType\":\"fundraisers_workflow\",\"payload\":{\"topic\":\"EdTech\",\"workbook_name\":\"EdTech\",\"advanced_settings\":{\"company_type\":\"all\",\"geography\":[\"Worldwide\"],\"funding_stage\":[],\"employee_count\":[],\"total_funding_include_blanks\":true}},\"reportSource\":\"WKLAPP\"}";
+    String body = "{\"topic\":\"Neo databases\",\"workflow\":\"fundraisers_workflow\",\"workbook_name\":\"Neo databases\",\"advanced_settings\":{\"company_type\":\"all\",\"geography\":[\"Worldwide\"],\"transaction_funding_round_type\":[],\"employee_count\":[],\"transaction_amount_include_blanks\":true,\"transaction_date\":{\"from\":\"2023-10-28\",\"to\":\"2026-10-29\"}}}";
     HttpRequest request = HttpRequest.newBuilder()
         .uri(URI.create("https://api.wokelo.ai/api/workflow_manager/start/"))
         .header("Authorization", "Bearer YOUR_TOKEN")
@@ -226,12 +283,29 @@ public class FundraiseWorkflow {
 
 </RequestExample>
 
+### Response
+
+A successful response returns a `report_id` that identifies the Fundraising Activity report.
+
+#### Successful Response Fields
+
+<ResponseField name="report_id" type="integer">
+  Unique identifier for the report created by this request. Use it to track completion and to download the results (see below).
+</ResponseField>
+
 <ResponseExample>
 
 ```json 200
 {
-    "report_id": 123345
+  "report_id": 123345
 }
 ```
 
 </ResponseExample>
+
+## Tracking Completion and Exporting Results
+
+Fundraising Activity generation is asynchronous. After you receive a `report_id`:
+
+1. Use `/api/assets/get_notebook_status/` to track completion of the report.
+2. Once the report is complete, use `/api/assets/download_report/` to export the results.

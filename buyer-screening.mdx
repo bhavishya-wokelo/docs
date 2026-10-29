@@ -1,16 +1,18 @@
-﻿---
+---
 title: "Buyer Screening"
-openapi: "POST /api/enterprise/buyer-screening/enrich/"
+api: "POST https://api.wokelo.ai/api/workflow_manager/start/"
 ---
 
 ## Overview
 
-The Buyer Screening API generates a long list of potential buyers for a given target company, enriched with structured data. Optionally, you can refine the output by specifying buyer type, company type, geography, and a detailed query to narrow the strategic criteria. Returns a request\_id as a response.
+The Buyer Screening API generates a long list of potential buyers for a given target company, enriched with structured data. You can refine the output with a detailed query, sample companies, buyer type, company type, and geography to narrow the strategic criteria.
+
+Buyer Screening runs as a workflow. Set `workflow` to `buyer_analysis` in the request body to start one. The request returns a `report_id`, which you then use to track completion and export the results.
 
 ## Endpoint Details
 
 - Method: POST
-- Endpoint: `/api/enterprise/buyer-screening/enrich/`
+- Endpoint: `/api/workflow_manager/start/`
 
 ## Authentication Requirements
 
@@ -27,15 +29,31 @@ The Buyer Screening API generates a long list of potential buyers for a given ta
 
 ### Body Parameters
 
-<ParamField body="company" type="string" required>
-  Permalink of the target company or its complete URL (e.g. `"acme-solar"` OR `"https://www.acmesolar.in/"`)
+<ParamField body="topic" type="string" required>
+  The sector or theme describing the target's business (e.g. `"Civil Engineering Infrastructure Services"`)
 </ParamField>
 
-<ParamField body="parameters" type="object">
-  Filter parameters object. All fields inside are optional, but **must always be included in the request body** — send empty values (`""`, `[]`) for any fields you do not want to filter on.
+<ParamField body="workflow" type="string" required>
+  The workflow to run. Must be `"buyer_analysis"` for Buyer Screening.
+</ParamField>
+
+<ParamField body="workbook_name" type="string" required>
+  Name of the workbook that will hold the generated buyer list (e.g. `"Ulteig Buyers"`)
+</ParamField>
+
+<ParamField body="advanced_settings" type="object" required>
+  Target and filter parameters object. Include the object in every request, and send empty values (`""`, `[]`) for any filter you do not want to apply.
+
+  <ParamField body="target" type="string" required>
+    Permalink of the target company or its complete URL (e.g. `"ulteig"` OR `"https://www.ulteig.com/"`)
+  </ParamField>
 
   <ParamField body="detailed_query" type="string">
     A descriptive query to refine the buyer search scope and strategic criteria.
+  </ParamField>
+
+  <ParamField body="companies" type="string[]">
+    Permalinks of representative companies or their complete URLs to anchor the buyer search.
   </ParamField>
 
   <ParamField body="buyer_type" type="string[]">
@@ -49,28 +67,70 @@ The Buyer Screening API generates a long list of potential buyers for a given ta
   </ParamField>
 
   <ParamField body="geography" type="string[]">
-    Geographic scope as ISO country codes. (e.g. `["USA", "GBR"]`)
+    Geographic scope. Pass `["Worldwide"]` for no geographic restriction, or a list of ISO country codes (e.g. `["USA", "GBR"]`).
   </ParamField>
 </ParamField>
 
+<RequestExample>
+
+```json Basic request
+{
+  "topic": "Civil Engineering Infrastructure Services",
+  "workflow": "buyer_analysis",
+  "workbook_name": "Ulteig Buyers",
+  "advanced_settings": {
+    "target": "ulteig",
+    "detailed_query": "Civil Engineering Infrastructure Services",
+    "companies": [],
+    "buyer_type": [],
+    "company_type": "all",
+    "geography": ["Worldwide"]
+  }
+}
+```
+
+```json Request with filters
+{
+  "topic": "Civil Engineering Infrastructure Services",
+  "workflow": "buyer_analysis",
+  "workbook_name": "Ulteig Buyers",
+  "advanced_settings": {
+    "target": "ulteig",
+    "detailed_query": "Engineering and consulting firms seeking to expand infrastructure services",
+    "companies": [],
+    "buyer_type": ["strategic"],
+    "company_type": "public",
+    "geography": ["USA", "CAN"]
+  }
+}
+```
+
+</RequestExample>
+
 ### Response
 
-A successful response returns a `request_id` that can be used to track the status of the request.
+A successful response returns a `report_id` that identifies the buyer screening report.
 
 #### Successful Response Fields
 
-<ResponseField name="request_id" type="string">
-  Unique identifier for the request posted. Use this with the `/api/enterprise/request/status/` endpoint to check the status
+<ResponseField name="report_id" type="integer">
+  Unique identifier for the report created by this request. Use it to track completion and to download the results (see below).
 </ResponseField>
 
 
 <ResponseExample>
 
-```json 202
+```json 200
 {
-    "request_id": "278412f8-87ca-47a9-9d1c-4a62a687eaf6",
-    "status": "PENDING"
+  "report_id": 117253
 }
 ```
 
 </ResponseExample>
+
+## Tracking Completion and Exporting Results
+
+Buyer Screening generation is asynchronous. After you receive a `report_id`:
+
+1. Use `/api/assets/get_notebook_status/` to track completion of the report.
+2. Once the report is complete, use `/api/assets/download_report/` to export the results.

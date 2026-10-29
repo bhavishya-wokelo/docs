@@ -1,26 +1,25 @@
 ---
 title: "M&A Activity"
-openapi: "POST /api/assets/process_common/"
-hidden: true
+api: "POST https://api.wokelo.ai/api/workflow_manager/start/"
 ---
 
 ## Overview
 
-Surface M&A transactions across a market segment.
+The M&A Activity API surfaces the M&A transactions that have taken place in a given industry domain. You can refine the output by transaction date, transaction status, transaction amount, and by attributes of the target company such as company type, geography, founding year, employee count, funding amount, and funding stage.
+
+M&A Activity runs as a workflow. Set `workflow` to `acquisition_workflow` in the request body to start one. The request returns a `report_id`, which you then use to track completion and export the results.
 
 ## Endpoint Details
 
-- **Method:** POST
-- **Endpoint:** `/api/assets/process_common/`
+- Method: POST
+- Endpoint: `/api/workflow_manager/start/`
 
-## Authentication requirements
+## Authentication Requirements
 
-- Include a valid JWT token in your request  headers
+- Include a valid JWT token in your request header
 - If you don't have a token yet, you can get one from the `/auth/token/` endpoint first.
 
 ## Request
-
-### Request Parameters
 
 #### Header Parameters
 
@@ -28,68 +27,191 @@ Surface M&A transactions across a market segment.
   JWT token obtained from the Authentication request
 </ParamField>
 
-#### Body Parameters
+### Body Parameters
 
-<ParamField body="reportType" type="string" required>
-  `acquisition_workflow`
+<ParamField body="topic" type="string" required>
+  Industry topic to surface M&A transactions for (e.g. `"HVAC in US"`)
 </ParamField>
 
-<ParamField body="reportSource" type="string" required>
-  `WKLAPP`
+<ParamField body="workflow" type="string" required>
+  The workflow to run. Must be `"acquisition_workflow"` for M&A Activity.
 </ParamField>
 
-<ParamField body="payload" type="object" required>
-  Report configuration object
+<ParamField body="workbook_name" type="string" required>
+  Name of the workbook that will hold the generated report (e.g. `"HVAC in US"`)
 </ParamField>
 
-<ParamField body="payload.topic" type="string" required>
-  Industry topic to generate the acquisitions report for
+<ParamField body="advanced_settings" type="object">
+  Filter parameters object. All filters live inside `advanced_settings`. Include the object in every request, and send empty values (`[]`) for any filter you do not want to apply.
+
+  #### Deal filters
+
+  <ParamField body="transaction_date" type="object">
+    Filter by the date of the transaction. Dates use the `YYYY-MM-DD` format.
+
+    <ParamField body="from" type="string">
+      Earliest transaction date (inclusive), e.g. `"2023-10-28"`
+    </ParamField>
+
+    <ParamField body="to" type="string">
+      Latest transaction date (inclusive), e.g. `"2026-10-29"`
+    </ParamField>
+  </ParamField>
+
+  <ParamField body="transaction_status" type="string[]">
+    Filter by the status of the transaction. Pass an empty array to include all statuses.
+
+    Supported array values: `"completed"`, `"announced"`
+  </ParamField>
+
+  <ParamField body="transaction_amount" type="object">
+    Filter by transaction amount (in million USD).
+
+    <ParamField body="from" type="number">
+      Minimum transaction amount, e.g. `10`
+    </ParamField>
+
+    <ParamField body="to" type="number">
+      Maximum transaction amount, e.g. `500`
+    </ParamField>
+  </ParamField>
+
+  <ParamField body="transaction_amount_include_blanks" type="boolean">
+    When `true`, transactions with no disclosed amount are included in the results alongside transactions that match the `transaction_amount` range.
+  </ParamField>
+
+  #### Target company filters
+
+  <ParamField body="company_type" type="string">
+    Type of company to include. Accepted values: `"private"`, `"public"`, `"all"`
+  </ParamField>
+
+  <ParamField body="geography" type="string[]">
+    Geographic scope. Pass `["Worldwide"]` for no geographic restriction, or a list of ISO country codes (e.g. `["USA", "GBR"]`).
+  </ParamField>
+
+  <ParamField body="founded_year" type="object">
+    Filter by company founding year.
+
+    <ParamField body="from" type="integer">
+      Minimum founding year (inclusive), e.g. `2010`
+    </ParamField>
+
+    <ParamField body="to" type="integer">
+      Maximum founding year (inclusive), e.g. `2020`
+    </ParamField>
+  </ParamField>
+
+  <ParamField body="employee_count" type="string[]">
+    Filter by employee headcount range. Pass an empty array to include all headcounts.
+
+    Supported array values: `1-10`, `11-50`, `51-100`, `101-250`, `251-500`, `501-1000`, `1001-5000`, `5001-10000`, `10000+`
+  </ParamField>
+
+  <ParamField body="total_funding" type="object">
+    Filter by total funding amount raised (in million USD).
+
+    <ParamField body="from" type="number">
+      Minimum total funding, e.g. `1`
+    </ParamField>
+
+    <ParamField body="to" type="number">
+      Maximum total funding, e.g. `50`
+    </ParamField>
+  </ParamField>
+
+  <ParamField body="total_funding_include_blanks" type="boolean">
+    When `true`, companies with no reported total funding are included in the results alongside companies that match the `total_funding` range.
+  </ParamField>
+
+  <ParamField body="funding_stage" type="string[]">
+    Filter by funding stage (e.g. `"Series A"`, `"Series B"`). Pass an empty array to include all stages.
+
+    Supported array values: `Non-Equity Assistance`, `Angel round`, `Pre-seed`, `Seed`, `Series A`, `Series B`, `Series C`, `Series D`, `Series E`, `Series F`, `Series G`, `Series H`, `Series I`, `Series J`, `Corporate-Funded`, `Debt-Funded`, `Private equity round`, `Others`
+  </ParamField>
 </ParamField>
 
-<ParamField body="payload.workbook_name" type="string" required>
-  Name to assign to the generated workbook
-</ParamField>
+<RequestExample>
 
-<ParamField body="payload.advanced_settings" type="object">
-  Advanced filtering options for the report
-</ParamField>
+```json Basic request
+{
+  "topic": "HVAC in US",
+  "workflow": "acquisition_workflow",
+  "workbook_name": "HVAC in US",
+  "advanced_settings": {
+    "company_type": "all",
+    "geography": ["Worldwide"],
+    "funding_stage": [],
+    "employee_count": [],
+    "total_funding_include_blanks": true,
+    "transaction_date": {
+      "from": "2023-10-28",
+      "to": "2026-10-29"
+    },
+    "transaction_status": [],
+    "transaction_amount_include_blanks": true
+  }
+}
+```
 
-<ParamField body="payload.advanced_settings.company_type" type="string">
-  Type of company to filter by. Use `"all"` to include all types
-</ParamField>
+```json Request with filters
+{
+  "topic": "HVAC in US",
+  "workflow": "acquisition_workflow",
+  "workbook_name": "HVAC in US",
+  "advanced_settings": {
+    "company_type": "private",
+    "geography": ["USA"],
+    "founded_year": {
+      "from": 2000,
+      "to": 2020
+    },
+    "funding_stage": ["Private equity round"],
+    "employee_count": ["51-100", "101-250"],
+    "total_funding": {
+      "from": 1,
+      "to": 50
+    },
+    "total_funding_include_blanks": false,
+    "transaction_date": {
+      "from": "2024-01-01",
+      "to": "2026-10-29"
+    },
+    "transaction_status": ["completed"],
+    "transaction_amount": {
+      "from": 10,
+      "to": 500
+    },
+    "transaction_amount_include_blanks": false
+  }
+}
+```
 
-<ParamField body="payload.advanced_settings.geography" type="array">
-  List of geographies to filter by (e.g. `["Worldwide"]`)
-</ParamField>
+</RequestExample>
 
-<ParamField body="payload.advanced_settings.funding_stage" type="array">
-  List of funding stages to filter by. Pass an empty array to include all stages
-</ParamField>
+### Response
 
-<ParamField body="payload.advanced_settings.employee_count" type="array">
-  List of employee count ranges to filter by. Pass an empty array to include all
-</ParamField>
-
-<ParamField body="payload.advanced_settings.total_funding_include_blanks" type="boolean">
-  Whether to include companies with no total funding data. Defaults to `true`
-</ParamField>
-
-## Response
-
-Successful response will include the report\_id of the initiated Acquisitions report.
+A successful response returns a `report_id` that identifies the M&A Activity report.
 
 #### Successful Response Fields
 
 <ResponseField name="report_id" type="integer">
-  Report id for the initiated Acquisitions report
+  Unique identifier for the report created by this request. Use it to track completion and to download the results (see below).
 </ResponseField>
 
 <ResponseExample>
 
 ```json 200
 {
-    "report_id": 123345
+  "report_id": 123345
 }
 ```
 
 </ResponseExample>
+
+## Tracking Completion and Exporting Results
+
+M&A Activity generation is asynchronous. After you receive a `report_id`:
+
+1. Use `/api/assets/get_notebook_status/` to track completion of the report.
+2. Once the report is complete, use `/api/assets/download_report/` to export the results.

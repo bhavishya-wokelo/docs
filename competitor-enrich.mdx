@@ -1,16 +1,18 @@
-﻿---
+---
 title: "Competitor List"
-openapi: "POST /api/enterprise/company-peers/enrich/"
+api: "POST https://api.wokelo.ai/api/workflow_manager/start/"
 ---
 
 ## Overview
 
-The Competitor List API generates a long list of companies similar to the given company, enriched with structured data. Optionally, you can refine the output by specifying sample companies, geography, company type, employee count, funding stage, and more. Returns request\_id as a response.
+The Competitor List API generates a long list of companies similar to a given company, enriched with structured data. You can refine the output with a detailed query, sample companies, geography, company type, employee count, funding stage, financial filters, and more.
+
+Competitor List runs as a workflow. Set `workflow` to `company_peers` in the request body to start one. The request returns a `report_id`, which you then use to track completion and export the results.
 
 ## Endpoint Details
 
 - Method: POST
-- Endpoint: `/api/enterprise/company-peers/enrich/`
+- Endpoint: `/api/workflow_manager/start/`
 
 ## Authentication Requirements
 
@@ -27,23 +29,31 @@ The Competitor List API generates a long list of companies similar to the given 
 
 ### Body Parameters
 
-<ParamField body="company" type="string" required>
-  URL or permalink of the company whose peers need to be found (e.g. `"del-air"`)
+<ParamField body="workflow" type="string" required>
+  The workflow to run. Must be `"company_peers"` for Competitor List.
 </ParamField>
 
-<ParamField body="parameters" type="object">
-  Filter parameters object. All fields inside are optional, but **must always be included in the request body** — send empty values (`""`, `[]`, `{}`) for any fields you do not want to filter on.
+<ParamField body="workbook_name" type="string" required>
+  Name of the workbook that will hold the generated competitor list (e.g. `"LegalTech Players"`)
+</ParamField>
+
+<ParamField body="permalink" type="string" required>
+  Permalink or complete URL of the company whose peers need to be found (e.g. `"harvey-128b"` OR `"https://www.harvey.ai/"`)
+</ParamField>
+
+<ParamField body="advanced_settings" type="object">
+  Filter parameters object. All filters live inside `advanced_settings`. Include the object in every request, and send empty values (`""`, `[]`) for any filter you do not want to apply.
 
   <ParamField body="detailed_query" type="string">
     A more descriptive query to refine the search scope.
   </ParamField>
 
-  <ParamField body="sample_companies" type="string[]">
-    Permalinks of representative companies or their complete URLs.
+  <ParamField body="companies" type="string[]">
+    Permalinks of representative companies or their complete URLs to anchor the competitor search.
   </ParamField>
 
   <ParamField body="geography" type="string[]">
-    Geographic scope as ISO country codes. (e.g. `["USA", "GBR"]`)
+    Geographic scope. Pass `["Worldwide"]` for no geographic restriction, or a list of ISO country codes (e.g. `["USA", "GBR"]`).
   </ParamField>
 
   <ParamField body="company_type" type="string">
@@ -53,7 +63,7 @@ The Competitor List API generates a long list of companies similar to the given 
   <ParamField body="employee_count" type="string[]">
     Filter by employee headcount range. Pass an empty array to include all headcounts.
 
-    Supporting array values: `1-10`, `11-50`, `51-100`, `101-250`, `251-500`, `501-1000`, `1001-5000`, `5001-10000`, `10000+`
+    Supported array values: `1-10`, `11-50`, `51-100`, `101-250`, `251-500`, `501-1000`, `1001-5000`, `5001-10000`, `10000+`
   </ParamField>
 
   <ParamField body="founded_year" type="object">
@@ -71,7 +81,7 @@ The Competitor List API generates a long list of companies similar to the given 
   <ParamField body="funding_stage" type="string[]">
     Filter by funding stage (e.g. `"Series A"`, `"Series B"`). Pass an empty array to include all stages.
 
-    Supporting array values: `Non-Equity Assistance`, `Angel round`, `Pre-seed`, `Seed`, `Series A`, `Series B`, `Series C`, `Series D`, `Series E`, `Series F`, `Series G`, `Series H`, `Series I`, `Series J`, `Corporate-Funded`, `Debt-Funded`, `Private equity round`, `Others`
+    Supported array values: `Non-Equity Assistance`, `Angel round`, `Pre-seed`, `Seed`, `Series A`, `Series B`, `Series C`, `Series D`, `Series E`, `Series F`, `Series G`, `Series H`, `Series I`, `Series J`, `Corporate-Funded`, `Debt-Funded`, `Private equity round`, `Others`
   </ParamField>
 
   <ParamField body="total_funding" type="object">
@@ -84,6 +94,10 @@ The Competitor List API generates a long list of companies similar to the given 
     <ParamField body="to" type="number">
       Maximum total funding in USD, e.g. `50000000`
     </ParamField>
+  </ParamField>
+
+  <ParamField body="total_funding_include_blanks" type="boolean">
+    When `true`, companies with no reported total funding are included in the results alongside companies that match the `total_funding` range.
   </ParamField>
 
   <ParamField body="last_funding_round" type="object">
@@ -147,24 +161,72 @@ The Competitor List API generates a long list of companies similar to the given 
   </ParamField>
 </ParamField>
 
+<RequestExample>
+
+```json Basic request
+{
+  "workflow": "company_peers",
+  "workbook_name": "LegalTech Players",
+  "permalink": "harvey-128b",
+  "advanced_settings": {
+    "detailed_query": "",
+    "companies": [],
+    "company_type": "all",
+    "geography": ["Worldwide"],
+    "employee_count": [],
+    "funding_stage": [],
+    "total_funding_include_blanks": true
+  }
+}
+```
+
+```json Request with filters
+{
+  "workflow": "company_peers",
+  "workbook_name": "LegalTech Players",
+  "permalink": "harvey-128b",
+  "advanced_settings": {
+    "detailed_query": "AI-powered legal research and drafting platforms",
+    "companies": [],
+    "company_type": "private",
+    "geography": ["USA", "GBR"],
+    "employee_count": ["51-100", "101-250"],
+    "funding_stage": ["Series A", "Series B"],
+    "total_funding": {
+      "from": 1000000,
+      "to": 50000000
+    },
+    "total_funding_include_blanks": false
+  }
+}
+```
+
+</RequestExample>
+
 ### Response
 
-A successful response returns a `request_id` that can be used to track the status of the request.
+A successful response returns a `report_id` that identifies the competitor list report.
 
 #### Successful Response Fields
 
-<ResponseField name="request_id" type="string">
-  Unique identifier for the request posted. Use this with the `/api/enterprise/request/status/` endpoint to check the status
+<ResponseField name="report_id" type="integer">
+  Unique identifier for the report created by this request. Use it to track completion and to download the results (see below).
 </ResponseField>
 
 
 <ResponseExample>
 
-```json 202
+```json 200
 {
-    "request_id": "450c0d25-c83b-4fc7-8713-f96b63db7843",
-    "status": "PENDING"
+  "report_id": 117253
 }
 ```
 
 </ResponseExample>
+
+## Tracking Completion and Exporting Results
+
+Competitor List generation is asynchronous. After you receive a `report_id`:
+
+1. Use `/api/assets/get_notebook_status/` to track completion of the report.
+2. Once the report is complete, use `/api/assets/download_report/` to export the results.
