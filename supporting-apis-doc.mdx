@@ -4,38 +4,35 @@ title: "Supporting APIs"
 
 ## Company Search
 
-Search the Wokelo database by company name, website, or ticker symbol to retrieve permalinks and key attributes needed for other API calls.
+Search the Wokelo database by company name, website or ticker symbol to retrieve permalinks and key attributes needed for other API calls.
 
-Note: If you are unable to find a company from the wokelo database using this API, you can still use our APIs (except Monitoring API) by using complete URL of the company's website instead of its permalink.
+<Note>
+  If you cannot find a company in the Wokelo database using this API, you can still use our APIs (except the Monitoring API) by passing the complete URL of the company's website instead of its permalink.
+</Note>
 
-`GET   /api/enterprise/company/search`
+`GET   /api/enterprise/company/search`
 
-NOTE: This is a synchronous API, which means the results will be returned in the HTTP response itself.
+This is a synchronous API. Results are returned in the HTTP response itself.
 
 <CodeGroup>
 
-```json cURL expandable wrap
+```bash cURL wrap
 curl --location 'https://api.wokelo.ai/api/enterprise/company/search?query=wokelo&search_by=name&company_type=all' \
---header 'Authorization: Bearer Token' \
+--header 'Authorization: Bearer <YOUR_API_TOKEN>' \
 --header 'Content-Type: application/json'
 ```
 
-```json Python expandable wrap
+```python Python wrap
 import requests
-import json
 
-url = "https://api.wokelo.ai/api/enterprise/company/search?query=wokelo&search_by=name&company_type=all"
-
-payload = json.dumps({
-  "q": "wokelo"
-})
+url = "https://api.wokelo.ai/api/enterprise/company/search"
+params = {"query": "wokelo", "search_by": "name", "company_type": "all"}
 headers = {
-  'Authorization': 'Bearer Token',
-  'Content-Type': 'application/json'
+    "Authorization": "Bearer <YOUR_API_TOKEN>",
+    "Content-Type": "application/json"
 }
 
-response = requests.request("GET", url, headers=headers, data=payload)
-
+response = requests.get(url, headers=headers, params=params)
 print(response.text)
 ```
 
@@ -66,11 +63,11 @@ Example response:
 
 ## Add Company
 
-Add a company to the Wokelo database when it cannot be found using the [Company Search](#company-search) API. Once added, the company becomes available for use across other Wokelo APIs via the returned `permalink`.
+Add a company to the Wokelo database when it cannot be found using the [Company Search](#company-search) API. Once added, the company becomes available across other Wokelo APIs.
 
 `POST   /api/enterprise/company/add/`
 
-NOTE: This is an asynchronous API. After submitting a request, poll the [Check status](#check-status) endpoint and retrieve the output using the [Request result](#request-result) endpoint. Learn more about [How Async APIs work](https://docs.wokelo.ai/how-async-apis-work).
+This is an asynchronous API. It returns a `report_id`, which you can track using the [Report status](#report-status) endpoint. Learn more about [How Async APIs work](/how-async-apis-work).
 
 ### Authentication
 
@@ -89,7 +86,7 @@ Uses the same authentication and headers as the Company Search API: a Bearer tok
 
 ```bash cURL
 curl --location 'https://api.wokelo.ai/api/enterprise/company/add/' \
---header 'Authorization: Bearer Token' \
+--header 'Authorization: Bearer <YOUR_API_TOKEN>' \
 --header 'Content-Type: application/json' \
 --data '{
     "company_name": "Aditi Solar",
@@ -99,12 +96,11 @@ curl --location 'https://api.wokelo.ai/api/enterprise/company/add/' \
 
 ```python Python
 import requests
-import json
 
 url = "https://api.wokelo.ai/api/enterprise/company/add/"
 
 headers = {
-    "Authorization": "Bearer Token",
+    "Authorization": "Bearer <YOUR_API_TOKEN>",
     "Content-Type": "application/json"
 }
 
@@ -115,198 +111,45 @@ payload = {
     "company_type": "Private"
 }
 
-response = requests.post(url, headers=headers, data=json.dumps(payload))
+response = requests.post(url, headers=headers, json=payload)
 print(response.json())
 ```
 
 </CodeGroup>
 
-### Response
+### After the company is added
 
-The API returns a `request_id` that you use to poll for status and retrieve the result.
-
-```json
-{
-    "request_id": "89daf26a-ee17-4915-96da-19b52067068a",
-    "status": "PENDING"
-}
-```
-
-### Retrieving the result
-
-Once the request status is `COMPLETED`, use the [Request result](#request-result) endpoint to fetch the output.
-
-```bash
-curl --location 'https://api.wokelo.ai/api/enterprise/request/result/?request_id=89daf26a-ee17-4915-96da-19b52067068a' \
---header 'Authorization: Bearer Token' \
---header 'Content-Type: application/json'
-```
-
-Example completed result:
-
-```json
-{
-    "request_id": "89daf26a-ee17-4915-96da-19b52067068a",
-    "status": "COMPLETED",
-    "result": {
-        "status": "success",
-        "permalink": "wokelo-aditisolar-in"
-    },
-    "credits_consumed": 0.0
-}
-```
-
-The returned `permalink` can then be used as the company reference in other Wokelo API calls.
+Track the request with the returned `report_id` using the [Report status](#report-status) endpoint. Once it completes, search for the company with [Company Search](#company-search) to get its `permalink`, and use that permalink as the company reference in other Wokelo API calls.
 
 ## File upload
 
-Upload your proprietary files to Wokelo to supplement research reports with internal data. Each uploaded file receives a unique identifier (fileName) that you reference in the custom\_files parameter when creating reports.
+Upload your proprietary files to Wokelo to supplement research reports with internal data. Each uploaded file receives a unique identifier (`fileName`) that you reference in the `custom_files` parameter when creating reports.
 
-`POST   /api/assets/upload/`
+`POST   /api/assets/upload/`
 
 <CodeGroup>
 
-```json cURL expandable wrap
+```bash cURL wrap
 curl --location 'https://api.wokelo.ai/api/assets/upload/' \
---header 'Authorization: Bearer Token' \
---header 'Content-Type: application/json' \
---form 'files=@"/Users/sahilmalhotra/Downloads/lemonade_diligence.pdf"' \
---form 'files=@"/Users/sahilmalhotra/Downloads/lemonade.pdf"' \
+--header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+--form 'files=@"/path/to/diligence.pdf"' \
+--form 'files=@"/path/to/financials.pdf"' \
 --form 'fileUUID="[\"k3m8n5p1q6\", \"a7f4b9e2c3\"]"'
 ```
 
-```json Python expandable wrap
+```python Python wrap
 import requests
-import json
 
 url = "https://api.wokelo.ai/api/assets/upload/"
 
 payload = {'fileUUID': '["k3m8n5p1q6", "a7f4b9e2c3"]'}
-files=[
-  ('files',('lemonade_diligence.pdf',open('/Users/sahilmalhotra/Downloads/lemonade_diligence.pdf','rb'),'application/pdf')),
-  ('files',('lemonade.pdf',open('/Users/sahilmalhotra/Downloads/lemonade.pdf','rb'),'application/pdf'))
+files = [
+    ('files', ('diligence.pdf', open('/path/to/diligence.pdf', 'rb'), 'application/pdf')),
+    ('files', ('financials.pdf', open('/path/to/financials.pdf', 'rb'), 'application/pdf'))
 ]
-headers = {
-  'Authorization': 'Bearer Token',
-  'Content-Type': 'application/json'
-}
+headers = {'Authorization': 'Bearer <YOUR_API_TOKEN>'}
 
-response = requests.request("POST", url, headers=headers, data=payload, files=files)
-
-print(response.text)
-```
-
-</CodeGroup>
-
-## Request lifecycle
-
-Enrichment, Insights, and Company Grid APIs are all asynchronous. After submitting a request, use these endpoints to track and retrieve results.
-
-### Check status
-
-This API can be used to check request status.
-
-`GET   /api/enterprise/request/status/`
-
-<CodeGroup>
-
-```json cURL expandable wrap
-curl --location 'https://api.wokelo.ai/api/enterprise/request/status/?request_id=b1f10ebf-a251-4e2d-b867-8482ac701987' \
---header 'Authorization: Bearer Token' \
---header 'Content-Type: application/json'
-```
-
-```json Python expandable wrap
-import requests
-import json
-
-url = "https://api.wokelo.ai/api/enterprise/request/status/?request_id=11db67b6-8345-4837-950f-87bbd8d7dcbe"
-
-payload = {}
-headers = {
-  'Authorization': 'Bearer Token',
-  'Content-Type': 'application/json'
-}
-
-response = requests.request("GET", url, headers=headers, data=payload)
-
-print(response.text)
-```
-
-</CodeGroup>
-
-**List of possible statuses**
-
-| **Status** | **Description** |
-| :-- | :-- |
-| PENDING | Request has been received and is queued for processing |
-| PROCESSING | Request is currently being processed |
-| COMPLETED | Request finished successfully — results are available |
-| FAILED | Request failed — check error details in the result endpoint |
-| CANCELLED | Request was cancelled by the user |
-
-### Cancel request
-
-This API can be used to cancel a request that is already placed and is in “PENDING” or “PROCESSING” state. \*\* \*\*
-
-`POST   /api/enterprise/request/cancel`
-
-<CodeGroup>
-
-```json cURL expandable wrap
-curl --location --globoff 'https://api.wokelo.ai/api/enterprise/request/cancel' \
---header 'Authorization: Bearer Token' \
---header 'Content-Type: application/json' \
---data '{
-    "request_id": "5b8eff600-366f-465c-b795-68837043a2d3"
-}'
-```
-
-```json Python expandable wrap
-import requests
-import json
-
-url = "https://api.wokelo.ai/api/enterprise/request/cancel"
-
-payload = json.dumps({
-  "request_id": "5b8eff600-366f-465c-b795-68837043a2d3"
-})
-headers = {
-  'Authorization': 'Bearer Token',
-  'Content-Type': 'application/json'
-}
-
-response = requests.request("POST", url, headers=headers, data=payload)
-
-print(response.text)
-```
-
-</CodeGroup>
-
-### Request result
-
-This API helps you get the result of a request after its status is “COMPLETED”.
-
-`GET   /api/enterprise/request/result/`
-
-<CodeGroup>
-
-```json cURL expandable wrap
-curl --location 'https://api.wokelo.ai/api/enterprise/request/result/?request_id=d7a78d10-663a-493f-9b79-be1e6094f3bb'
-```
-
-```json Python expandable wrap
-import requests
-
-url = "https://api.wokelo.ai/api/enterprise/request/result/?request_id=d7a78d10-663a-493f-9b79-be1e6094f3bb"
-
-payload = {}
-headers = {
-  'Authorization': 'Bearer Token'
-}
-
-response = requests.request("GET", url, headers=headers, data=payload)
-
+response = requests.post(url, headers=headers, data=payload, files=files)
 print(response.text)
 ```
 
@@ -314,71 +157,91 @@ print(response.text)
 
 ## Report lifecycle
 
-Workflow APIs (Company Research, Industry Research, Peer Comparison, Custom) are asynchronous and produce downloadable reports. Use these endpoints to track and export them.
+Discovery and Workflow Automation APIs are asynchronous and return a `report_id`. Use these endpoints to track and export the report. See [How Async APIs work](/how-async-apis-work).
 
 ### Report status
 
-This API can be used to get the status of report that is already placed using any of the workflow APIs.
+Get the status of a report that was started using any Wokelo workflow API.
 
-`GET   /api/assets/get_notebook_status/`
+`GET   /api/assets/get_notebook_status/`
+
+| **Parameter** | **Type** | **Required** | **Description** |
+| --- | --- | --- | --- |
+| `report_id` | integer | Yes | The `report_id` returned when the report was started. |
 
 <CodeGroup>
 
-```json cURL expandable wrap
+```bash cURL wrap
 curl --location 'https://api.wokelo.ai/api/assets/get_notebook_status/?report_id=109196' \
---header 'Authorization: your token'
+--header 'Authorization: Bearer <YOUR_API_TOKEN>'
 ```
 
-```json Python expandable wrap
+```python Python wrap
 import requests
 
-url = "https://api.wokelo.ai/api/assets/get_notebook_status/?report_id=109196"
+url = "https://api.wokelo.ai/api/assets/get_notebook_status/"
+headers = {'Authorization': 'Bearer <YOUR_API_TOKEN>'}
 
-payload = {}
-headers = {
-  'Authorization': 'your token'
-}
-
-response = requests.request("GET", url, headers=headers, data=payload)
-
+response = requests.get(url, headers=headers, params={"report_id": 109196})
 print(response.text)
 ```
 
 </CodeGroup>
 
+Example response:
+
+```json
+{
+  "report_id": 109196,
+  "status": "Processing",
+  "title": "warehouse automation"
+}
+```
+
+**List of possible statuses**
+
+| **Status** | **Description** |
+| :-- | :-- |
+| `Queued` | The report has been received and is waiting to be processed. |
+| `Processing` | The report is actively being generated. |
+| `Delayed` | The report is taking longer than expected. |
+| `Completed` | Generation finished successfully. The report is ready to download. |
+| `Exported` | The report has been exported. |
+| `No Data Found` | No data was found for the request. |
+
 ### Download report
 
-This API can be used to download the report after its completed. Export Formats supported: "pdf", "docx", "ppt", or "json”. Note: ppt format is only supported for company research, industry research reports.
+Download a report once it has completed.
+
+`POST   /api/assets/download_report/`
+
+| **Parameter** | **Type** | **Required** | **Description** |
+| --- | --- | --- | --- |
+| `report_id` | integer | Yes | Id of the report to export. |
+| `file_type` | string | Yes | Export format: `"pdf"`, `"docx"`, `"ppt"` or `"json"`. `ppt` is supported only for Company Research and Industry Research reports. |
 
 <CodeGroup>
 
-```json cURL expandable wrap
+```bash cURL wrap
 curl --location 'https://api.wokelo.ai/api/assets/download_report/' \
 --header 'Content-Type: application/json' \
---header 'Authorization: Bearer Token' \
+--header 'Authorization: Bearer <YOUR_API_TOKEN>' \
 --data '{
     "report_id": 109196,
     "file_type": "json"
 }'
 ```
 
-```json Python expandable wrap
+```python Python wrap
 import requests
-import json
 
 url = "https://api.wokelo.ai/api/assets/download_report/"
-
-payload = json.dumps({
-  "report_id": 109196,
-  "file_type": "json"
-})
 headers = {
-  'Content-Type': 'application/json',
-  'Authorization': 'Bearer Token'
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer <YOUR_API_TOKEN>'
 }
 
-response = requests.request("POST", url, headers=headers, data=payload)
-
+response = requests.post(url, headers=headers, json={"report_id": 109196, "file_type": "json"})
 print(response.text)
 ```
 
@@ -386,35 +249,31 @@ print(response.text)
 
 ### Report config
 
-Retrieve the settings originally used to trigger a report. View detailed [<u>API reference</u>](/notebook-configuration).<br /><br />`POST api/wkl/notebook/configuration/`
+Retrieve the settings originally used to trigger a report. View the detailed [API reference](/notebook-configuration).
+
+`POST   /api/wkl/notebook/configuration/`
 
 <CodeGroup>
 
-```json cURL expandable wrap
-curl --location --globoff 'https://api.wokelo.ai/api/wkl/notebook/configuration/' \
---header 'Authorization: Bearer Token' \
+```bash cURL wrap
+curl --location 'https://api.wokelo.ai/api/wkl/notebook/configuration/' \
+--header 'Authorization: Bearer <YOUR_API_TOKEN>' \
 --header 'Content-Type: application/json' \
 --data '{
-    "notebook_id": 103737
+    "notebook_id": 103737
 }'
 ```
 
-```json Python expandable wrap
+```python Python wrap
 import requests
-import json
 
 url = "https://api.wokelo.ai/api/wkl/notebook/configuration/"
-
-payload = json.dumps({
-  "notebook_id": 107303
-})
 headers = {
-  'Authorization': 'Bearer Token',
-  'Content-Type': 'application/json'
+    'Authorization': 'Bearer <YOUR_API_TOKEN>',
+    'Content-Type': 'application/json'
 }
 
-response = requests.request("POST", url, headers=headers, data=payload)
-
+response = requests.post(url, headers=headers, json={"notebook_id": 103737})
 print(response.text)
 ```
 
@@ -426,32 +285,29 @@ APIs to check your current credit balance and review historical credit consumpti
 
 ### Credit balance
 
-Retrieve your account's current credit balance, total allotted credits, and account expiry period.
+Retrieve your account's current credit balance, total allotted credits and account expiry period.
 
 `GET   /api/wkl/credits/get-credits-balance/`
 
 <CodeGroup>
 
-```json cURL expandable wrap
-  curl --location 'https://api.wokelo.ai/api/wkl/credits/get-credits-balance/' \
-  --header 'Authorization: Bearer Token'
-  --header 'Content-Type: application/json'
+```bash cURL wrap
+curl --location 'https://api.wokelo.ai/api/wkl/credits/get-credits-balance/' \
+--header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+--header 'Content-Type: application/json'
 ```
 
-```json Python expandable wrap
-  import requests
+```python Python wrap
+import requests
 
-  url = "https://api.wokelo.ai/api/wkl/credits/get-credits-balance/"
-
-  payload = {}
-  headers = {
-    'Authorization': 'Bearer Token',
+url = "https://api.wokelo.ai/api/wkl/credits/get-credits-balance/"
+headers = {
+    'Authorization': 'Bearer <YOUR_API_TOKEN>',
     'Content-Type': 'application/json'
-  }
+}
 
-  response = requests.request("GET", url, headers=headers, data=payload)
-
-  print(response.text)
+response = requests.get(url, headers=headers)
+print(response.text)
 ```
 
 </CodeGroup>
@@ -460,10 +316,10 @@ Example response:
 
 ```json
 {
-    "credits_consumed": 0,
-    "acount_expiry_period": "2099-10-04T09:11:05Z",
-    "credits_balance": 849.2029999999613,
-    "total_credits": 25000.0
+  "credits_consumed": 0,
+  "acount_expiry_period": "2099-10-04T09:11:05Z",
+  "credits_balance": 849.2029999999613,
+  "total_credits": 25000.0
 }
 ```
 
@@ -471,11 +327,11 @@ Example response:
 | --- | --- | --- |
 | `credits_balance` | number | Credits remaining on the account. |
 | `total_credits` | number | Total credits allotted to the account. |
-| `acount_expiry_period` | string | Expiry timestamp (ISO 8601) for the current credit allotment/plan. |
+| `acount_expiry_period` | string | Expiry timestamp (ISO 8601) for the current credit allotment or plan. |
 
 ### Credit logs
 
-Retrieve a paginated log of credit-consuming activity across the account. It will include reports, newsletters, API calls, assistant usage etc.
+Retrieve a paginated log of credit-consuming activity across the account, including reports, newsletters, API calls and assistant usage.
 
 `GET   /api/wkl/credits/get-credits-logs/`
 
@@ -488,26 +344,23 @@ Retrieve a paginated log of credit-consuming activity across the account. It wil
 
 <CodeGroup>
 
-```json cURL expandable wrap
-  curl --location 'https://api.wokelo.ai/api/wkl/credits/get-credits-logs/?page=1&page_size=30' \
-  --header 'Authorization: Bearer Token'
-  --header 'Content-Type: application/json'
+```bash cURL wrap
+curl --location 'https://api.wokelo.ai/api/wkl/credits/get-credits-logs/?page=1&page_size=30' \
+--header 'Authorization: Bearer <YOUR_API_TOKEN>' \
+--header 'Content-Type: application/json'
 ```
 
-```json Python expandable wrap
-  import requests
+```python Python wrap
+import requests
 
-  url = "https://api.wokelo.ai/api/wkl/credits/get-credits-logs/?page=1&page_size=30"
-
-  payload = {}
-  headers = {
-    'Authorization': 'Bearer Token',
+url = "https://api.wokelo.ai/api/wkl/credits/get-credits-logs/"
+headers = {
+    'Authorization': 'Bearer <YOUR_API_TOKEN>',
     'Content-Type': 'application/json'
-  }
+}
 
-  response = requests.request("GET", url, headers=headers, data=payload)
-
-  print(response.text)
+response = requests.get(url, headers=headers, params={"page": 1, "page_size": 30})
+print(response.text)
 ```
 
 </CodeGroup>
@@ -516,39 +369,39 @@ Example response:
 
 ```json
 {
-    "count": 2604,
-    "current_page": 1,
-    "total_pages": 87,
-    "data": [
-        {
-            "id": 2681,
-            "email": "system@wokelo.ai",
-            "date": "2026-07-21T11:05:15.040079+00:00",
-            "name": "Newsletter Pipeline",
-            "type": "Report",
-            "sub_info": "Newsfeed",
-            "credit_consumed": 10.0
-        },
-        {
-            "id": 2670,
-            "email": "rahul.parlani@wokelo.ai",
-            "date": "2026-07-17T14:04:16.175945+00:00",
-            "name": "Arbor Memorial Inc. - Add Company",
-            "type": "API",
-            "sub_info": "Add Company",
-            "credit_consumed": 0.0
-        },
-        {
-            "id": 2663,
-            "email": "tarun@wokelo.ai",
-            "date": "2026-07-16T15:29:37.451531+00:00",
-            "name": "Acquisition Target Companies",
-            "type": "Assistant",
-            "sub_info": "generated via deep_research, final summary layer cost",
-            "credit_consumed": 10.0
-        }
-    ],
-    "credits_consumed": 0
+  "count": 2604,
+  "current_page": 1,
+  "total_pages": 87,
+  "data": [
+    {
+      "id": 2681,
+      "email": "system@wokelo.ai",
+      "date": "2026-07-21T11:05:15.040079+00:00",
+      "name": "Newsletter Pipeline",
+      "type": "Report",
+      "sub_info": "Newsfeed",
+      "credit_consumed": 10.0
+    },
+    {
+      "id": 2670,
+      "email": "user@example.com",
+      "date": "2026-07-17T14:04:16.175945+00:00",
+      "name": "Arbor Memorial Inc. - Add Company",
+      "type": "API",
+      "sub_info": "Add Company",
+      "credit_consumed": 0.0
+    },
+    {
+      "id": 2663,
+      "email": "user@example.com",
+      "date": "2026-07-16T15:29:37.451531+00:00",
+      "name": "Acquisition Target Companies",
+      "type": "Assistant",
+      "sub_info": "generated via deep_research, final summary layer cost",
+      "credit_consumed": 10.0
+    }
+  ],
+  "credits_consumed": 0
 }
 ```
 
@@ -567,9 +420,9 @@ Example response:
 | **Field** | **Type** | **Description** |
 | --- | --- | --- |
 | `id` | integer | Unique identifier for the log entry. |
-| `email` | string | Email of the user who triggered the activity. May be blank for system-generated entries (e.g. scheduled newsletters). |
+| `email` | string | Email of the user who triggered the activity. May be blank for system-generated entries such as scheduled newsletters. |
 | `date` | string | Timestamp (ISO 8601) of the activity. |
-| `name` | string | Name of the report, notebook, or task associated with the activity. |
-| `type` | string | Category of activity. Observed values include `Report`, `Newsletter`, `API`, and `Assistant`. |
+| `name` | string | Name of the report, notebook or task associated with the activity. |
+| `type` | string | Category of activity. Observed values include `Report`, `Newsletter`, `API` and `Assistant`. |
 | `sub_info` | string | Additional context on the specific action taken (e.g. `Add Company`, `Research Plan Validation`, `Newsfeed`). |
 | `credit_consumed` | number | Credits consumed by this specific activity. |
