@@ -239,72 +239,44 @@ fetch("https://api.wokelo.ai/api/enterprise/industry/enrich/", requestOptions)
   .catch((error) => console.error(error));`
     },
     discovery: {
-      cURL: `curl --location 'https://api.wokelo.ai/api/enterprise/market-map/enrich/' \\
+      cURL: `curl --location 'https://api.wokelo.ai/api/workflow_manager/start/' \\
 --header 'Authorization: Bearer Token' \\
 --header 'Content-Type: application/json' \\
 --data '{
-    "topic": "AI-powered CRM software",
-    "parameters": {
-        "detailed_query": "B2B CRM tools leveraging AI for sales automation",
-        "keywords": [
-            "AI",
-            "CRM",
-            "sales automation"
-        ],
-        "sample_companies": [
-            "salesforce",
-            "hubspot"
-        ],
+    "topic": "warehouse automation",
+    "workflow": "agentic_mm",
+    "workbook_name": "warehouse automation",
+    "advanced_settings": {
+        "detailed_query": "warehouse automation",
+        "companies": [],
+        "company_type": "all",
         "geography": [
-            "USA"
+            "Worldwide"
         ],
-        "company_type": "private",
-        "employee_count": ["11-50"],
-        "founded_year": {
-            "min": 2015
-        },
+        "employee_count": [],
         "funding_stage": [],
-        "total_funding": {},
-        "last_funding_round": {},
-        "revenue": {},
-        "ebitda": {},
-        "net_income": {},
-        "ev_ebitda": {}
+        "total_funding_include_blanks": true
     }
 }'`,
       Python: `import requests
 import json
 
-url = "https://api.wokelo.ai/api/enterprise/market-map/enrich/"
+url = "https://api.wokelo.ai/api/workflow_manager/start/"
 
 payload = json.dumps({
-    "topic": "AI-powered CRM software",
-    "parameters": {
-        "detailed_query": "B2B CRM tools leveraging AI for sales automation",
-        "keywords": [
-            "AI",
-            "CRM",
-            "sales automation"
-        ],
-        "sample_companies": [
-            "salesforce",
-            "hubspot"
-        ],
+    "topic": "warehouse automation",
+    "workflow": "agentic_mm",
+    "workbook_name": "warehouse automation",
+    "advanced_settings": {
+        "detailed_query": "warehouse automation",
+        "companies": [],
+        "company_type": "all",
         "geography": [
-            "USA"
+            "Worldwide"
         ],
-        "company_type": "private",
-        "employee_count": ["11-50"],
-        "founded_year": {
-            "min": 2015
-        },
+        "employee_count": [],
         "funding_stage": [],
-        "total_funding": {},
-        "last_funding_round": {},
-        "revenue": {},
-        "ebitda": {},
-        "net_income": {},
-        "ev_ebitda": {}
+        "total_funding_include_blanks": True
     }
 })
 headers = {
@@ -320,33 +292,19 @@ myHeaders.append("Authorization", "Bearer Token");
 myHeaders.append("Content-Type", "application/json");
 
 const raw = JSON.stringify({
-    "topic": "AI-powered CRM software",
-    "parameters": {
-        "detailed_query": "B2B CRM tools leveraging AI for sales automation",
-        "keywords": [
-            "AI",
-            "CRM",
-            "sales automation"
-        ],
-        "sample_companies": [
-            "salesforce",
-            "hubspot"
-        ],
+    "topic": "warehouse automation",
+    "workflow": "agentic_mm",
+    "workbook_name": "warehouse automation",
+    "advanced_settings": {
+        "detailed_query": "warehouse automation",
+        "companies": [],
+        "company_type": "all",
         "geography": [
-            "USA"
+            "Worldwide"
         ],
-        "company_type": "private",
-        "employee_count": ["11-50"],
-        "founded_year": {
-            "min": 2015
-        },
+        "employee_count": [],
         "funding_stage": [],
-        "total_funding": {},
-        "last_funding_round": {},
-        "revenue": {},
-        "ebitda": {},
-        "net_income": {},
-        "ev_ebitda": {}
+        "total_funding_include_blanks": true
     }
 });
 
@@ -357,7 +315,7 @@ const requestOptions: RequestInit = {
     redirect: "follow"
 };
 
-fetch("https://api.wokelo.ai/api/enterprise/market-map/enrich/", requestOptions)
+fetch("https://api.wokelo.ai/api/workflow_manager/start/", requestOptions)
     .then((response) => response.text())
     .then((result) => console.log(result))
     .catch((error) => console.error(error));`
