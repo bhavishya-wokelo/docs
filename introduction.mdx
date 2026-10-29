@@ -62,8 +62,6 @@ Wokelo’s API Suite consists of four types of APIs:
   </Card>
 </Columns>
 
-Discovery APIs are request-based. Each request returns a request\_id which can be used to track status and retrieve results in JSON when complete. Workflow Automation APIs are executed within notebooks and outputs can be exported as PDF, PPT, DOC, or JSON.
-
 ## API structure
 
 Wokelo’s API follows two primary patterns depending on the complexity of the operation:
@@ -74,8 +72,7 @@ Wokelo’s API follows two primary patterns depending on the complexity of the o
 
 **Asynchronous APIs (submit request, poll for status, retrieve results)**
 
-- All the Discovery APIs return a request\_id
-- All Workflow Automation APIs return a report\_id
+- All Workflow Automation and Discovery APIs return a report\_id
 - Poll for status, then retrieve results when complete. For request\_id, use Request result API to view the results. For report\_id, use Download Report API to download the report.
 
 Eg. Company Research API will return a report\_id as a response. One has to use Download Report API to view the report output.

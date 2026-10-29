@@ -4,46 +4,52 @@ title: "How Async APIs work"
 
 ## Overview
 
-Several Wokelo APIs — including all **Enrichment**, **Discovery**, and **Workflow Automation** APIs — operate asynchronously. Because these operations involve deep AI research, large-scale data enrichment, and multi-source synthesis, they can take anywhere from a few seconds to 25 minutes to complete. Rather than keeping your HTTP connection open for that entire duration, Wokelo uses a **Submit → Poll → Retrieve** pattern.
+Wokelo APIs in the **Discovery** and **Workflow Automation** categories operate asynchronously. These operations involve deep AI research, large-scale data enrichment and multi-source synthesis, so they can take several minutes to complete. Rather than keeping your HTTP connection open for that entire duration, Wokelo uses a **Submit, Check Status, Download** pattern.
 
-This means your integration is non-blocking: submit a job, move on, and fetch results when they're ready.
+Every async API returns a `report_id` as soon as the request is accepted. This ID is your handle for everything that follows. Your integration stays non-blocking: submit a job, move on, and download the results when they are ready.
 
 ## Why Asynchronous?
 
-Wokelo APIs produce intelligence at investment-grade quality — resolving entities across 20M\+ companies, deduplicating signals from 1,000\+ curated sources, and running structured AI workflows. This depth takes time. A synchronous API would require you to hold a connection open for up to 25 minutes, which is impractical for production systems.
+Wokelo produces intelligence at investment-grade quality, resolving entities, deduplicating signals across sources and running structured AI workflows. This depth takes time, and a synchronous API would need to hold a connection open for the full run.
 
 The async pattern lets you:
 
-- **Decouple submission from retrieval** — fire a job and handle the result whenever it's ready
-- **Handle long-running tasks reliably** — no timeout failures on deep research jobs
-- **Run multiple requests in parallel** — submit many jobs simultaneously and poll each independently
-- **Integrate cleanly into pipelines** — queue results, trigger downstream workflows, or store outputs on completion
+- **Decouple submission from retrieval**: start a job and handle the result whenever it is ready
+- **Handle long-running tasks reliably**: no timeout failures on deep research jobs
+- **Run multiple requests in parallel**: submit many jobs at once and track each by its `report_id`
+- **Integrate cleanly into pipelines**: queue results, trigger downstream workflows, or store outputs on completion
 
 ## The Three-Step Flow
 
-STEP 1: SUBMIT
+```text
+1. SUBMIT   POST /api/workflow_manager/start/       →  returns report_id
+2. STATUS   GET  /api/assets/get_notebook_status/   →  returns status
+3. DOWNLOAD POST /api/assets/download_report/       →  returns the report
+```
 
-STEP 2: POLL
+### Step 1: Submit a Request
 
-STEP 3: RETRIEVE
+Call the relevant API endpoint with your parameters. The API returns immediately with a `report_id`.
 
-### Step 1 — Submit a Request
-
-Call the relevant API endpoint with your parameters. The API returns immediately with a `request_id` (for Enrichment and Discovery APIs) or a `report_id` (for Workflow APIs). This ID is your handle for everything that follows.
-
-**Example — Submitting a Market Map request:**
+**Example: starting a Market Map workflow**
 
 ```bash
 curl --request POST \
-  --url https://api.wokelo.ai/api/enterprise/market-map/enrich/ \
+  --url https://api.wokelo.ai/api/workflow_manager/start/ \
   --header 'Authorization: Bearer YOUR_TOKEN' \
   --header 'Content-Type: application/json' \
   --data '{
-    "topic": "AI-powered CRM software",
-    "parameters": {
-      "company_type": "private",
-      "employee_count": ["11-50"],
-      "geography": ["USA"]
+    "topic": "warehouse automation",
+    "workflow": "agentic_mm",
+    "workbook_name": "warehouse automation",
+    "advanced_settings": {
+      "detailed_query": "warehouse automation",
+      "companies": [],
+      "company_type": "all",
+      "geography": ["Worldwide"],
+      "employee_count": [],
+      "funding_stage": [],
+      "total_funding_include_blanks": true
     }
   }'
 ```
@@ -52,46 +58,15 @@ curl --request POST \
 
 ```json
 {
-    "request_id": "ed2ce223-3bd2-4a08-855f-79751bf1bd92",
-    "status": "PENDING"
+  "report_id": 117253
 }
 ```
 
-> **Save the `request_id`.** You will need it in Steps 2 and 3.
+> **Save the `report_id`.** You need it in Steps 2 and 3.
 
-#### Which ID do I get?
+### Step 2: Check Report Status
 
-| API Type | ID Returned | Retrieve via |
-| --- | --- | --- |
-| Enrichment APIs (Company/Industry) | `request_id` | `/api/enterprise/request/result/` |
-| Discovery APIs (Market Map, Target Screening, Buyer Screening) | `request_id` | `/api/enterprise/request/result/` |
-| Workflow APIs (Company Research, Industry Research, Peer Comparison, Custom) | `report_id` | `/download-report/` endpoint |
-
-### Step 2 — Poll for Status
-
-After submitting, periodically call the **Request Status** endpoint with your `request_id` to check progress. The API returns a `status` field that moves through the following states:
-
-#### Status Lifecycle
-
-```text
-PENDING  →  PROCESSING  →  COMPLETED
-                        ↘  FAILED
-```
-
-| Status | Meaning |
-| --- | --- |
-| `PENDING` | The request has been received and is queued for processing. |
-| `PROCESSING` | The request is actively being worked on. |
-| `COMPLETED` | Processing finished successfully. Results are ready to retrieve. |
-| `FAILED` | An error occurred during processing. |
-
-**Endpoint:**<br />For request\_id
-
-```text
-GET /api/enterprise/request/status/?request_id={your_request_id}
-```
-
-For report\_id
+After submitting, periodically call the **Get Report Status** endpoint with your `report_id`.
 
 ```text
 GET /api/assets/get_notebook_status/?report_id={your_report_id}
@@ -101,109 +76,85 @@ GET /api/assets/get_notebook_status/?report_id={your_report_id}
 
 ```bash
 curl --request GET \
-  --url 'https://api.wokelo.ai/api/enterprise/request/status/?request_id=ed2ce223-3bd2-4a08-855f-79751bf1bd92' \
+  --url 'https://api.wokelo.ai/api/assets/get_notebook_status/?report_id=117253' \
   --header 'Authorization: Bearer YOUR_TOKEN'
 ```
 
-**Response while processing:**
+**Response:**
 
 ```json
 {
-    "request_id": "ed2ce223-3bd2-4a08-855f-79751bf1bd92",
-    "status": "PROCESSING",
-    "request_type": "market_map",
-    "created_at": "2026-03-24T18:12:17.787415Z",
-    "updated_at": "2026-03-24T18:14:45.123456Z"
+  "report_id": 117253,
+  "status": "Processing",
+  "title": "warehouse automation"
 }
 ```
 
-**Response when complete:**
+#### Status values
 
-```json
-{
-    "request_id": "ed2ce223-3bd2-4a08-855f-79751bf1bd92",
-    "status": "COMPLETED",
-    "request_type": "market_map",
-    "created_at": "2026-03-24T18:12:17.787415Z",
-    "updated_at": "2026-03-24T18:29:31.041441Z"
-}
-```
+| Status | Meaning |
+| --- | --- |
+| `Queued` | The report has been received and is waiting to be processed. |
+| `Processing` | The report is actively being generated. |
+| `Delayed` | The report is taking longer than expected. |
+| `Completed` | Generation finished successfully. The report is ready to download. |
+| `Exported` | The report has been exported. |
+| `No Data Found` | No data was found for the request. |
 
-#### Recommended Polling Intervals
+Poll with a gradually increasing interval rather than a tight loop. Polling more often does not speed up results.
 
-Do not poll too aggressively — it wastes quota and does not speed up results. Use an interval appropriate to the expected processing time:
-
-| API | Approximate Duration | Recommended Poll Interval |
-| --- | --- | --- |
-| Company Instant Enrichment | \< 10 seconds | Every 2–3 seconds |
-| Company Instant Enrichment (Batch) | \< 1 minute | Every 5–10 seconds |
-| Company Deep Intelligence | 5–10 minutes | Every 15–30 seconds |
-| Industry Deep Intelligence | 5–10 minutes | Every 15–30 seconds |
-| Market Map | 10–15 minutes | Every 30–60 seconds |
-| Target Screening | 10–15 minutes | Every 30–60 seconds |
-| Buyer Screening | 10–15 minutes | Every 30–60 seconds |
-| Company Research | 20–25 minutes | Every 60 seconds |
-| Industry Research | 20–25 minutes | Every 60 seconds |
-| Peer Comparison | 15–20 minutes | Every 60 seconds |
-
-#### Polling Code Examples
+#### Polling code examples
 
 ```python
-# Python — polling with exponential backoff
+# Python: polling with exponential backoff
 import requests
 import time
 
-headers = {
-    "Authorization": "Bearer YOUR_TOKEN",
-    "Content-Type": "application/json"
-}
-
-request_id = "ed2ce223-3bd2-4a08-855f-79751bf1bd92"
-interval = 10  # Start polling every 10 seconds
+headers = {"Authorization": "Bearer YOUR_TOKEN"}
+report_id = 117253
+interval = 10  # seconds
 
 while True:
     response = requests.get(
-        "https://api.wokelo.ai/api/enterprise/request/status/",
+        "https://api.wokelo.ai/api/assets/get_notebook_status/",
         headers=headers,
-        params={"request_id": request_id}
+        params={"report_id": report_id}
     )
-    data = response.json()
-    status = data["status"]
+    status = response.json()["status"]
     print(f"Status: {status}")
 
-    if status == "COMPLETED":
-        print("Request complete. Fetching results...")
+    if status in ("Completed", "Exported"):
         break
-    elif status == "FAILED":
-        raise Exception(f"Request failed: {data}")
+    if status == "No Data Found":
+        raise Exception(f"No data found for report {report_id}")
 
     time.sleep(interval)
-    interval = min(interval * 1.5, 60)  # Cap at 60s
+    interval = min(interval * 1.5, 60)  # cap at 60 seconds
 ```
 
 ```javascript
-// JavaScript — async polling loop
-async function pollForCompletion(requestId, token) {
-  const url = `https://api.wokelo.ai/api/enterprise/request/status/?request_id=${requestId}`;
+// JavaScript: async polling loop
+async function pollForCompletion(reportId, token) {
+  const url = `https://api.wokelo.ai/api/assets/get_notebook_status/?report_id=${reportId}`;
   const headers = { Authorization: `Bearer ${token}` };
-  let interval = 10000; // Start at 10s
+  let interval = 10000; // start at 10s
 
   while (true) {
     const res = await fetch(url, { headers });
     const data = await res.json();
     console.log("Status:", data.status);
 
-    if (data.status === "COMPLETED") return data;
-    if (data.status === "FAILED") throw new Error("Request failed");
+    if (data.status === "Completed" || data.status === "Exported") return data;
+    if (data.status === "No Data Found") throw new Error("No data found");
 
-    await new Promise(resolve => setTimeout(resolve, interval));
-    interval = Math.min(interval * 1.5, 60000); // Cap at 60s
+    await new Promise((resolve) => setTimeout(resolve, interval));
+    interval = Math.min(interval * 1.5, 60000); // cap at 60s
   }
 }
 ```
 
 ```go
-// Go — polling loop with sleep
+// Go: polling loop with sleep
 package main
 
 import (
@@ -214,11 +165,11 @@ import (
     "time"
 )
 
-func pollStatus(requestID, token string) {
+func pollStatus(reportID, token string) {
     interval := 10 * time.Second
     for {
         req, _ := http.NewRequest("GET",
-            "https://api.wokelo.ai/api/enterprise/request/status/?request_id="+requestID, nil)
+            "https://api.wokelo.ai/api/assets/get_notebook_status/?report_id="+reportID, nil)
         req.Header.Set("Authorization", "Bearer "+token)
         resp, _ := http.DefaultClient.Do(req)
         body, _ := io.ReadAll(resp.Body)
@@ -229,7 +180,7 @@ func pollStatus(requestID, token string) {
         status := result["status"].(string)
         fmt.Println("Status:", status)
 
-        if status == "COMPLETED" || status == "FAILED" {
+        if status == "Completed" || status == "Exported" || status == "No Data Found" {
             fmt.Println(string(body))
             return
         }
@@ -241,146 +192,96 @@ func pollStatus(requestID, token string) {
 }
 ```
 
-### Step 3 — Retrieve Results
+### Step 3: Download the Report
 
-Once status is `COMPLETED`, fetch the full result payload using the **Request Result** endpoint.
-
-**Endpoint:**
-
-For request\_id:
-
-```text
-GET /api/enterprise/request/result/?request_id={your_request_id}
-```
-
-For report\_id:
+Once the status is `Completed`, export the report with the **Download Report** endpoint. Pass the `report_id` and the export format in the request body.
 
 ```text
 POST /api/assets/download_report/
 ```
 
+| Body parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `report_id` | integer | Yes | Id of the report to export. |
+| `file_type` | string | Yes | Export format. One of `"pdf"`, `"docx"`, `"json"`. |
+
 **Example:**
 
 ```bash
-curl --request GET \
-  --url 'https://api.wokelo.ai/api/enterprise/request/result/?request_id=ed2ce223-3bd2-4a08-855f-79751bf1bd92' \
-  --header 'Authorization: Bearer YOUR_TOKEN'
+curl --request POST \
+  --url https://api.wokelo.ai/api/assets/download_report/ \
+  --header 'Authorization: Bearer YOUR_TOKEN' \
+  --header 'Content-Type: application/json' \
+  --output report.pdf \
+  --data '{
+    "report_id": 117253,
+    "file_type": "pdf"
+  }'
 ```
 
-**Response:**
-
-```json
-{
-    "request_id": "ed2ce223-3bd2-4a08-855f-79751bf1bd92",
-    "status": "COMPLETED",
-    "result": {
-        "tesla-motors": {
-            "firmographics": {
-                "name": "Tesla",
-                "website": "https://www.tesla.com",
-                "location": "Austin, United States",
-                "founded": 2003,
-                "type": "public",
-                "operating_status": "IPO",
-                "ticker": "NASDAQ:TSLA"
-            }
-        }
-    }
-}
-```
-
-The `result` field contains structured, agent-ready JSON output — the exact schema varies by API type (enrichment fields for Enrichment APIs, company lists for Discovery APIs, etc.).
-
-> **For Workflow APIs** (Company Research, Industry Research, etc.), results are retrieved via the **Download Report** endpoint using the `report_id`, and can be exported as PDF, DOCX, PPT, or JSON.
+The response is the report file in the requested format.
 
 ### Complete End-to-End Example
 
-The following Python example shows the full Submit → Poll → Retrieve cycle for a Market Map request:
+The following Python example shows the full Submit, Status, Download cycle for a Market Map request:
 
 ```python
 import requests
 import time
 
 BASE_URL = "https://api.wokelo.ai"
-TOKEN = "YOUR_TOKEN"
 HEADERS = {
-    "Authorization": f"Bearer {TOKEN}",
+    "Authorization": "Bearer YOUR_TOKEN",
     "Content-Type": "application/json"
 }
 
-# ── STEP 1: Submit ──────────────────────────────────────────
-submit_response = requests.post(
-    f"{BASE_URL}/api/enterprise/market-map/enrich/",
+# STEP 1: Submit
+submit = requests.post(
+    f"{BASE_URL}/api/workflow_manager/start/",
     headers=HEADERS,
     json={
-        "topic": "AI-powered CRM software",
-        "parameters": {
-            "company_type": "private",
-            "employee_count": ["11-50"],
-            "geography": ["USA"]
+        "topic": "warehouse automation",
+        "workflow": "agentic_mm",
+        "workbook_name": "warehouse automation",
+        "advanced_settings": {
+            "detailed_query": "warehouse automation",
+            "companies": [],
+            "company_type": "all",
+            "geography": ["Worldwide"],
+            "employee_count": [],
+            "funding_stage": [],
+            "total_funding_include_blanks": True
         }
     }
 )
-submit_data = submit_response.json()
-request_id = submit_data["request_id"]
-print(f"Submitted. request_id: {request_id}")
+report_id = submit.json()["report_id"]
+print(f"Submitted. report_id: {report_id}")
 
-# ── STEP 2: Poll ────────────────────────────────────────────
+# STEP 2: Check status
 interval = 15
 while True:
-    status_response = requests.get(
-        f"{BASE_URL}/api/enterprise/request/status/",
+    status = requests.get(
+        f"{BASE_URL}/api/assets/get_notebook_status/",
         headers=HEADERS,
-        params={"request_id": request_id}
-    )
-    status_data = status_response.json()
-    print(f"Status: {status_data['status']}")
+        params={"report_id": report_id}
+    ).json()["status"]
+    print(f"Status: {status}")
 
-    if status_data["status"] == "COMPLETED":
+    if status in ("Completed", "Exported"):
         break
-    elif status_data["status"] == "FAILED":
-        raise Exception("Request failed.")
+    if status == "No Data Found":
+        raise Exception("No data found.")
 
     time.sleep(interval)
+    interval = min(interval * 1.5, 60)
 
-# ── STEP 3: Retrieve ────────────────────────────────────────
-result_response = requests.get(
-    f"{BASE_URL}/api/enterprise/request/result/",
+# STEP 3: Download
+download = requests.post(
+    f"{BASE_URL}/api/assets/download_report/",
     headers=HEADERS,
-    params={"request_id": request_id}
+    json={"report_id": report_id, "file_type": "pdf"}
 )
-results = result_response.json()
-print("Results:", results["result"])
+with open("report.pdf", "wb") as f:
+    f.write(download.content)
+print("Report saved to report.pdf")
 ```
-
-### Cancelling a Request
-
-If you need to abort a job before it completes, you can cancel it using the **Request Cancel** endpoint, provided the request is still in `PENDING` or `PROCESSING` state.
-
-```bash
-curl --request POST \
-  --url https://api.wokelo.ai/api/enterprise/request/cancel/ \
-  --header 'Authorization: Bearer YOUR_TOKEN' \
-  --header 'Content-Type: application/json' \
-  --data '{"request_id": "ed2ce223-3bd2-4a08-855f-79751bf1bd92"}'
-```
-
-### Error Handling
-
-| Scenario | Recommended Action |
-| --- | --- |
-| `status: FAILED` | Log the `request_id` and `updated_at`. Retry the submission if transient. |
-| Polling timeout (your side) | Check status one final time before giving up — the job may have completed. |
-| 401 Unauthorized on status/result calls | Your JWT may have expired. Re-authenticate via `/auth/token/` and retry. |
-| `request_id` not found | Verify the ID was saved correctly after the initial submission response. |
-
-### Quick Reference
-
-| Step | Method | Endpoint | Key Field |
-| --- | --- | --- | --- |
-| Submit | `POST` | `/api/enterprise/{resource}/enrich/` or `/...` | Returns `request_id` |
-| Poll | `GET` | `/api/enterprise/request/status/?request_id=` | `status` field |
-| Retrieve | `GET` | `/api/enterprise/request/result/?request_id=` | `result` field |
-| Cancel | `POST` | `/api/enterprise/request/cancel/` | `request_id` in body |
-
-> **Next steps:** See individual API references for [Market Map](/market-map-doc), [Target Screening](/target-screening-doc), [Company Enrichment](/company-instant-enrichment-doc), and [Company Deep Intelligence](/company-deep-intelligence-doc) for request-specific parameters and result schemas.
