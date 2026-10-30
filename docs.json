@@ -35,20 +35,6 @@
             ]
           },
           {
-            "group": "Enrichment",
-            "icon": "notes",
-            "pages": [
-              "company-instant-enrichment-doc",
-              "alternative-datasets",
-              "company-filings-and-transcripts",
-              "company-deep-intelligence-doc",
-              "industry-deep-intelligence-doc",
-              "jobs",
-              "job-details"
-            ],
-            "hidden": true
-          },
-          {
             "group": "Discovery",
             "icon": "building-magnifying-glass",
             "pages": [
@@ -61,23 +47,12 @@
             ]
           },
           {
-            "group": "Monitoring",
-            "icon": "newspaper",
-            "pages": [
-              "company-news-monitoring-doc",
-              "industry-news-monitoring-doc",
-              "newsfeed-doc"
-            ],
-            "hidden": true
-          },
-          {
             "group": "Workflow",
             "icon": "diagram-nested",
             "pages": [
               "company-research-doc",
               "industry-research-doc",
               "peer-comparison-doc",
-              "earnings-analysis",
               "custom-workflow-automation-doc"
             ]
           },
@@ -86,15 +61,6 @@
             "pages": [
               "supporting-apis-doc"
             ]
-          },
-          {
-            "group": "MCP",
-            "pages": [
-              "getting-started-mcp",
-              "getting-started-mcp-copied-1",
-              "mcp-use-cases"
-            ],
-            "hidden": true
           },
           {
             "group": "Resources",
@@ -133,22 +99,6 @@
           "overview",
           "authentication",
           {
-            "group": "Enrichment",
-            "pages": [
-              "company-instant-enrichment",
-              "company-instant-enrichment-batch",
-              "company-deep-intelligence",
-              "industry-deep-intelligence",
-              "product-reviews",
-              "company-filings",
-              "employee-reviews",
-              "earnings-transcripts",
-              "jobs-1",
-              "job-details-1"
-            ],
-            "hidden": true
-          },
-          {
             "group": "Discovery",
             "pages": [
               "market-map",
@@ -158,18 +108,6 @@
               "acquisitions",
               "fundraise"
             ]
-          },
-          {
-            "group": "Monitoring",
-            "pages": [
-              "company-news-monitoring",
-              "company-industry-monitoring",
-              "newsfeed",
-              "company-news-monitoring-copied-1",
-              "legacy-fetch-news-report",
-              "legacy-initiate-news-report"
-            ],
-            "hidden": true
           },
           {
             "group": "Workflow automation",
@@ -197,19 +135,6 @@
             ]
           }
         ]
-      },
-      {
-        "tab": "Changelog",
-        "groups": [
-          {
-            "group": "Changelog",
-            "pages": [
-              "2026",
-              "2025"
-            ]
-          }
-        ],
-        "hidden": true
       },
       {
         "tab": "Contact us",
