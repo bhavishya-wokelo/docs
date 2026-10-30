@@ -177,7 +177,7 @@
   },
   "api": {
     "playground": {
-      "display": "interactive"
+      "display": "simple"
     },
     "mdx": {
       "server": "https://api.wokelo.ai"
