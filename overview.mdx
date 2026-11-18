@@ -5,7 +5,7 @@ title: "Overview"
 We have two kinds of APIs:
 
 1. **Discovery:** Workflows for specific use cases such as generating a market map, screening targets or buyers, finding competitors, and tracking M&A and fundraising activity. Uses Wokelo's database and alternative data.
-2. **Workflow Automation:** Full-length research reports, including Wokelo's built-in workflows (Company Research, Industry Research, Peer Comparison) and your own custom workflows.
+2. **Workflow Automation:** Wokelo's built-in workflows (Company Research, Industry Research, Peer Comparison)
 
 | API | Type |
 | :-- | :-- |
@@ -18,6 +18,5 @@ We have two kinds of APIs:
 | Company Research | Workflow Automation |
 | Industry Research | Workflow Automation |
 | Peer Comparison | Workflow Automation |
-| Custom Workflow | Workflow Automation |
 
 Both types are asynchronous and follow the same pattern. Starting a workflow returns a `report_id`. Use it to track the report status and then download the output in your preferred format, such as PDF, DOCX or JSON. See [How Async APIs work](/how-async-apis-work) for details, and [Choosing the right API](/choosing-the-right-api) to find the right API for your use case.
